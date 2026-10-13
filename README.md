@@ -6,7 +6,8 @@ Tooling Specification is claimed. No declaration or gap list exists yet; one is 
 ## Status
 
 The command skeleton, the configuration loader and the tool catalogue exist (`go-qa --version`,
-`go-qa tools`). No defence runs yet. See `docs/PUBLICATION-CHECKLIST.md` before this repository is
+`go-qa tools`), and `go-qa run` orders and stops the pipeline. No tool engine is built yet, so
+`go-qa run` reports every selected tool as failed (not implemented yet); nothing is claimed to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is
 made public.
 
 ## Commands
@@ -15,10 +16,17 @@ Global flags: `--root DIR` (default: the directory of the active `go.work`, else
 `go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root). Exit codes: 0
 success, 1 a defence or tool failed, 2 usage or configuration error.
 
-| Command           | What                                                                      |
-| ----------------- | ------------------------------------------------------------------------- |
-| `go-qa tools`     | the tool catalogue in execution order, with phase and enabled or disabled |
-| `go-qa --version` | the version                                                               |
+| Command                                                               | What                                                                                     |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `go-qa run [-t tool]... [-p path]... [--ci] [--no-fix] [--fail-fast]` | the gate: selected tools in phase order, a summary table, and the DBF pointer on failure |
+| `go-qa tools`                                                         | the tool catalogue in execution order, with phase and enabled or disabled                |
+| `go-qa --version`                                                     | the version                                                                              |
+
+`run` executes every enabled tool, or only those named with `-t` (an unknown name lists the known
+ones). `-p` limits the run to a file or directory under the root. A format or detector failure
+stops the run before the first runner; `--fail-fast` stops at the first failure of any kind. `--ci`
+(implied by a `CI` variable that is set and not `false` or `0`) means autofix, then fail if the
+tree changed; `--no-fix` only checks formatting.
 
 The phases run in order: `format`, then `detectors`, then `runners`. The catalogue is `fmt`;
 `record`, `suppression`, `summary`, `docs`, `ast-grep`, `golangci`, `analyzers`, `deadcode`;

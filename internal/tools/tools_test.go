@@ -2,9 +2,11 @@ package tools_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
 
@@ -15,7 +17,7 @@ func TestCatalogueIsInPhaseOrder(t *testing.T) {
 		"vuln", "mod", "test", "coverage", "mutants",
 	}
 	var got []string
-	last := tools.PhaseFormat
+	last := pipeline.PhaseFormat
 	for _, tool := range tools.Catalogue() {
 		got = append(got, tool.Name)
 		if tool.Phase < last {
@@ -28,18 +30,8 @@ func TestCatalogueIsInPhaseOrder(t *testing.T) {
 	}
 }
 
-func TestPhaseNames(t *testing.T) {
-	for phase, want := range map[tools.Phase]string{
-		tools.PhaseFormat: "format", tools.PhaseDetectors: "detectors", tools.PhaseRunners: "runners",
-	} {
-		if got := phase.String(); got != want {
-			t.Errorf("phase %d = %q, want %q", phase, got, want)
-		}
-	}
-}
-
 func TestFromName(t *testing.T) {
-	if tool, ok := tools.FromName("golangci"); !ok || tool.Phase != tools.PhaseDetectors {
+	if tool, ok := tools.FromName("golangci"); !ok || tool.Phase != pipeline.PhaseDetectors {
 		t.Errorf("golangci = %+v, %v", tool, ok)
 	}
 	if _, ok := tools.FromName("clippy"); ok {
@@ -75,6 +67,49 @@ func TestEverySwitchControlsExactlyOneTool(t *testing.T) {
 	for _, tool := range tools.Catalogue() {
 		if !tool.Enabled(all) {
 			t.Errorf("%s is not controlled by a switch", tool.Name)
+		}
+	}
+}
+
+func TestSelectWithoutNamesIsTheEnabledToolsInCatalogueOrder(t *testing.T) {
+	cfg := config.Default().Tools
+	cfg.Mutants = false
+	cfg.Fmt = false
+	steps, err := tools.Select(nil, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range steps {
+		if step.Name == "mutants" || step.Name == "fmt" {
+			t.Errorf("disabled tool %s selected", step.Name)
+		}
+	}
+	if len(steps) == 0 || steps[0].Name != "record" {
+		t.Errorf("steps = %v", steps)
+	}
+}
+
+func TestSelectNamedToolsIgnoresTheSwitchAndKeepsCatalogueRank(t *testing.T) {
+	steps, err := tools.Select([]string{"test", "fmt", "test"}, config.Tools{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(steps) != 3 || steps[0].Name != "test" || steps[1].Name != "fmt" || steps[0].Rank <= steps[1].Rank {
+		t.Errorf("steps = %v", steps)
+	}
+	if steps[0].Phase != pipeline.PhaseRunners {
+		t.Errorf("test phase = %v", steps[0].Phase)
+	}
+}
+
+func TestSelectUnknownNameListsTheKnownOnes(t *testing.T) {
+	_, err := tools.Select([]string{"clippy"}, config.Default().Tools)
+	if err == nil {
+		t.Fatal("no error")
+	}
+	for _, want := range append([]string{`"clippy"`}, tools.Names()...) {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
 		}
 	}
 }

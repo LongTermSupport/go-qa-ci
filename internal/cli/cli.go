@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/root"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
@@ -25,10 +26,20 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | go-qa --version"
+
+// ExecutorFactory builds the executor for one run from its context.
+type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
 
 // Run executes go-qa with args (without the program name) and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
+	return RunWith(args, stdout, stderr, func(tools.Context, io.Writer) pipeline.Executor {
+		return tools.Pending{}
+	})
+}
+
+// RunWith is Run with the executor of the `run` subcommand supplied by the caller.
+func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactory) int {
 	flags := flag.NewFlagSet("go-qa", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	rootDir := flags.String("root", "", "project root (default: the go.work or go.mod directory)")
@@ -52,8 +63,16 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		if len(rest) > 1 {
 			return emit(stderr, ExitUsage, "go-qa tools: unexpected argument %q", rest[1])
 		}
-		return withConfig(*rootDir, *configFile, stderr, func(cfg config.Config) int {
+		return withConfig(*rootDir, *configFile, stderr, func(_ string, cfg config.Config) int {
 			return listTools(cfg, stdout, stderr)
+		})
+	case "run":
+		opts, code, ok := parseRun(rest[1:], stderr)
+		if !ok {
+			return code
+		}
+		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			return runPipeline(rootPath, cfg, opts, newExecutor, stdout, stderr)
 		})
 	default:
 		return emit(stderr, ExitUsage, "go-qa: unknown subcommand %q", rest[0])
@@ -62,7 +81,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 // withConfig resolves the root, loads the configuration and runs fn; any failure to do so is a
 // usage error.
-func withConfig(rootDir, configFile string, stderr io.Writer, fn func(config.Config) int) int {
+func withConfig(rootDir, configFile string, stderr io.Writer, fn func(string, config.Config) int) int {
 	if rootDir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -76,7 +95,7 @@ func withConfig(rootDir, configFile string, stderr io.Writer, fn func(config.Con
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}
-	return fn(cfg)
+	return fn(rootDir, cfg)
 }
 
 func listTools(cfg config.Config, stdout, stderr io.Writer) int {

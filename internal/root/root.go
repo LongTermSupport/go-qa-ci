@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Discover returns the root for dir: the directory of the go.work file when a workspace is active,
@@ -32,4 +33,26 @@ func Discover(ctx context.Context, dir string) (string, error) {
 		return "", errors.New("not inside a Go module or workspace: run from one, or pass --root")
 	}
 	return filepath.Dir(marker), nil
+}
+
+// Relative returns path as a slash-separated path relative to dir, resolving symlinks on both
+// sides; "." is the root itself. A path that does not exist or lies outside dir is an error.
+func Relative(dir, path string) (string, error) {
+	base, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", fmt.Errorf("root %s: %w", dir, err)
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("path %s: %w", path, err)
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", fmt.Errorf("path %s: %w", path, err)
+	}
+	rel, err := filepath.Rel(base, resolved)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s is outside the project root %s", path, dir)
+	}
+	return filepath.ToSlash(rel), nil
 }
