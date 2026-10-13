@@ -1,7 +1,7 @@
 # go-qa-ci
 
 A Defence Before Fix (DBF) Toolchain for Go modules. Work in progress: no conformance to the DBF
-Tooling Specification is claimed. Gaps are recorded as they are found, per TOOLING-SPEC section 9.2.
+Tooling Specification is claimed. No declaration or gap list exists yet; one is added when the Toolchain has something to declare.
 
 ## Status
 

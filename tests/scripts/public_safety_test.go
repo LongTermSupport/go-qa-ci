@@ -275,3 +275,151 @@ func TestEmptyDenylistRefused(t *testing.T) {
 		t.Errorf("empty denylist: exit code = %d, want 2", code)
 	}
 }
+
+// trackFiles replaces the fixture's tracked content with the given files (name to content).
+func trackFiles(t *testing.T, repo string, files map[string]string) {
+	t.Helper()
+	for name, content := range files {
+		writeFile(t, filepath.Join(repo, name), content)
+		git(t, repo, "add", name)
+	}
+}
+
+func TestTreeScanLocatesTermInEarlierFileAmongMany(t *testing.T) {
+	cases := map[string]struct {
+		files    map[string]string
+		location string
+	}{
+		"term in a file that is not the last": {
+			files: map[string]string{
+				"a.txt": "one\n" + plantedTerm + "\n",
+				"b.txt": "bee one\nbee two\nbee three\n",
+				"c.txt": "see\n",
+			},
+			location: "denylist line 3 matched at a.txt:2",
+		},
+		"term beyond the last file's line count": {
+			files: map[string]string{
+				"a.txt": "1\n2\n3\n4\n" + plantedTerm + "\n",
+				"b.txt": "only line\n",
+			},
+			location: "denylist line 3 matched at a.txt:5",
+		},
+		"term in a middle file": {
+			files: map[string]string{
+				"a.txt": "alpha\n",
+				"b.txt": "x\ny\n" + plantedTerm + "\n",
+				"c.txt": "gamma\ndelta\nepsilon\nzeta\n",
+			},
+			location: "denylist line 3 matched at b.txt:3",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+			trackFiles(t, f.repo, tc.files)
+			out, code := scan(t, f.repo, f.denylist, "--tree")
+			assertLeaksNothing(t, out, code, tc.location)
+			if strings.Count(out, "matched at") != 1 {
+				t.Errorf("want exactly one hit:\n%s", out)
+			}
+		})
+	}
+}
+
+func TestPathMatchOfAnotherDenylistLineIsNotPrinted(t *testing.T) {
+	const pathTerm = "zzpath-term"
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+	trackFiles(t, f.repo, map[string]string{pathTerm + ".txt": "has " + plantedTerm + "\n"})
+	writeFile(t, f.denylist, pathTerm+"\n"+plantedTerm+"\n")
+	out, code := scan(t, f.repo, f.denylist, "--tree")
+	assertLeaksNothing(t, out, code, "denylist line 2 matched at tracked path #")
+	if strings.Contains(out, pathTerm) {
+		t.Errorf("output republishes a path term from another denylist line:\n%s", out)
+	}
+}
+
+func TestTreeScanReadsBinaryFiles(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+	trackFiles(t, f.repo, map[string]string{"bin.dat": "x\x00y " + plantedTerm + "\n"})
+	out, code := scan(t, f.repo, f.denylist, "--tree")
+	assertLeaksNothing(t, out, code, "denylist line 3 matched at bin.dat:1")
+}
+
+func TestTreeScanReadsSymlinkTargetString(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	writeFile(t, outside, "clean outside content\n")
+	if err := os.Symlink(outside+"-"+plantedTerm, filepath.Join(f.repo, "link")); err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.repo, "add", "link")
+	out, code := scan(t, f.repo, f.denylist, "--tree")
+	assertLeaksNothing(t, out, code, "denylist line 3 matched at link:1")
+}
+
+func TestTreeScanDoesNotReadThroughSymlinkToOutsideFile(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	writeFile(t, outside, "has "+plantedTerm+"\n")
+	if err := os.Symlink(outside, filepath.Join(f.repo, "link")); err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.repo, "add", "link")
+	if out, code := scan(t, f.repo, f.denylist, "--tree"); code != 0 {
+		t.Fatalf("content outside the repository must not be scanned: exit code = %d\n%s", code, out)
+	}
+}
+
+func TestHistoryScanReadsBinaryBlobs(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"notes.txt": "clean\n"})
+	trackFiles(t, f.repo, map[string]string{"bin.dat": "x\x00y " + plantedTerm + "\n"})
+	git(t, f.repo, "commit", "-q", "-m", "binary")
+	out, code := scan(t, f.repo, f.denylist, "--history")
+	assertLeaksNothing(t, out, code, "history text line")
+}
+
+func TestStdinScanWithNulStillNamesLine(t *testing.T) {
+	f := newFixture(t)
+	opts := scanOptions{env: []string{"GQACI_DENYLIST=" + f.denylist}, stdin: "ok\na\x00b " + plantedTerm + "\n"}
+	out, code := scanWith(t, f.repo, opts, "--stdin")
+	assertLeaksNothing(t, out, code, "stdin text line 2")
+}
+
+func TestCRLFDenylistStillMatches(t *testing.T) {
+	f := newFixture(t)
+	writeFile(t, f.denylist, "# comment\r\n\r\n"+plantedTerm+"\r\n")
+	out, code := scan(t, f.repo, f.denylist, "--tree")
+	assertLeaksNothing(t, out, code, "denylist line 3 matched at notes.txt:2")
+}
+
+func TestDenylistSymlinkToFileInsideRepoRefused(t *testing.T) {
+	f := newFixture(t)
+	writeFile(t, filepath.Join(f.repo, "inlist"), plantedTerm+"\n")
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(filepath.Join(f.repo, "inlist"), link); err != nil {
+		t.Fatal(err)
+	}
+	if out, code := scan(t, f.repo, link); code != 2 {
+		t.Errorf("denylist symlinked to a file inside the repo: exit code = %d, want 2\n%s", code, out)
+	}
+}
+
+func TestBlankAndIndentedCommentLinesAreNotPatterns(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"tabs.txt": "a\tb\n"})
+	writeFile(t, f.denylist, "\t\n  # indented comment\n unrelated-term \n")
+	if out, code := scan(t, f.repo, f.denylist, "--tree"); code != 0 {
+		t.Fatalf("exit code = %d, want 0 (a tab-only line must not match tabs)\n%s", code, out)
+	}
+	writeFile(t, f.denylist, "\t\n  # indented comment\n")
+	if out, code := scan(t, f.repo, f.denylist, "--tree"); code != 2 {
+		t.Errorf("a list of only blank and comment lines: exit code = %d, want 2\n%s", code, out)
+	}
+}
