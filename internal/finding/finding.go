@@ -11,6 +11,8 @@ const (
 	RecordStale = "gqaci.record.stale"
 	// RecordBudget marks a record that is over one of its size budgets.
 	RecordBudget = "gqaci.record.budget"
+	// RecordRatchet marks a record that grew, or had its ceiling raised, without a signed decision.
+	RecordRatchet = "gqaci.record.ratchet"
 	// RecordExpired marks a record exception past its review date.
 	RecordExpired = "gqaci.record.expired"
 )

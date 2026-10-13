@@ -88,3 +88,32 @@ func TestExecutorRecordReportsAnExpiredEntryAgainstTheContextClock(t *testing.T)
 		t.Errorf("got %+v, %q", out, stderr)
 	}
 }
+
+const shrunkRecord = "[ratchet]\nhigh_water = 3\ndecided_by = \"alice\"\ndecided_on = 2026-10-07\n" +
+	"reason = \"Tests assert on panics deliberately; a panic is the failure signal.\"\n\n" +
+	"[[exception]]\nrule = \"errcheck\"\npath = \"a.go\"\n" +
+	"justification = \"Tests assert on panics deliberately; a panic is the failure signal.\"\n" +
+	"decided_by = \"alice\"\nadded_by_model = \"human\"\ndecided_on = 2026-10-07\nreview_by = 2026-11-07\n"
+
+func TestExecutorRecordInCIFailsUntilTheLoweredCeilingIsCommitted(t *testing.T) {
+	exec, stderr := executorFor(t, shrunkRecord)
+	exec.Ctx.Config.Record.Deciders = []string{"alice"}
+	exec.Ctx.CI = true
+	out := exec.Run(stepNamed(t, "record"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "error[gqaci.record.ratchet]") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+func TestExecutorRecordLocallyLowersTheCeilingAndSaysSo(t *testing.T) {
+	exec, stderr := executorFor(t, shrunkRecord)
+	exec.Ctx.Config.Record.Deciders = []string{"alice"}
+	out := exec.Run(stepNamed(t, "record"))
+	if out.Kind != pipeline.KindPassed || !strings.Contains(stderr.String(), "lowered [ratchet] high_water to 1") {
+		t.Fatalf("got %+v, %q", out, stderr)
+	}
+	data, err := os.ReadFile(filepath.Join(exec.Ctx.Root, "qa", "record.toml"))
+	if err != nil || !strings.Contains(string(data), "high_water = 1") {
+		t.Errorf("file not rewritten: %v\n%s", err, data)
+	}
+}

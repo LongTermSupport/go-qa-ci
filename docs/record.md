@@ -98,8 +98,29 @@ rule (spellings differing in case, surrounding space or `-` against `_` count as
 than `max_policy` entries marked `policy = true`; more than a tier's `max_count` (never above
 `max_total`) written by that tier; or a `[ratchet]` `high_water` above `max_total`.
 
+## The ratchet
+
+`[ratchet]` is the signed ceiling on the number of exceptions (`gqaci.record.ratchet`). It fails when
+
+- the record holds exceptions but has no `[ratchet]` table;
+- `decided_by` is not a configured decider, `reason` fails the justification check, or `decided_on`
+  is in the future;
+- the record holds more exceptions than `high_water`;
+- `high_water` is higher than in the record committed at `HEAD` or at the merge base with
+  `history_base` (the lower of the two is the reference), unless `decided_on` is newer than the
+  previous signature and at most 14 days old. Adopting a ratchet at the existing count is not a
+  raise;
+- the record shrank and `high_water` is still above the count.
+
+Outside CI, `go-qa run` lowers `high_water` to the count in place and says so; in CI the unlowered
+ceiling fails until the lowered ceiling is committed. `go-qa record prune <number>...` removes the
+exceptions numbered as `record list` shows them, with the comments above them, and lowers
+`high_water` to what remains.
+
+When git or the record's history is unavailable (no repository, no commit), a note says so and a
+raise cannot be detected; that is a gap, not a pass.
+
 ## Not yet built
 
-The ratchet comparison (lowering, raising against git history, signatures) is separate work. The
-`[ratchet]` table is parsed and its `high_water` is checked against `max_total`, but nothing else
-enforces it yet, so the record is not yet protected against a rewritten ceiling.
+`record prune` takes explicit numbers. Finding the stale exceptions itself needs the suppression
+guard and the detectors that apply the record, which are separate work.

@@ -69,7 +69,9 @@ func TestRecordCheckReportsAnOverBudgetRecord(t *testing.T) {
 }
 
 func TestRecordCheckPassesAValidRecord(t *testing.T) {
-	r := exec("--root", recordModule(t, validRecord()), "record", "check")
+	signed := "[ratchet]\nhigh_water = 1\ndecided_by = \"alice\"\ndecided_on = " + date.Today().String() +
+		"\nreason = \"" + goodWhy + "\"\n\n"
+	r := exec("--root", recordModule(t, signed+validRecord()), "record", "check")
 	if r.code != 0 || r.err != "" || !strings.Contains(r.out, "1 exceptions") {
 		t.Errorf("got %+v", r)
 	}
@@ -171,4 +173,45 @@ func TestRecordUsageErrors(t *testing.T) {
 			t.Errorf("%v: got %+v", args, r)
 		}
 	}
+}
+
+func TestRecordPruneRemovesNamedEntriesAndLowersTheCeiling(t *testing.T) {
+	signed := "[ratchet]\nhigh_water = 2\ndecided_by = \"alice\"\ndecided_on = " + date.Today().String() +
+		"\nreason = \"" + goodWhy + "\"\n\n"
+	root := recordModule(t, signed+validRecord()+"\n"+strings.Replace(validRecord(), "a_test.go", "b_test.go", 1))
+	r := exec("--root", root, "record", "prune", "1")
+	if r.code != 0 || !strings.Contains(r.out, "1 remain") {
+		t.Fatalf("got %+v", r)
+	}
+	data := readRecord(t, root)
+	if !strings.Contains(string(data), "high_water = 1") || strings.Contains(string(data), "a_test.go") {
+		t.Errorf("record not pruned:\n%s", data)
+	}
+}
+
+func TestRecordPruneRejectsBadArguments(t *testing.T) {
+	root := recordModule(t, validRecord())
+	for _, args := range [][]string{{"record", "prune"}, {"record", "prune", "x"}, {"record", "prune", "0"}, {"record", "prune", "9"}} {
+		if r := exec(append([]string{"--root", root}, args...)...); r.code != 2 {
+			t.Errorf("%v: got %+v", args, r)
+		}
+	}
+}
+
+func readRecord(t *testing.T, root string) []byte {
+	t.Helper()
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := dir.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	data, err := dir.ReadFile("qa/record.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }

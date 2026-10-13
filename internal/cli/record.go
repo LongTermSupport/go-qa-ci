@@ -3,13 +3,14 @@ package cli
 import (
 	"flag"
 	"io"
+	"strconv"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
-const recordUsage = "usage: go-qa record check | list [--json] | explain <rule|number>"
+const recordUsage = "usage: go-qa record check | list [--json] | explain <rule|number> | prune <number>..."
 
 // runRecord is the record subcommand: check validates, list enumerates, explain shows one entry.
 func runRecord(rootPath string, cfg config.Config, args []string, stdout, stderr io.Writer) int {
@@ -30,6 +31,8 @@ func runRecord(rootPath string, cfg config.Config, args []string, stdout, stderr
 			return emit(stderr, ExitUsage, "go-qa record explain: want exactly one rule or number\n%s", recordUsage)
 		}
 		return recordExplain(rootPath, cfg, rest[0], stdout, stderr)
+	case "prune":
+		return recordPrune(rootPath, cfg, rest, stdout, stderr)
 	default:
 		return emit(stderr, ExitUsage, "go-qa record: unknown command %q\n%s", args[0], recordUsage)
 	}
@@ -85,6 +88,27 @@ func recordExplain(rootPath string, cfg config.Config, selector string, stdout, 
 		return emit(stderr, ExitUsage, "go-qa record explain: %v", err)
 	}
 	return write(stdout, stderr, text)
+}
+
+// recordPrune removes the exceptions numbered in args (1-based, as record list shows them) and
+// lowers the ratchet to what remains.
+func recordPrune(rootPath string, cfg config.Config, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		return emit(stderr, ExitUsage, "go-qa record prune: want one or more exception numbers\n%s", recordUsage)
+	}
+	indexes := make([]int, 0, len(args))
+	for _, arg := range args {
+		number, err := strconv.Atoi(arg)
+		if err != nil || number < 1 {
+			return emit(stderr, ExitUsage, "go-qa record prune: %q is not an exception number (1 or more)", arg)
+		}
+		indexes = append(indexes, number-1)
+	}
+	remaining, err := record.Prune(rootPath, cfg.Record.Path, indexes)
+	if err != nil {
+		return emit(stderr, ExitUsage, "go-qa record prune: %v", err)
+	}
+	return emit(stdout, ExitOK, "removed %d exception(s); %d remain; commit the change", len(indexes), remaining)
 }
 
 // write sends text to stdout; a failed write is a failure of the command.

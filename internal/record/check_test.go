@@ -32,7 +32,7 @@ func TestCheckReportsFindingsWithTheRelativePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rec.Exceptions) != 1 || len(findings) != 2 || findings[0].Path != "qa/record.toml" || findings[0].Rule != finding.RecordInvalid {
+	if len(rec.Exceptions) != 1 || len(findings) != 3 || findings[0].Path != "qa/record.toml" || findings[0].Rule != finding.RecordInvalid {
 		t.Errorf("got %+v, %v", rec, findings)
 	}
 }
@@ -54,7 +54,8 @@ func TestCheckPropagatesParseErrorsWithThePath(t *testing.T) {
 func checkPolicy() config.RecordPolicy { return config.Default().Record }
 
 func TestCheckAppliesThePolicyReviewWithTheGivenClock(t *testing.T) {
-	root := project(t, "[[exception]]\nrule = \"errcheck\"\npath = \"a.go\"\njustification = \""+soundReason+"\"\n"+
+	root := project(t, "[ratchet]\nhigh_water = 1\ndecided_by = \"alice\"\ndecided_on = 2026-06-01\nreason = \""+soundReason+"\"\n\n"+
+		"[[exception]]\nrule = \"errcheck\"\npath = \"a.go\"\njustification = \""+soundReason+"\"\n"+
 		"decided_by = \"alice\"\nadded_by_model = \"human\"\ndecided_on = 2026-06-01\nreview_by = 2026-07-01\n")
 	policy := checkPolicy()
 	policy.Deciders = []string{"alice"}
@@ -62,7 +63,7 @@ func TestCheckAppliesThePolicyReviewWithTheGivenClock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(findings) != 1 || findings[0].Rule != finding.RecordExpired || findings[0].Line != 1 {
+	if len(findings) != 1 || findings[0].Rule != finding.RecordExpired || findings[0].Line != 7 {
 		t.Errorf("got %v", findings)
 	}
 }

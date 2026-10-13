@@ -25,13 +25,20 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 	return Pending{}.Run(step)
 }
 
-// runRecord validates the project record. Staleness is not judged here: it needs every detector
+// runRecord validates the project record and its ratchet. A shrunk record has its ceiling lowered
+// in place outside CI; in CI the unlowered ceiling fails. Staleness is not judged here: it needs every detector
 // that applies the record to have run, so it is reported by the run that owns them.
 func (e Executor) runRecord() pipeline.Outcome {
-	_, findings, err := record.Check(e.Ctx.Root, e.Ctx.Config.Record, e.Ctx.Today)
+	report, err := record.Gate(e.Ctx.Root, e.Ctx.Config.Record, e.Ctx.Today, !e.Ctx.CI)
 	if err != nil {
 		return e.fail("%v", err)
 	}
+	for _, note := range report.Notes {
+		if outcome, failed := e.report("%s", note); failed {
+			return outcome
+		}
+	}
+	findings := report.Findings
 	for _, f := range findings {
 		if outcome, failed := e.report("%s", f); failed {
 			return outcome
