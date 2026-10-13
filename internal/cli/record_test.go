@@ -72,7 +72,7 @@ func TestRecordCheckPassesAValidRecord(t *testing.T) {
 	signed := "[ratchet]\nhigh_water = 1\ndecided_by = \"alice\"\ndecided_on = " + date.Today().String() +
 		"\nreason = \"" + goodWhy + "\"\n\n"
 	r := exec("--root", recordModule(t, signed+validRecord()), "record", "check")
-	if r.code != 0 || r.err != "" || !strings.Contains(r.out, "1 exceptions") {
+	if r.code != 0 || !strings.HasPrefix(r.err, "note: no committed history") || !strings.Contains(r.out, "1 exceptions") {
 		t.Errorf("got %+v", r)
 	}
 }
@@ -214,4 +214,11 @@ func readRecord(t *testing.T, root string) []byte {
 		t.Fatal(err)
 	}
 	return data
+}
+
+func TestRecordCheckSaysWhenTheRatchetCouldNotBeApplied(t *testing.T) {
+	r := exec("--root", recordModule(t, validRecord()), "record", "check")
+	if !strings.Contains(r.err, "no committed history") {
+		t.Errorf("the missing history must be reported, got %+v", r)
+	}
 }

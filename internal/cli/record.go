@@ -39,9 +39,15 @@ func runRecord(rootPath string, cfg config.Config, args []string, stdout, stderr
 }
 
 func recordCheck(rootPath string, cfg config.Config, stdout, stderr io.Writer) int {
-	rec, findings, err := record.Check(rootPath, cfg.Record, date.Today())
+	report, err := record.Gate(rootPath, cfg.Record, date.Today(), false)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
+	}
+	rec, findings := report.Record, report.Findings
+	for _, note := range report.Notes {
+		if code := emit(stderr, ExitOK, "note: %s", note); code != ExitOK {
+			return code
+		}
 	}
 	for _, f := range findings {
 		if code := emit(stderr, ExitFailure, "%s", f); code != ExitFailure {

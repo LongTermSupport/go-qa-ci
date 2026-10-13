@@ -118,7 +118,8 @@ exceptions numbered as `record list` shows them, with the comments above them, a
 `high_water` to what remains.
 
 When git or the record's history is unavailable (no repository, no commit), a note says so and a
-raise cannot be detected; that is a gap, not a pass. When `history_base` does not resolve to a merge
+raise cannot be detected (`record check` prints the note on stderr); that is a gap, not a pass. A
+record absent from a commit that exists counts as empty, so creating a record is a raise from zero. When `history_base` does not resolve to a merge
 base with `HEAD` (a missing `origin`, a different default branch, a shallow clone), a raise already
 committed on the branch cannot be seen: the gate fails with a `gqaci.record.ratchet` finding in CI
 and notes it locally. Set `history_base` to a ref that exists, and fetch enough history for it.

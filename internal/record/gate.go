@@ -144,8 +144,10 @@ func writeFile(file, text string) error {
 }
 
 // previousRecord is the record as committed before this change: the one with the lower ceiling of
-// HEAD and the merge base with base. It is nil when git or the record's history is unavailable;
-// baseUnresolved reports that the merge base could not be found, so only HEAD was compared.
+// HEAD and the merge base with base. A revision that resolves but does not hold the record yields
+// an empty record, so creating a record counts as a raise from zero. It is nil when git, the
+// repository or any commit is unavailable; baseUnresolved reports that the merge base could not be
+// found, so only HEAD was compared.
 func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved bool) {
 	revisions := []string{"HEAD"}
 	if mergeBase, ok := git(root, "merge-base", base, "HEAD"); ok {
@@ -154,12 +156,8 @@ func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved
 		baseUnresolved = true
 	}
 	for _, rev := range revisions {
-		text, ok := git(root, "show", rev+":"+recordPath)
+		rec, ok := recordAt(root, rev, recordPath)
 		if !ok {
-			continue
-		}
-		rec, err := Parse([]byte(text))
-		if err != nil {
 			continue
 		}
 		if best == nil || Ceiling(rec) < Ceiling(*best) {
@@ -167,6 +165,32 @@ func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved
 		}
 	}
 	return best, baseUnresolved
+}
+
+// recordAt reads the record at revision rev. Paths are resolved from root, not from the top of the
+// repository, so a module in a subdirectory finds its own record. ok is false when the revision
+// does not resolve or the record at it does not parse; a record absent at a resolving revision is
+// the empty record.
+func recordAt(root, rev, recordPath string) (Record, bool) {
+	if _, ok := git(root, "rev-parse", "--verify", "--quiet", rev+"^{commit}"); !ok {
+		return Record{}, false
+	}
+	listed, ok := git(root, "ls-tree", "--name-only", rev, "--", recordPath)
+	if !ok {
+		return Record{}, false
+	}
+	if strings.TrimSpace(listed) == "" {
+		return Record{}, true
+	}
+	text, ok := git(root, "show", rev+":./"+recordPath)
+	if !ok {
+		return Record{}, false
+	}
+	rec, err := Parse([]byte(text))
+	if err != nil {
+		return Record{}, false
+	}
+	return rec, true
 }
 
 // git runs git in dir and returns its standard output; ok is false when git cannot be run or exits
