@@ -114,7 +114,8 @@ func writeRecord(t *testing.T, root, text string) {
 
 func TestGolangciAppliesTheRecordToFindingsOnly(t *testing.T) {
 	root := fixture(t, map[string]string{"p/p.go": errcheckSource})
-	writeRecord(t, root, "[[exception]]\nrule = \"errcheck\"\npath = \"p/p.go\"\ncovers = \"findings\"\njustification = \"fixture\"\n")
+	writeRecord(t, root, "[[exception]]\nrule = \"errcheck\"\npath = \"p/p.go\"\ncovers = \"findings\"\njustification = \"fixture\"\n\n"+
+		"[[exception]]\nrule = \"gosec::G104\"\npath = \"p/p.go\"\ncovers = \"findings\"\njustification = \"fixture\"\n")
 	outcome, stderr := runStep(t, tools.Context{Root: root}, "golangci")
 	if strings.Contains(stderr, "error[errcheck]") {
 		t.Errorf("a recorded finding was reported:\n%s", stderr)
@@ -177,6 +178,51 @@ func TestFmtCheckFailsWithTheDiffAndLeavesTheFile(t *testing.T) {
 	}
 	if got := readFixture(t, root, "p/p.go"); got != unformattedCode {
 		t.Errorf("check mode modified the file: %q", got)
+	}
+	if strings.Contains(stderr, "writing the diff") || strings.Contains(stderr, "%!") {
+		t.Errorf("a spurious error line is printed:\n%s", stderr)
+	}
+}
+
+func TestFmtCheckReportsEveryModuleWithADiff(t *testing.T) {
+	root := fixture(t, map[string]string{"p/p.go": unformattedCode})
+	nested := filepath.Join(root, "tools", "x")
+	if err := os.MkdirAll(nested, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nested, "go.mod"), []byte("module example.com/nested\n\ngo 1.26\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nested, "n.go"), []byte(strings.Replace(unformattedCode, "package p", "package n", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Default()
+	cfg.Modules = []string{"tools/x"}
+	outcome, stderr := runStep(t, tools.Context{Root: root, Config: cfg}, "fmt")
+	if outcome.Kind != pipeline.KindFailed || strings.Count(stderr, "error[fmt]") != 2 {
+		t.Errorf("both modules must be reported: %+v\n%s", outcome, stderr)
+	}
+}
+
+func TestGolangciIgnoresTheConsumerConfigsIssueCaps(t *testing.T) {
+	const removal = "\tos.Remove(\"x\")\n"
+	source := func(name string, calls int) string {
+		return "// Package " + name + " is a fixture.\npackage " + name + "\n\nimport \"os\"\n\n// F removes.\nfunc F() {\n" + strings.Repeat(removal, calls) + "}\n"
+	}
+	root := fixture(t, map[string]string{
+		".golangci.yml": "version: \"2\"\nlinters:\n  default: none\n  enable:\n    - errcheck\n",
+		"a/a.go":        source("a", 3),
+		"z/z.go":        source("z", 1),
+	})
+	for range 4 {
+		outcome, stderr := runStep(t, tools.Context{Root: root, Scope: []string{"z"}}, "golangci")
+		if outcome.Kind != pipeline.KindFailed || strings.Count(stderr, "error[errcheck]") != 1 || !strings.Contains(stderr, "z/z.go") {
+			t.Fatalf("a capped finding hid the in-scope one: %+v\n%s", outcome, stderr)
+		}
+	}
+	outcome, stderr := runStep(t, tools.Context{Root: root, Scope: []string{"a"}}, "golangci")
+	if outcome.Kind != pipeline.KindFailed || strings.Count(stderr, "error[errcheck]") != 3 {
+		t.Errorf("identical findings were collapsed: %+v\n%s", outcome, stderr)
 	}
 }
 

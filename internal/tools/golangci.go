@@ -106,8 +106,9 @@ func (e Executor) runFmt() pipeline.Outcome {
 		}
 		if diff != "" {
 			failed = true
-			_, writeErr := fmt.Fprintf(e.Stderr, "error[fmt]: formatting would change these files; run go-qa without --no-fix\n%s\n", diff)
-			return fmt.Errorf("writing the diff: %w", writeErr)
+			if _, writeErr := fmt.Fprintf(e.Stderr, "error[fmt]: formatting would change these files; run go-qa without --no-fix\n%s\n", diff); writeErr != nil {
+				return fmt.Errorf("writing the diff: %w", writeErr)
+			}
 		}
 		return nil
 	})
