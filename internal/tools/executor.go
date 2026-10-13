@@ -20,13 +20,18 @@ type Executor struct {
 
 // Run executes one step.
 func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
-	if step.Name == "record" {
+	switch step.Name {
+	case "fmt":
+		return e.runFmt()
+	case "record":
 		return e.runRecord()
-	}
-	if step.Name == "docs" {
+	case "docs":
 		return e.runDocs()
+	case "golangci":
+		return e.runGolangci()
+	default:
+		return Pending{}.Run(step)
 	}
-	return Pending{}.Run(step)
 }
 
 // runDocs checks that every identifier resolves and every page belongs to one.

@@ -1,0 +1,66 @@
+name: CI
+
+# job go: formatting, vet, the race-enabled tests and golangci-lint over this module.
+# job self-gate: go-qa run --ci over go-qa's own source, so the toolchain is held to its own
+# standard (TOOLING-SPEC 8.2). It runs in CI mode: formatters rewrite, then the job fails when the
+# working tree changed.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+  GOLANGCI_LINT_VERSION: "2.14.0"
+
+jobs:
+  go:
+    name: Go (fmt, vet, test, lint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install golangci-lint (checksum-verified)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/install-golangci-lint.sh
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - run: golangci-lint run ./...
+
+  self-gate:
+    name: Self-gate (go-qa run --ci)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The record ratchet compares against the merge base, which needs the history.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install golangci-lint (checksum-verified)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/install-golangci-lint.sh
+      - run: go build -o "${RUNNER_TEMP}/bin/go-qa" ./cmd/go-qa
+      - name: go-qa run --ci
+        run: |
+          "${RUNNER_TEMP}/bin/go-qa" run --ci

@@ -9,7 +9,8 @@ The command skeleton, the configuration loader and the tool catalogue exist (`go
 `go-qa tools`), and `go-qa run` orders and stops the pipeline. The project record loads and
 validates (`go-qa record`, the `record` tool; see `docs/record.md`). Identifiers resolve offline
 to bundled or project pages (`go-qa rule-doc`, `go-qa docs-check`, the `docs` tool; see
-`docs/defences.md`). Every other tool engine is not
+`docs/defences.md`). Formatting (`fmt`) and the aggregated linters (`golangci`) run through
+golangci-lint, which must be installed (see `docs/golangci.md`). Every other tool engine is not
 built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
 to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 

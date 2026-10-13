@@ -118,3 +118,26 @@ func TestRelativeResolvesRelativeToTheWorkingDirectory(t *testing.T) {
 		t.Errorf("Relative = %q, %v", got, err)
 	}
 }
+
+func TestInScope(t *testing.T) {
+	cases := []struct {
+		path  string
+		scope []string
+		want  bool
+	}{
+		{"a.go", nil, true},
+		{"a.go", []string{"."}, true},
+		{"a.go", []string{"a.go"}, true},
+		{"b.go", []string{"a.go"}, false},
+		{"pkg/a.go", []string{"pkg"}, true},
+		{"pkg/deep/a.go", []string{"pkg"}, true},
+		{"pkgx/a.go", []string{"pkg"}, false},
+		{"pkg/a.go", []string{"other", "pkg/a.go"}, true},
+		{"pkg", []string{"pkg"}, true},
+	}
+	for _, c := range cases {
+		if got := root.InScope(c.path, c.scope); got != c.want {
+			t.Errorf("InScope(%q, %v) = %v, want %v", c.path, c.scope, got, c.want)
+		}
+	}
+}

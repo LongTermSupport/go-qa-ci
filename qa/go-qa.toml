@@ -1,0 +1,13 @@
+# The self-gate (go-qa run --ci) runs the tools that are built. A tool below is switched on by the
+# milestone that builds it; until then it would fail as "not implemented yet", never pass.
+[tools]
+suppression = false
+summary = false
+ast_grep = false
+analyzers = false
+deadcode = false
+vuln = false
+mod = false
+test = false
+coverage = false
+mutants = false

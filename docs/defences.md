@@ -42,8 +42,9 @@ pages exist ahead of them so that the release audit (below) never has a gap to e
 These are gaps, not claims (TOOLING-SPEC 9.2):
 
 - Identifiers of third-party detectors (golangci-lint linters, staticcheck checks, vet analyzers)
-  do not resolve yet; they join the resolution order with the detectors that run them, through
-  their own explain routes (TOOLING-SPEC 4.2).
+  do not resolve yet. The `golangci` detector prints them (`errcheck`, `staticcheck::SA1019`) but
+  `go-qa rule-doc` has no page for them; they join the resolution order through their own explain
+  routes (TOOLING-SPEC 4.2). `docs/golangci.md` records the gap per clause.
 - The defence listing (`rules`, M11) does not exist, so the detector cannot require a page for a
   project rule it cannot enumerate, and treats only built-ins and rules named in the project
   record as identifiers the project can see. A page for any other project rule is reported as an

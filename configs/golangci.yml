@@ -1,0 +1,59 @@
+# go-qa strict golangci-lint v2 baseline, used when the project has no .golangci.* file.
+# Choosing which linters are enabled is choosing the defence set; only exclusions of findings
+# are suppressions, and this baseline carries none.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - gocognit
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - testifylint
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wrapcheck
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+      disable:
+        # Struct layout is a performance concern, not a defect class this baseline defends against.
+        - fieldalignment
+    nolintlint:
+      # An unused or unexplained inline directive fails, so a suppression cannot outlive its reason.
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+issues:
+  # A non-zero cap hides findings beyond it.
+  max-issues-per-linter: 0
+  max-same-issues: 0

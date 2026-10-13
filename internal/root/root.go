@@ -56,3 +56,18 @@ func Relative(dir, path string) (string, error) {
 	}
 	return filepath.ToSlash(rel), nil
 }
+
+// InScope reports whether path (relative to the root, slash-separated) lies within the scope: an
+// empty scope, or one naming the root, covers everything; otherwise path must be one of the
+// scope entries or below one of them.
+func InScope(path string, scope []string) bool {
+	if len(scope) == 0 {
+		return true
+	}
+	for _, entry := range scope {
+		if entry == "." || path == entry || strings.HasPrefix(path, entry+"/") {
+			return true
+		}
+	}
+	return false
+}
