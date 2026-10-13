@@ -64,8 +64,42 @@ because that needs every detector that applies the record to have run first. Unt
 exist (suppression guard, golangci, analyzers) no run reports `gqaci.record.stale`; this is a
 recorded gap, not a claim.
 
+## Anti-bloat controls (TOOLING-SPEC 6.4)
+
+`go-qa record check` and the `record` tool apply the `[record]` policy from `qa/go-qa.toml`
+(`max_total`, `max_per_rule`, `max_policy`, `max_review_days`, `deciders`, `[record.trust]`).
+Deadlines are measured against the current UTC day.
+
+### gqaci.record.invalid: provenance and trust
+
+Beyond the structural checks above, an exception is invalid when:
+
+- it lacks `decided_by`, `added_by_model`, `decided_on` or `review_by`;
+- its `added_by_model` maps to no tier: `human` is reserved, any other value must start with a
+  prefix listed in `[record.trust.models]` (case-insensitive, longest prefix wins);
+- it is marked `human` but `decided_by` is not one of `deciders`;
+- its rule matches a `[[record.trust.cosign]]` category whose `min_tier` is above the author's
+  tier and `decided_by` is not one of `deciders` (the human co-sign);
+- `decided_on` is in the future, `review_by` is before `decided_on`, or `review_by` is further
+  from `decided_on` than the author tier's horizon: the tier's `max_review_days`, never more than
+  the record-wide `max_review_days` (defaults: high 90, medium 30, low 14, human the record-wide
+  180);
+- `policy = true` is set on a path that names a single file.
+
+### gqaci.record.expired
+
+An exception whose `review_by` is before today fails until it is re-decided (fresh `decided_on`
+and `review_by`) or removed. An entry due today still passes.
+
+### gqaci.record.budget
+
+The record fails when it holds more than `max_total` exceptions; more than `max_per_rule` for one
+rule (spellings differing in case, surrounding space or `-` against `_` count as one rule); more
+than `max_policy` entries marked `policy = true`; more than a tier's `max_count` (never above
+`max_total`) written by that tier; or a `[ratchet]` `high_water` above `max_total`.
+
 ## Not yet built
 
-Budgets, trust tiers, review horizons, co-signing, expiry and the ratchet comparison against git
-history are separate work. Their configuration keys are accepted by the loader, but nothing
-enforces them yet, so the record is not yet protected against growth.
+The ratchet comparison (lowering, raising against git history, signatures) is separate work. The
+`[ratchet]` table is parsed and its `high_water` is checked against `max_total`, but nothing else
+enforces it yet, so the record is not yet protected against a rewritten ceiling.

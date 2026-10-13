@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/date"
 )
 
 const goodWhy = "Tests assert on panics deliberately; a panic is the failure signal in test code."
@@ -34,13 +36,36 @@ func writeFile(t *testing.T, dir, rel, content string) {
 
 func recordModule(t *testing.T, recordToml string) string {
 	t.Helper()
-	dir := module(t, "")
+	dir := module(t, "[record]\ndeciders = [\"alice\"]\n")
 	writeFile(t, dir, "qa/record.toml", recordToml)
 	return dir
 }
 
+// validRecord is decided today by a configured decider and due for review in 30 days; the CLI
+// reads the real clock, so the dates are relative to it.
 func validRecord() string {
-	return "[[exception]]\nrule = \"errcheck\"\npath = \"a_test.go\"\njustification = \"" + goodWhy + "\"\n"
+	today := date.Today()
+	return "[[exception]]\nrule = \"errcheck\"\npath = \"a_test.go\"\njustification = \"" + goodWhy + "\"\n" +
+		"decided_by = \"alice\"\nadded_by_model = \"human\"\n" +
+		"decided_on = " + today.String() + "\nreview_by = " + today.AddDays(30).String() + "\n"
+}
+
+func TestRecordCheckReportsAnExpiredEntry(t *testing.T) {
+	old := "[[exception]]\nrule = \"errcheck\"\npath = \"a_test.go\"\njustification = \"" + goodWhy + "\"\n" +
+		"decided_by = \"alice\"\nadded_by_model = \"human\"\ndecided_on = 2020-01-01\nreview_by = 2020-02-01\n"
+	r := exec("--root", recordModule(t, old), "record", "check")
+	if r.code != 1 || !strings.Contains(r.err, "error[gqaci.record.expired]") {
+		t.Errorf("got %+v", r)
+	}
+}
+
+func TestRecordCheckReportsAnOverBudgetRecord(t *testing.T) {
+	root := module(t, "[record]\ndeciders = [\"alice\"]\nmax_total = 1\nmax_per_rule = 1\n")
+	writeFile(t, root, "qa/record.toml", validRecord()+"\n"+validRecord())
+	r := exec("--root", root, "record", "check")
+	if r.code != 1 || !strings.Contains(r.err, "error[gqaci.record.budget]") {
+		t.Errorf("got %+v", r)
+	}
 }
 
 func TestRecordCheckPassesAValidRecord(t *testing.T) {

@@ -110,22 +110,7 @@ func (c Config) problems(root string) []string {
 	if !c.Mutants.Mode.Valid() {
 		problems = append(problems, fmt.Sprintf("mutants.mode %q is unknown (want off, diff or full)", c.Mutants.Mode))
 	}
-	for prefix, tier := range c.Record.Trust.Models {
-		if !tier.Valid() {
-			problems = append(problems, fmt.Sprintf("record.trust.models.%s: unknown tier %q", prefix, tier))
-		}
-	}
-	for _, cosign := range c.Record.Trust.Cosign {
-		if !cosign.MinTier.Valid() {
-			problems = append(problems, fmt.Sprintf("record.trust.cosign: unknown min_tier %q", cosign.MinTier))
-		}
-	}
-	if c.Record.MaxPerRule > c.Record.MaxTotal {
-		problems = append(problems, fmt.Sprintf("record.max_per_rule (%d) exceeds record.max_total (%d)", c.Record.MaxPerRule, c.Record.MaxTotal))
-	}
-	if c.Record.MaxPolicy > c.Record.MaxPerRule {
-		problems = append(problems, fmt.Sprintf("record.max_policy (%d) must not exceed record.max_per_rule (%d)", c.Record.MaxPolicy, c.Record.MaxPerRule))
-	}
+	problems = append(problems, c.Record.Problems()...)
 	local := map[string]string{"record.path": c.Record.Path, "docs_dir": c.DocsDir}
 	if c.Summary.File != "" {
 		local["summary.file"] = c.Summary.File

@@ -2,6 +2,7 @@ package date_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 )
@@ -44,5 +45,32 @@ func TestEqual(t *testing.T) {
 	a, b, c := mustParse(t, "2026-10-01"), mustParse(t, "2026-10-01"), mustParse(t, "2026-10-02")
 	if !a.Equal(b) || a.Equal(c) {
 		t.Error("Equal wrong")
+	}
+}
+
+func TestOrderingAndArithmetic(t *testing.T) {
+	a, b := mustParse(t, "2026-02-27"), mustParse(t, "2026-03-02")
+	if !a.Before(b) || b.Before(a) || !b.After(a) || a.Compare(b) >= 0 || b.Compare(a) <= 0 || a.Compare(a.AddDays(0)) != 0 {
+		t.Error("ordering wrong")
+	}
+	if got := a.AddDays(3).String(); got != "2026-03-02" {
+		t.Errorf("AddDays(3) = %s", got)
+	}
+	if got := b.AddDays(-3).String(); got != "2026-02-27" {
+		t.Errorf("AddDays(-3) = %s", got)
+	}
+	if got := a.DaysUntil(b); got != 3 {
+		t.Errorf("DaysUntil = %d", got)
+	}
+	if got := b.DaysUntil(a); got != -3 {
+		t.Errorf("DaysUntil back = %d", got)
+	}
+}
+
+func TestFromTimeUsesTheUTCDay(t *testing.T) {
+	zone := time.FixedZone("east", 10*60*60)
+	got := date.FromTime(time.Date(2026, 10, 8, 3, 0, 0, 0, zone))
+	if got.String() != "2026-10-07" {
+		t.Errorf("FromTime = %s, want 2026-10-07", got)
 	}
 }

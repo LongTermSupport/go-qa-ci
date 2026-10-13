@@ -28,7 +28,7 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 // runRecord validates the project record. Staleness is not judged here: it needs every detector
 // that applies the record to have run, so it is reported by the run that owns them.
 func (e Executor) runRecord() pipeline.Outcome {
-	_, findings, err := record.Check(e.Ctx.Root, e.Ctx.Config.Record.Path)
+	_, findings, err := record.Check(e.Ctx.Root, e.Ctx.Config.Record, e.Ctx.Today)
 	if err != nil {
 		return e.fail("%v", err)
 	}

@@ -9,6 +9,10 @@ const (
 	RecordInvalid = "gqaci.record.invalid"
 	// RecordStale marks a record exception that licenses nothing the defences report.
 	RecordStale = "gqaci.record.stale"
+	// RecordBudget marks a record that is over one of its size budgets.
+	RecordBudget = "gqaci.record.budget"
+	// RecordExpired marks a record exception past its review date.
+	RecordExpired = "gqaci.record.expired"
 )
 
 // Finding is one defect a detector reports.

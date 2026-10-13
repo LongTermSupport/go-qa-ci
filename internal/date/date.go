@@ -35,3 +35,31 @@ func (d Date) String() string {
 
 // Equal reports whether both dates are the same day.
 func (d Date) Equal(other Date) bool { return d.t.Equal(other.t) }
+
+// Compare returns -1, 0 or +1 as d is before, the same day as, or after other.
+func (d Date) Compare(other Date) int { return d.t.Compare(other.t) }
+
+// Before reports whether d is an earlier day than other.
+func (d Date) Before(other Date) bool { return d.Compare(other) < 0 }
+
+// After reports whether d is a later day than other.
+func (d Date) After(other Date) bool { return d.Compare(other) > 0 }
+
+// AddDays returns the date n days later (earlier when n is negative).
+func (d Date) AddDays(n int) Date { return Date{t: d.t.AddDate(0, 0, n)} }
+
+// DaysUntil is the number of days from d to other; negative when other is earlier.
+func (d Date) DaysUntil(other Date) int {
+	return int(other.t.Sub(d.t).Hours() / hoursPerDay)
+}
+
+// FromTime is the UTC calendar date of t.
+func FromTime(t time.Time) Date {
+	y, m, day := t.UTC().Date()
+	return Date{t: time.Date(y, m, day, 0, 0, 0, 0, time.UTC)}
+}
+
+const hoursPerDay = 24
+
+// Today is the current UTC date; it is the only place the toolchain reads the clock.
+func Today() Date { return FromTime(time.Now()) }

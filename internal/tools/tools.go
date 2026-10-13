@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 )
 
@@ -108,6 +109,8 @@ type Context struct {
 	CI bool
 	// Fix reports whether the format phase may modify files.
 	Fix bool
+	// Today is the date deadlines are measured against.
+	Today date.Date
 }
 
 // Pending is the executor for tools whose engine is not built yet. It fails every step, saying

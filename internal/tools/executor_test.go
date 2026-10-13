@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
@@ -25,7 +26,7 @@ func executorFor(t *testing.T, recordToml string) (tools.Executor, *bytes.Buffer
 		}
 	}
 	var stderr bytes.Buffer
-	return tools.Executor{Ctx: tools.Context{Root: root, Config: config.Default()}, Stderr: &stderr}, &stderr
+	return tools.Executor{Ctx: tools.Context{Root: root, Config: config.Default(), Today: fixedToday(t)}, Stderr: &stderr}, &stderr
 }
 
 func stepNamed(t *testing.T, name string) pipeline.Step {
@@ -64,6 +65,26 @@ func TestExecutorStillFailsUnbuiltToolsHonestly(t *testing.T) {
 	exec, stderr := executorFor(t, "")
 	out := exec.Run(stepNamed(t, "test"))
 	if out.Kind != pipeline.KindFailed || out.Reason != "not implemented yet" || stderr.Len() != 0 {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+func fixedToday(t *testing.T) date.Date {
+	t.Helper()
+	d, err := date.Parse("2026-10-07")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func TestExecutorRecordReportsAnExpiredEntryAgainstTheContextClock(t *testing.T) {
+	exec, stderr := executorFor(t, "[[exception]]\nrule = \"errcheck\"\npath = \"a.go\"\n"+
+		"justification = \"Tests assert on panics deliberately; a panic is the failure signal.\"\n"+
+		"decided_by = \"alice\"\nadded_by_model = \"human\"\ndecided_on = 2026-06-01\nreview_by = 2026-07-01\n")
+	exec.Ctx.Config.Record.Deciders = []string{"alice"}
+	out := exec.Run(stepNamed(t, "record"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "error[gqaci.record.expired]") {
 		t.Errorf("got %+v, %q", out, stderr)
 	}
 }

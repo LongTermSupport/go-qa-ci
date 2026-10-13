@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
@@ -35,7 +36,7 @@ func runRecord(rootPath string, cfg config.Config, args []string, stdout, stderr
 }
 
 func recordCheck(rootPath string, cfg config.Config, stdout, stderr io.Writer) int {
-	rec, findings, err := record.Check(rootPath, cfg.Record.Path)
+	rec, findings, err := record.Check(rootPath, cfg.Record, date.Today())
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}
@@ -60,7 +61,7 @@ func recordList(rootPath string, cfg config.Config, args []string, stdout, stder
 	if flags.NArg() > 0 {
 		return emit(stderr, ExitUsage, "go-qa record list: unexpected argument %q", flags.Arg(0))
 	}
-	rec, _, err := record.Check(rootPath, cfg.Record.Path)
+	rec, _, err := record.Check(rootPath, cfg.Record, date.Today())
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}
@@ -75,7 +76,7 @@ func recordList(rootPath string, cfg config.Config, args []string, stdout, stder
 }
 
 func recordExplain(rootPath string, cfg config.Config, selector string, stdout, stderr io.Writer) int {
-	rec, _, err := record.Check(rootPath, cfg.Record.Path)
+	rec, _, err := record.Check(rootPath, cfg.Record, date.Today())
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/root"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
@@ -85,6 +86,7 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 		Scope:  scope,
 		CI:     opts.ci || ciEnabled(),
 		Fix:    !opts.noFix,
+		Today:  date.Today(),
 	}
 	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
 	if _, err := io.WriteString(stdout, summary(report, scope)); err != nil {
