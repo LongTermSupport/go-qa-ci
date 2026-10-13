@@ -127,7 +127,38 @@ func TestARaiseBeforeTheBaseWasFetchedUsesHead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertOne(t, ratchetFindings(report), finding.RecordRatchet, "raised from 1 to 2")
+	found := ratchetFindings(report)
+	if len(found) != 2 {
+		t.Fatalf("want the raise and the unresolved base, got %v", found)
+	}
+	joined := found[0].Message + found[1].Message
+	if !strings.Contains(joined, "raised from 1 to 2") || !strings.Contains(joined, "does not resolve") {
+		t.Errorf("got %v", found)
+	}
+}
+
+func TestACommittedRaiseWithAnUnresolvableBaseIsAGapNotAPass(t *testing.T) {
+	signedOn := today(t).AddDays(-3)
+	root := repoWith(t, recordText(t, 1, signedOn, "a.go"))
+	git(t, root, "checkout", "-q", "-b", "feature")
+	commitRecord(t, root, recordText(t, 2, signedOn, "a.go", "b.go"))
+	policy := testPolicy()
+	policy.Path = recordRel
+	policy.HistoryBase = "origin/main"
+
+	ci, err := record.Gate(root, policy, today(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertOne(t, ratchetFindings(ci), finding.RecordRatchet, `history_base "origin/main" does not resolve`)
+
+	local, err := record.Gate(root, policy, today(t), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(local.Findings) != 0 || len(local.Notes) != 1 || !strings.Contains(local.Notes[0], "does not resolve") {
+		t.Errorf("got %v, %v", local.Findings, local.Notes)
+	}
 }
 
 func TestWithoutHistoryTheGateSaysSo(t *testing.T) {

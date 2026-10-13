@@ -38,9 +38,20 @@ func Gate(root string, policy config.RecordPolicy, today date.Date, mayLower boo
 	in := Input{Record: rec, Path: policy.Path, Policy: policy, Today: today}
 	report.Findings = append(report.Findings, Review(in)...)
 
-	previous := previousRecord(root, policy.Path, policy.HistoryBase)
-	if previous == nil && len(rec.Exceptions) > 0 {
+	previous, baseUnresolved := previousRecord(root, policy.Path, policy.HistoryBase)
+	switch {
+	case previous == nil && len(rec.Exceptions) > 0:
 		report.Notes = append(report.Notes, "no committed history for the record; a raise of high_water is not checked against it")
+	case baseUnresolved && len(rec.Exceptions) > 0:
+		// A raise already committed on this branch is visible only against the merge base, so an
+		// unresolvable base is a gap: it fails where the record is enforced (CI) and is noted locally.
+		gap := fmt.Sprintf("history_base %q does not resolve to a merge base with HEAD (not fetched, no such ref, or a shallow clone); "+
+			"a committed raise of high_water is not checked against it", policy.HistoryBase)
+		if mayLower {
+			report.Notes = append(report.Notes, gap)
+		} else {
+			report.Findings = append(report.Findings, in.ratchetFinding("[ratchet] "+gap))
+		}
 	}
 	verdict := ReviewRatchet(in, previous)
 	report.Findings = append(report.Findings, verdict.Findings...)
@@ -133,13 +144,15 @@ func writeFile(file, text string) error {
 }
 
 // previousRecord is the record as committed before this change: the one with the lower ceiling of
-// HEAD and the merge base with base. It is nil when git or the record's history is unavailable.
-func previousRecord(root, recordPath, base string) *Record {
+// HEAD and the merge base with base. It is nil when git or the record's history is unavailable;
+// baseUnresolved reports that the merge base could not be found, so only HEAD was compared.
+func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved bool) {
 	revisions := []string{"HEAD"}
 	if mergeBase, ok := git(root, "merge-base", base, "HEAD"); ok {
 		revisions = append(revisions, strings.TrimSpace(mergeBase))
+	} else {
+		baseUnresolved = true
 	}
-	var best *Record
 	for _, rev := range revisions {
 		text, ok := git(root, "show", rev+":"+recordPath)
 		if !ok {
@@ -153,7 +166,7 @@ func previousRecord(root, recordPath, base string) *Record {
 			best = &rec
 		}
 	}
-	return best
+	return best, baseUnresolved
 }
 
 // git runs git in dir and returns its standard output; ok is false when git cannot be run or exits
