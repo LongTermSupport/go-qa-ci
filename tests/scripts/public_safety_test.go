@@ -423,3 +423,23 @@ func TestBlankAndIndentedCommentLinesAreNotPatterns(t *testing.T) {
 		t.Errorf("a list of only blank and comment lines: exit code = %d, want 2\n%s", code, out)
 	}
 }
+
+func TestTreeScanRefusesFileNameWithNewline(t *testing.T) {
+	f := newFixture(t)
+	trackFiles(t, f.repo, map[string]string{"odd\nname.txt": "clean\n", "z.txt": "has " + plantedTerm + "\n"})
+	out, code := scan(t, f.repo, f.denylist, "--tree")
+	if code != 2 || !strings.Contains(out, "contains a newline") {
+		t.Fatalf("exit code = %d, want 2 with a newline refusal\n%s", code, out)
+	}
+}
+
+func TestStagedScanSeesNonASCIIFileName(t *testing.T) {
+	f := newFixture(t)
+	const term = "zzünï-term"
+	trackFiles(t, f.repo, map[string]string{term + ".txt": "innocent\n"})
+	writeFile(t, f.denylist, term+"\n")
+	out, code := scan(t, f.repo, f.denylist, "--staged")
+	if code != 1 || strings.Contains(out, term) || !strings.Contains(out, "denylist line 1 matched at staged text line") {
+		t.Fatalf("exit code = %d, want 1 with a location and no term\n%s", code, out)
+	}
+}

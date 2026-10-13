@@ -83,6 +83,12 @@ case "${mode}" in
         while IFS= read -r -d '' entry; do
             read -r file_mode blob_id _ <<< "${entry%%$'\t'*}"
             file="${entry#*$'\t'}"
+            if [[ "${file}" == *$'\n'* ]]; then
+                # The location and path maps are newline-delimited; a name holding a newline would
+                # put them out of step with the scanned text, so it is refused, not mislocated.
+                echo "public-safety-scan: a tracked file name contains a newline (tracked entry $((index + 1))); rename it before scanning" >&2
+                exit 2
+            fi
             index=$((index + 1))
             printf '%s\n' "${file}" >> "${paths}"
             [[ "${file_mode}" == 160000 ]] && continue # a submodule pin has no blob here
@@ -93,8 +99,9 @@ case "${mode}" in
         done < <(git -C "${repo_dir}" ls-files -s -z)
         ;;
     --staged)
-        git -C "${repo_dir}" diff --cached --text --unified=0 --no-color > "${text}"
-        git -C "${repo_dir}" diff --cached --name-only >> "${text}"
+        # quotePath=false keeps non-ASCII names literal, so a name is matched as it is written.
+        git -C "${repo_dir}" -c core.quotePath=false diff --cached --text --unified=0 --no-color > "${text}"
+        git -C "${repo_dir}" -c core.quotePath=false diff --cached --name-only >> "${text}"
         ;;
     --message)
         cp "${2:?--message needs a file}" "${text}"

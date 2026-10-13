@@ -9,10 +9,15 @@ import (
 	"testing"
 )
 
-// gitleaksStub is a stand-in gitleaks that records its arguments and exits with STUB_EXIT, so the
-// wrapper's own behaviour is tested without the real binary.
+// gitleaksStub is a stand-in gitleaks that records its arguments (and, for a directory scan, the
+// contents of the files it would scan) and exits with STUB_EXIT, so the wrapper's own behaviour is
+// tested without the real binary.
 const gitleaksStub = `#!/bin/sh
 printf '%s\n' "$*" >> "$STUB_LOG"
+if [ "$1" = dir ]; then
+	for last; do :; done
+	find "$last" -type f -exec cat {} + >> "$STUB_LOG"
+fi
 exit "${STUB_EXIT:-0}"
 `
 
@@ -148,5 +153,25 @@ func TestSecretScanRefusesUnknownMode(t *testing.T) {
 	run := runSecretScan(t, f.repo, true, "0", "--bogus")
 	if run.code != 2 || run.log != "" {
 		t.Fatalf("code = %d, log %q, output:\n%s", run.code, run.log, run.out)
+	}
+}
+
+func TestSecretScanTreeDoesNotReadThroughSymlinkToOutsideFile(t *testing.T) {
+	f := newFixture(t)
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	writeFile(t, outside, "outside-only-content\n")
+	if err := os.Symlink(outside, filepath.Join(f.repo, "link")); err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.repo, "add", "link")
+	run := runSecretScan(t, f.repo, true, "0", "--tree")
+	if run.code != 0 {
+		t.Fatalf("code = %d, output:\n%s", run.code, run.out)
+	}
+	if strings.Contains(run.log, "outside-only-content") {
+		t.Errorf("a file outside the repository was scanned:\n%s", run.log)
+	}
+	if !strings.Contains(run.log, "has "+plantedTerm) {
+		t.Errorf("tracked content was not scanned:\n%s", run.log)
 	}
 }

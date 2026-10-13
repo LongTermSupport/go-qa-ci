@@ -41,12 +41,15 @@ case "${mode}" in
         ;;
     --tree)
         mkdir "${work}/tree"
-        git -C "${repo_dir}" ls-files -z | while IFS= read -r -d '' file; do
-            if [[ -f "${repo_dir}/${file}" ]]; then
-                mkdir -p "${work}/tree/$(dirname "${file}")"
-                cp "${repo_dir}/${file}" "${work}/tree/${file}"
-            fi
-        done
+        # Contents come from git blobs, never from the working files, so a symlink is scanned as
+        # its target string and nothing outside the repository is read.
+        while IFS= read -r -d '' entry; do
+            read -r file_mode blob_id _ <<< "${entry%%$'\t'*}"
+            file="${entry#*$'\t'}"
+            [[ "${file_mode}" == 160000 ]] && continue # a submodule pin has no blob here
+            mkdir -p "${work}/tree/$(dirname -- "${file}")"
+            git -C "${repo_dir}" cat-file blob "${blob_id}" > "${work}/tree/${file}"
+        done < <(git -C "${repo_dir}" ls-files -s -z)
         gitleaks dir "${common[@]}" "${work}/tree"
         ;;
     *)
