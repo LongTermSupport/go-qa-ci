@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/configs"
@@ -154,6 +155,49 @@ func TestLintReportsErrcheckAndStaticcheckCodes(t *testing.T) {
 	}
 	if !has(findings, "staticcheck::SA1019", "sub/s.go") {
 		t.Errorf("no staticcheck::SA1019 finding in %v", rules(findings))
+	}
+}
+
+// TestLintRunsWhileAnotherGolangciLintHoldsTheLock holds the lock golangci-lint takes in its
+// temporary directory, as an editor integration or a second go-qa run would, and expects the lint
+// to proceed instead of waiting and failing with exit 3.
+func TestLintRunsWhileAnotherGolangciLintHoldsTheLock(t *testing.T) {
+	runner := locate(t)
+	dir := module(t, map[string]string{
+		"main.go": "// Package main is a fixture.\npackage main\n\nfunc main() {}\n",
+	})
+	path, cleanup, err := golangci.Config(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	root, err := os.OpenRoot(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	lock, err := root.Create("golangci-lint.lock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := lock.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := runner.Lint(context.Background(), dir, path); err != nil {
+		t.Errorf("lint failed while the lock was held: %v", err)
 	}
 }
 
