@@ -52,18 +52,39 @@ the `standard` linters plus a stated set (bodyclose, errorlint, gosec, gocritic,
 and others), `errcheck` with type assertions and blank assignments checked, `govet` with every
 analyzer except `fieldalignment`, `nolintlint` requiring a specific, explained, used directive, and
 no cap on the number of issues. It carries no exclusion. `depguard` is not in the baseline because
-its allow-list is specific to a project; this repository configures its own in `.golangci.yml`.
+its allow-list is specific to a project; this repository adds its own in the overlay below.
 
 ## Configuration exceptions
 
-This repository's `.golangci.yml` configures away `gosec G204` (module-wide) and `gosec G306`
-(one test file). Each is listed in `docs/record.md` as a configuration exception that the
-suppression detector (M6) must require to be recorded.
+This repository's overlay configures away `gosec G204` (module-wide) and `gosec G306` (one test
+file). Each is listed in `docs/record.md` as a configuration exception that the suppression
+detector (M6) must require to be recorded.
 
-## Self-gate
+## Self-gate (TOOLING-SPEC 8.2)
 
-CI runs `go-qa run --ci` over this repository (job `self-gate`), with `qa/go-qa.toml` switching off
-the tools that are not built yet so that none is reported as passing without running.
+CI runs `go-qa run --ci` over this repository (job `self-gate`). The configuration it analyses
+go-qa with is derived from the bundled baseline, not kept separately:
+
+- `configs/golangci.yml` is the baseline (embedded in the binary).
+- `qa/golangci-overlay.yml` is the minimal overlay: the `depguard` allow-list and the two
+  configuration exceptions above. An overlay can add to the baseline but not change a value it sets.
+- `.golangci.yml` is what golangci-lint discovers, so it is the merged result. golangci-lint cannot
+  merge files, so it is mirrored by hand, and `tests/selfgate` fails unless it equals baseline plus
+  overlay, carries every baseline linter, setting, formatter and issue cap, and the overlay holds
+  nothing but the documented exceptions. The checker is itself tested against configurations that
+  drop a linter, a formatter, a setting or the cap.
+
+`qa/go-qa.toml` switches off the tools that are not built yet so that none is reported as passing
+without running.
+
+Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
+
+- Every Rule of a tool that is switched off in `qa/go-qa.toml` is not active on the toolchain's own
+  source until that tool is built and switched on.
+- The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the
+  baseline fails the build until the file is mirrored; it cannot silently drift.
+- Only the golangci-lint rules are proven active by `tests/selfgate`; the other bundled tools have
+  no such test yet.
 
 ## Recorded gaps (TOOLING-SPEC 9.2)
 

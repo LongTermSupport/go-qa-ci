@@ -1,0 +1,41 @@
+# This repository's golangci-lint overlay: the ONLY difference between the bundled baseline
+# (configs/golangci.yml) and the root .golangci.yml that the self-gate analyses go-qa with
+# (TOOLING-SPEC 8.2). tests/selfgate proves .golangci.yml is exactly baseline + this overlay, that
+# nothing the baseline enables is dropped, and that this file holds only the documented
+# configuration exceptions (docs/golangci.md, docs/record.md). Edit here and mirror into
+# .golangci.yml; the test fails until both agree.
+linters:
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        # The dependency set is deliberately small; a new module needs a stated reason.
+        main:
+          allow:
+            - $gostd
+            - github.com/LongTermSupport/go-qa-ci
+            - github.com/pelletier/go-toml/v2
+            - go.yaml.in/yaml/v3
+            - gopkg.in/yaml.v3
+            - golang.org/x/tools
+    gosec:
+      excludes:
+        # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G204 flags
+        # subprocess launches with a variable program or arguments. Hazard: command injection
+        # through a shell or an attacker-chosen program name. It does not apply because this
+        # toolchain's whole purpose is to run fixed external tools: every launch is an argument
+        # vector (never a shell), the program name is a constant or a resolved tool path, and no
+        # argument is ever interpreted as shell text. Scope: the whole module.
+        - G204
+  exclusions:
+    rules:
+      # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G306 flags a
+      # file written with permissions above 0600. Hazard: other users reading or altering it.
+      # It does not apply because this test installs an executable stub (0700, owner only) in
+      # a private t.TempDir(); a stub that cannot be executed would test nothing.
+      # Scope: tests/scripts/secret_scan_test.go only.
+      - path: tests/scripts/secret_scan_test\.go
+        linters:
+          - gosec
+        text: "G306"

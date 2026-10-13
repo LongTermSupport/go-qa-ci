@@ -1,3 +1,8 @@
+# The configuration the self-gate runs on go-qa's own source (TOOLING-SPEC 8.2): the bundled
+# baseline configs/golangci.yml plus qa/golangci-overlay.yml, nothing else. golangci-lint cannot
+# merge files, so this file is the merged result and tests/selfgate fails when it is not exactly
+# that, or when any baseline linter, setting, formatter or cap is missing. Change the baseline or
+# the overlay, then mirror the change here.
 version: "2"
 
 linters:
@@ -5,7 +10,6 @@ linters:
   enable:
     - bodyclose
     - contextcheck
-    - depguard
     - durationcheck
     - errchkjson
     - errname
@@ -31,6 +35,8 @@ linters:
     - unparam
     - usestdlibvars
     - wrapcheck
+    # Overlay (qa/golangci-overlay.yml): everything above is the bundled baseline.
+    - depguard
   settings:
     depguard:
       rules:

@@ -3,7 +3,9 @@ name: CI
 # job go: formatting, vet, the race-enabled tests and golangci-lint over this module.
 # job self-gate: go-qa run --ci over go-qa's own source, so the toolchain is held to its own
 # standard (TOOLING-SPEC 8.2). It runs in CI mode: formatters rewrite, then the job fails when the
-# working tree changed.
+# working tree changed. The golangci configuration it analyses with is the bundled baseline plus
+# qa/golangci-overlay.yml (tests/selfgate, run by job go, proves .golangci.yml is exactly that);
+# 8.2 is met only in part, see "Self-gate" in docs/golangci.md for the recorded gaps.
 on:
   push:
     branches: ["**"]
