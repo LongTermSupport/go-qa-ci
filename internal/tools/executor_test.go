@@ -117,3 +117,25 @@ func TestExecutorRecordLocallyLowersTheCeilingAndSaysSo(t *testing.T) {
 		t.Errorf("file not rewritten: %v\n%s", err, data)
 	}
 }
+
+func TestExecutorDocsPassesOnACleanProject(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	if out := exec.Run(stepNamed(t, "docs")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+func TestExecutorDocsFailsOnAnOrphanPageAndPrintsTheFinding(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	path := filepath.Join(exec.Ctx.Root, "docs", "defences", "orphaned.rule.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# orphaned.rule\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := exec.Run(stepNamed(t, "docs"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "error[gqaci.docs.orphan]") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}

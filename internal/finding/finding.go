@@ -1,20 +1,28 @@
 // Package finding is what a detector reports: a stable identifier, a location and a message.
 package finding
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/builtin"
+)
 
 // Identifiers of the findings the toolchain itself raises.
 const (
 	// RecordInvalid marks a malformed or insufficiently justified record exception.
-	RecordInvalid = "gqaci.record.invalid"
+	RecordInvalid = builtin.RecordInvalid
 	// RecordStale marks a record exception that licenses nothing the defences report.
-	RecordStale = "gqaci.record.stale"
+	RecordStale = builtin.RecordStale
 	// RecordBudget marks a record that is over one of its size budgets.
-	RecordBudget = "gqaci.record.budget"
+	RecordBudget = builtin.RecordBudget
 	// RecordRatchet marks a record that grew, or had its ceiling raised, without a signed decision.
-	RecordRatchet = "gqaci.record.ratchet"
+	RecordRatchet = builtin.RecordRatchet
 	// RecordExpired marks a record exception past its review date.
-	RecordExpired = "gqaci.record.expired"
+	RecordExpired = builtin.RecordExpired
+	// DocsDangling marks an identifier that resolves to no documentation.
+	DocsDangling = builtin.DocsDangling
+	// DocsOrphan marks a project page that documents no identifier the project can see.
+	DocsOrphan = builtin.DocsOrphan
 )
 
 // Finding is one defect a detector reports.

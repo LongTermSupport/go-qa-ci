@@ -26,7 +26,7 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | record check|list|explain | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | record check|list|explain | rule-doc ID | docs-check | go-qa --version"
 
 // ExecutorFactory builds the executor for one run from its context.
 type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
@@ -77,6 +77,14 @@ func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactor
 	case "record":
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
 			return runRecord(rootPath, cfg, rest[1:], stdout, stderr)
+		})
+	case "rule-doc":
+		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			return runRuleDoc(rootPath, cfg, rest[1:], stdout, stderr)
+		})
+	case "docs-check":
+		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			return runDocsCheck(rootPath, cfg, rest[1:], stdout, stderr)
 		})
 	default:
 		return emit(stderr, ExitUsage, "go-qa: unknown subcommand %q", rest[0])

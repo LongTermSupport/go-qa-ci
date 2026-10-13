@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/docs"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
@@ -22,7 +23,27 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 	if step.Name == "record" {
 		return e.runRecord()
 	}
+	if step.Name == "docs" {
+		return e.runDocs()
+	}
 	return Pending{}.Run(step)
+}
+
+// runDocs checks that every identifier resolves and every page belongs to one.
+func (e Executor) runDocs() pipeline.Outcome {
+	findings, err := docs.Run(e.Ctx.Root, e.Ctx.Config)
+	if err != nil {
+		return e.fail("%v", err)
+	}
+	for _, f := range findings {
+		if outcome, failed := e.report("%s", f); failed {
+			return outcome
+		}
+	}
+	if len(findings) > 0 {
+		return pipeline.Failed()
+	}
+	return pipeline.Passed()
 }
 
 // runRecord validates the project record and its ratchet. A shrunk record has its ceiling lowered

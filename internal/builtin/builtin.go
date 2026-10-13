@@ -1,0 +1,65 @@
+// Package builtin lists the identifiers of the defences implemented inside go-qa itself.
+//
+// Identifiers are chosen by hand and never derived from paths or type names, so they stay stable
+// across refactors. Each one has a bundled page in package ruledocs.
+package builtin
+
+import "sort"
+
+// Identifiers of the built-in defences.
+const (
+	// RecordInvalid marks a malformed or insufficiently justified record exception.
+	RecordInvalid = "gqaci.record.invalid"
+	// RecordStale marks a record exception that licenses nothing the defences report.
+	RecordStale = "gqaci.record.stale"
+	// RecordBudget marks a record that is over one of its size budgets.
+	RecordBudget = "gqaci.record.budget"
+	// RecordRatchet marks a record that grew, or had its ceiling raised, without a signed decision.
+	RecordRatchet = "gqaci.record.ratchet"
+	// RecordExpired marks a record exception past its review date.
+	RecordExpired = "gqaci.record.expired"
+	// SuppressionUnrecorded marks a suppression with no exception in the project record.
+	SuppressionUnrecorded = "gqaci.suppression.unrecorded"
+	// SuppressionBare marks a suppression that names no rule, which no record entry can license.
+	SuppressionBare = "gqaci.suppression.bare"
+	// SummaryStale marks a generated agent summary region that is out of date.
+	SummaryStale = "gqaci.summary.stale"
+	// DocsDangling marks an identifier that resolves to no documentation.
+	DocsDangling = "gqaci.docs.dangling"
+	// DocsOrphan marks a project page that documents no identifier the project can see.
+	DocsOrphan = "gqaci.docs.orphan"
+	// RulesUnnamed marks a project ast-grep rule that has no id.
+	RulesUnnamed = "gqaci.rules.unnamed"
+	// RulesUntested marks a project ast-grep rule without valid and invalid test cases.
+	RulesUntested = "gqaci.rules.untested"
+)
+
+var descriptions = map[string]string{
+	RecordInvalid:         "every project-record exception is well formed, attributed and justified",
+	RecordStale:           "every project-record exception still covers something",
+	RecordBudget:          "the project record stays within its budgets",
+	RecordRatchet:         "the project record grows only by a signed decision",
+	RecordExpired:         "no project-record exception is past its review date",
+	SuppressionUnrecorded: "every suppression has an exception in the project record",
+	SuppressionBare:       "every suppression names the rule it silences",
+	SummaryStale:          "the generated agent summary is current",
+	DocsDangling:          "every listed identifier resolves to documentation",
+	DocsOrphan:            "every project documentation page belongs to an identifier the project can see",
+	RulesUnnamed:          "every project ast-grep rule has an id",
+	RulesUntested:         "every project ast-grep rule has valid and invalid test cases",
+}
+
+// All returns every built-in identifier, sorted, for listing and documentation checks.
+func All() []string {
+	ids := make([]string, 0, len(descriptions))
+	for id := range descriptions {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// Describe says in one line what a built-in identifier guards; it is empty for an unknown one.
+func Describe(id string) string {
+	return descriptions[id]
+}
