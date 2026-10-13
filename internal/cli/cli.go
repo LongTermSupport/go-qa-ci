@@ -26,15 +26,15 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | record check|list|explain | go-qa --version"
 
 // ExecutorFactory builds the executor for one run from its context.
 type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
 
 // Run executes go-qa with args (without the program name) and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
-	return RunWith(args, stdout, stderr, func(tools.Context, io.Writer) pipeline.Executor {
-		return tools.Pending{}
+	return RunWith(args, stdout, stderr, func(ctx tools.Context, errOut io.Writer) pipeline.Executor {
+		return tools.Executor{Ctx: ctx, Stderr: errOut}
 	})
 }
 
@@ -73,6 +73,10 @@ func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactor
 		}
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
 			return runPipeline(rootPath, cfg, opts, newExecutor, stdout, stderr)
+		})
+	case "record":
+		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			return runRecord(rootPath, cfg, rest[1:], stdout, stderr)
 		})
 	default:
 		return emit(stderr, ExitUsage, "go-qa: unknown subcommand %q", rest[0])

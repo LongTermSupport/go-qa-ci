@@ -6,9 +6,10 @@ Tooling Specification is claimed. No declaration or gap list exists yet; one is 
 ## Status
 
 The command skeleton, the configuration loader and the tool catalogue exist (`go-qa --version`,
-`go-qa tools`), and `go-qa run` orders and stops the pipeline. No tool engine is built yet, so
-`go-qa run` reports every selected tool as failed (not implemented yet); nothing is claimed to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is
-made public.
+`go-qa tools`), and `go-qa run` orders and stops the pipeline. The project record loads and
+validates (`go-qa record`, the `record` tool; see `docs/record.md`). Every other tool engine is not
+built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
+to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 
 ## Commands
 
@@ -20,6 +21,9 @@ success, 1 a defence or tool failed, 2 usage or configuration error.
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `go-qa run [-t tool]... [-p path]... [--ci] [--no-fix] [--fail-fast]` | the gate: selected tools in phase order, a summary table, and the DBF pointer on failure |
 | `go-qa tools`                                                         | the tool catalogue in execution order, with phase and enabled or disabled                |
+| `go-qa record check`                                                  | validate the project record; findings are `gqaci.record.invalid`                         |
+| `go-qa record list [--json]`                                          | every exception with its justification, enumerated like the defences                     |
+| `go-qa record explain <rule or number>`                               | one exception (or every exception for a rule) in full                                    |
 | `go-qa --version`                                                     | the version                                                                              |
 
 `run` executes every enabled tool, or only those named with `-t` (an unknown name lists the known
