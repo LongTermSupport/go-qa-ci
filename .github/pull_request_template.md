@@ -5,5 +5,5 @@
 
 ## Checks
 
-- [ ] `go-qa run` passes locally
+- [ ] `gofmt`, `go vet ./...`, `go test -race ./...` and `golangci-lint run ./...` pass locally
 - [ ] `scripts/public-safety-scan.sh --stdin` run over this description before posting

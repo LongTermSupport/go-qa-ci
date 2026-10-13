@@ -28,7 +28,7 @@ if [[ -z "${denylist}" || ! -r "${denylist}" ]]; then
     exit 2
 fi
 repo_dir="$(git rev-parse --show-toplevel)"
-case "$(cd "$(dirname "${denylist}")" && pwd)/" in
+case "$(cd "$(dirname "${denylist}")" && pwd -P)/" in
     "${repo_dir}/"*)
         echo "public-safety-scan: the denylist must live outside the repository" >&2
         exit 2
@@ -46,12 +46,20 @@ text="${work}/text"
 
 case "${mode}" in
     --tree)
-        git -C "${repo_dir}" ls-files -z | while IFS= read -r -d '' file; do
+        # text holds file contents only; locations and paths are kept in parallel files so the
+        # report can name a file by index when the file name itself matches a pattern.
+        locations="${work}/locations"
+        paths="${work}/paths"
+        : > "${text}" > "${locations}" > "${paths}"
+        index=0
+        while IFS= read -r -d '' file; do
+            index=$((index + 1))
+            printf '%s\n' "${file}" >> "${paths}"
             if [[ -f "${repo_dir}/${file}" ]] && grep -Iq . "${repo_dir}/${file}" 2>/dev/null; then
-                awk -v f="${file}" '{ print f ":" FNR ": " $0 }' "${repo_dir}/${file}"
+                awk -v i="${index}" -v f="${file}" -v out="${locations}" \
+                    '{ print $0; print i "\t" FNR "\t" f > out }' "${repo_dir}/${file}" >> "${text}"
             fi
-            printf '%s:0: %s\n' "${file}" "${file}"
-        done > "${text}"
+        done < <(git -C "${repo_dir}" ls-files -z)
         ;;
     --staged)
         git -C "${repo_dir}" diff --cached --unified=0 --no-color > "${text}"
@@ -80,18 +88,38 @@ number=0
 while IFS= read -r pattern || [[ -n "${pattern}" ]]; do
     number=$((number + 1))
     [[ -z "${pattern// /}" || "${pattern}" == \#* ]] && continue
-    if matches="$(grep -inE -- "${pattern}" "${text}")"; then
+    status=0
+    matches="$(grep -inE -- "${pattern}" "${text}")" || status=$?
+    if (( status > 1 )); then
+        echo "public-safety-scan: denylist line ${number} is not a valid extended regular expression" >&2
+        exit 2
+    fi
+    if (( status == 0 )); then
         found=1
         while IFS= read -r hit; do
             line_number="${hit%%:*}"
-            rest="${hit#*:}"
             if [[ "${mode}" == "--tree" ]]; then
-                where="${rest%%: *}"
+                IFS=$'\t' read -r file_index file_line file_name < <(awk -v n="${line_number}" 'NR == n' "${locations}")
+                if grep -qiE -- "${pattern}" <<< "${file_name}"; then
+                    where="tracked path #${file_index}:${file_line}"
+                else
+                    where="${file_name}:${file_line}"
+                fi
             else
                 where="${mode#--} text line ${line_number}"
             fi
             echo "public-safety: denylist line ${number} matched at ${where}"
         done <<< "${matches}"
+    fi
+    if [[ "${mode}" == "--tree" ]]; then
+        status=0
+        path_matches="$(grep -inE -- "${pattern}" "${paths}")" || status=$?
+        if (( status == 0 )); then
+            found=1
+            while IFS= read -r hit; do
+                echo "public-safety: denylist line ${number} matched at tracked path #${hit%%:*}"
+            done <<< "${path_matches}"
+        fi
     fi
 done < "${denylist}"
 
