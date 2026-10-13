@@ -130,9 +130,10 @@ Some findings are configured away in `.golangci.yml` rather than suppressed at t
 a project-level exception that the suppression detector (M6) must require to be recorded in
 `qa/record.toml`, with a justification, so that the configuration cannot widen unnoticed.
 
-| Detector rule | Scope        | Hazard                                                       | Why it does not apply                                                                                 |
-| ------------- | ------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| gosec `G204`  | whole module | command injection through a shell or a variable program name | every launch is an argument vector, never a shell; program names are constants or resolved tool paths |
+| Detector rule | Scope                                    | Hazard                                                                         | Why it does not apply                                                                                                   |
+| ------------- | ---------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| gosec `G204`  | whole module                             | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
+| gosec `G306`  | `tests/scripts/secret_scan_test.go` only | a file written more permissive than 0600 can be read or altered by other users | the file is a test stub that must be executable (0700, owner only), written into a private per-test temporary directory |
 
 ## Not yet built
 

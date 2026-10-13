@@ -105,15 +105,12 @@ func assertLeaksNothing(t *testing.T, out string, code int, location string) {
 	}
 }
 
-// scanWith runs the scanner with a constant command line; the script path travels in the
-// environment and the mode arguments follow as positional parameters.
+// scanWith runs the scanner script directly with the given mode arguments.
 func scanWith(t *testing.T, repo string, opts scanOptions, args ...string) (string, int) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "sh", "-c", `exec "$SCAN_SCRIPT" "$@"`, "sh")
-	cmd.Args = append(cmd.Args, args...)
+	cmd := exec.CommandContext(t.Context(), scanScript(t), args...)
 	cmd.Dir = repo
-	cmd.Env = append(withoutDenylistEnv(), "SCAN_SCRIPT="+scanScript(t))
-	cmd.Env = append(cmd.Env, opts.env...)
+	cmd.Env = append(withoutDenylistEnv(), opts.env...)
 	cmd.Stdin = strings.NewReader(opts.stdin)
 	out, err := cmd.CombinedOutput()
 	if err == nil {

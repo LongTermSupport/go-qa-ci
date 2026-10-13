@@ -41,12 +41,8 @@ func runSecretScan(t *testing.T, repo string, withStub bool, stubExit string, ar
 	writeFile(t, logPath, "")
 	path := bin // an empty directory: no gitleaks anywhere on PATH
 	if withStub {
-		install := exec.CommandContext(t.Context(), "sh", "-ec",
-			`printf '%s' "$STUB_BODY" > "$1/gitleaks" && chmod 700 "$1/gitleaks"`, "sh")
-		install.Args = append(install.Args, bin)
-		install.Env = append(os.Environ(), "STUB_BODY="+gitleaksStub)
-		if out, installErr := install.CombinedOutput(); installErr != nil {
-			t.Fatalf("installing the stub: %v\n%s", installErr, out)
+		if writeErr := os.WriteFile(filepath.Join(bin, "gitleaks"), []byte(gitleaksStub), 0o700); writeErr != nil {
+			t.Fatal(writeErr)
 		}
 		path = bin + ":/usr/bin:/bin"
 	}
@@ -54,10 +50,9 @@ func runSecretScan(t *testing.T, repo string, withStub bool, stubExit string, ar
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), "bash", "-c", `exec "$BASH_BIN" "$SCAN_SCRIPT" "$@"`, "bash")
-	cmd.Args = append(cmd.Args, args...)
+	cmd := exec.CommandContext(t.Context(), bash, append([]string{script}, args...)...)
 	cmd.Dir = repo
-	cmd.Env = append(os.Environ(), "PATH="+path, "BASH_BIN="+bash, "SCAN_SCRIPT="+script, "STUB_LOG="+logPath, "STUB_EXIT="+stubExit)
+	cmd.Env = append(os.Environ(), "PATH="+path, "STUB_LOG="+logPath, "STUB_EXIT="+stubExit)
 	out, runErr := cmd.CombinedOutput()
 	code := 0
 	var exitErr *exec.ExitError
