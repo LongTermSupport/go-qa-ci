@@ -51,6 +51,15 @@ linters:
       disable:
         # Struct layout is not a defect class this toolchain defends against.
         - fieldalignment
+    gosec:
+      excludes:
+        # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G204 flags
+        # subprocess launches with a variable program or arguments. Hazard: command injection
+        # through a shell or an attacker-chosen program name. It does not apply because this
+        # toolchain's whole purpose is to run fixed external tools: every launch is an argument
+        # vector (never a shell), the program name is a constant or a resolved tool path, and no
+        # argument is ever interpreted as shell text. Scope: the whole module.
+        - G204
     nolintlint:
       require-explanation: true
       require-specific: true

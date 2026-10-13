@@ -196,9 +196,7 @@ func recordAt(root, rev, recordPath string) (Record, bool) {
 // git runs git in dir and returns its standard output; ok is false when git cannot be run or exits
 // non-zero, which for history lookups means the history is not there.
 func git(dir string, args ...string) (string, bool) {
-	// The arguments reach git as positional parameters of a fixed script, never as program text.
-	cmd := exec.CommandContext(context.Background(), "sh", "-c", `exec git "$@"`, "sh")
-	cmd.Args = append(cmd.Args, args...)
+	cmd := exec.CommandContext(context.Background(), "git", args...)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

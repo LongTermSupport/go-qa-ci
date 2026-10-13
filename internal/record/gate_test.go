@@ -31,8 +31,7 @@ func recordText(t *testing.T, highWater int, signedOn date.Date, paths ...string
 func git(t *testing.T, root string, args ...string) {
 	t.Helper()
 	full := append([]string{"-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"}, args...)
-	cmd := exec.CommandContext(t.Context(), "sh", "-c", `exec git "$@"`, "sh")
-	cmd.Args = append(cmd.Args, full...)
+	cmd := exec.CommandContext(t.Context(), "git", full...)
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)

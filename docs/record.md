@@ -124,6 +124,16 @@ base with `HEAD` (a missing `origin`, a different default branch, a shallow clon
 committed on the branch cannot be seen: the gate fails with a `gqaci.record.ratchet` finding in CI
 and notes it locally. Set `history_base` to a ref that exists, and fetch enough history for it.
 
+## Configuration exceptions
+
+Some findings are configured away in `.golangci.yml` rather than suppressed at the site. Each is
+a project-level exception that the suppression detector (M6) must require to be recorded in
+`qa/record.toml`, with a justification, so that the configuration cannot widen unnoticed.
+
+| Detector rule | Scope        | Hazard                                                       | Why it does not apply                                                                                 |
+| ------------- | ------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| gosec `G204`  | whole module | command injection through a shell or a variable program name | every launch is an argument vector, never a shell; program names are constants or resolved tool paths |
+
 ## Not yet built
 
 `record prune` takes explicit numbers. Finding the stale exceptions itself needs the suppression

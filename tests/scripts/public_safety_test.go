@@ -30,12 +30,10 @@ func scanScript(t *testing.T) string {
 // directory is the only input.
 func initRepo(t *testing.T, dir string) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "sh", "-ec",
-		"git init -q && git config user.email dev@example.com && git config user.name 'Example Dev' && git add notes.txt")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("repository setup: %v\n%s", err, out)
-	}
+	git(t, dir, "init", "-q")
+	git(t, dir, "config", "user.email", "dev@example.com")
+	git(t, dir, "config", "user.name", "Example Dev")
+	git(t, dir, "add", "notes.txt")
 }
 
 func writeFile(t *testing.T, path, content string) {
@@ -86,8 +84,7 @@ func scan(t *testing.T, repo, denylist string, args ...string) (string, int) {
 // git runs git in dir; every call site passes constant arguments.
 func git(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "sh", "-ec", `exec git "$@"`, "sh")
-	cmd.Args = append(cmd.Args, args...)
+	cmd := exec.CommandContext(t.Context(), "git", args...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
