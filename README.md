@@ -5,8 +5,100 @@ Tooling Specification is claimed. No declaration or gap list exists yet; one is 
 
 ## Status
 
-Only the command skeleton exists (`go-qa --version`). See `docs/PUBLICATION-CHECKLIST.md` before
-this repository is made public.
+The command skeleton, the configuration loader and the tool catalogue exist (`go-qa --version`,
+`go-qa tools`). No defence runs yet. See `docs/PUBLICATION-CHECKLIST.md` before this repository is
+made public.
+
+## Commands
+
+Global flags: `--root DIR` (default: the directory of the active `go.work`, else of the enclosing
+`go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root). Exit codes: 0
+success, 1 a defence or tool failed, 2 usage or configuration error.
+
+| Command           | What                                                                      |
+| ----------------- | ------------------------------------------------------------------------- |
+| `go-qa tools`     | the tool catalogue in execution order, with phase and enabled or disabled |
+| `go-qa --version` | the version                                                               |
+
+The phases run in order: `format`, then `detectors`, then `runners`. The catalogue is `fmt`;
+`record`, `suppression`, `summary`, `docs`, `ast-grep`, `golangci`, `analyzers`, `deadcode`;
+`vuln`, `mod`, `test`, `coverage`, `mutants`.
+
+## Configuration
+
+`qa/go-qa.toml` (optional; unknown keys are rejected with exit code 2 and the key named). These
+are the defaults, and a test keeps this listing equal to the built-in values:
+
+```toml
+record = "qa/record.toml"    # shorthand for [record] path, with the defaults below
+docs_dir = "docs/defences"
+scan_exclude = []            # globs excluded from the source scans
+modules = []                 # further Go modules (own go.mod, not in a go.work)
+
+[summary]
+# file = "AGENTS.md"         # agent-loaded file that receives the generated region; unset = off
+fix_headings = ["How to fix correctly"]
+
+[tools]                      # explicit `-t` requests override these switches
+fmt = true
+record = true
+suppression = true
+summary = true
+docs = true
+ast_grep = true
+golangci = true
+analyzers = true
+deadcode = true
+vuln = true
+mod = true
+test = true
+coverage = true
+mutants = true
+
+[ast_grep]
+bundled = true               # run the bundled gqaci.ast.* pack beside the project's own rules
+
+[coverage]
+fail_under_statements = 80   # percent of statements covered, 0 to 100
+
+[mutants]
+mode = "off"                 # off | diff | full
+base = "origin/main"         # diff mode compares against the merge base with this ref
+```
+
+The record policy can be a `[record]` table instead of the `record = "..."` shorthand:
+
+```toml
+[record]
+path = "qa/record.toml"
+max_total = 10               # entries in the record
+max_per_rule = 3             # entries for one rule id
+max_policy = 0               # broad entries marked policy = true; at most max_per_rule
+max_review_days = 180        # longest decided_on to review_by gap for any tier
+deciders = []                # people who sign the ratchet, human entries and co-signs
+history_base = "origin/main" # merge base for raise detection, besides HEAD
+
+[record.trust]
+models = {}                  # model id prefix -> high | medium | low
+
+[record.trust.human]         # each tier: max_review_days and max_count; unset = record-wide cap
+[record.trust.high]
+max_review_days = 90
+[record.trust.medium]
+max_review_days = 30
+max_count = 3
+[record.trust.low]
+max_review_days = 14
+max_count = 1
+
+# [[record.trust.cosign]]    # rule categories that need a configured decider below min_tier
+# rules = ["errcheck::*"]
+# min_tier = "high"
+```
+
+Paths in the file (`record`, `docs_dir`, `summary.file`, `modules`) must be relative and stay
+inside the root; each `modules` entry must hold a `go.mod`. `[[stage]]`, `[[resolver]]` and the
+analyzer driver setting are not accepted yet and are rejected as unknown keys until they are built.
 
 ## Public safety
 

@@ -32,6 +32,17 @@ linters:
     - usestdlibvars
     - wrapcheck
   settings:
+    depguard:
+      rules:
+        # The dependency set is deliberately small; a new module needs a stated reason.
+        main:
+          allow:
+            - $gostd
+            - github.com/LongTermSupport/go-qa-ci
+            - github.com/pelletier/go-toml/v2
+            - go.yaml.in/yaml/v3
+            - gopkg.in/yaml.v3
+            - golang.org/x/tools
     errcheck:
       check-type-assertions: true
       check-blank: true
