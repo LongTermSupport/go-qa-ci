@@ -74,7 +74,7 @@ func renderRules(l defences.Listing) string {
 	}
 	fmt.Fprintf(&out, "record: %d exceptions\n", len(l.Record))
 	for _, e := range l.Record {
-		fmt.Fprintf(&out, "  #%d %s  %s\n", e.Number, e.Rule, e.Path)
+		fmt.Fprintf(&out, "  #%d %s  %s\n      %s\n", e.Number, e.Rule, e.Path, e.Justification)
 	}
 	out.WriteString("budget\n")
 	for _, line := range l.Budget.Lines() {

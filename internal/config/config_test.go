@@ -60,6 +60,40 @@ func TestReadmeDefaultsMatchBuiltInDefaults(t *testing.T) {
 	}
 }
 
+// tomlKeys lists the toml key names of a struct type, recursing into nested structs. The stage and
+// resolver tables are documented in docs/stages.md, not in the README listing.
+func tomlKeys(typ reflect.Type) []string {
+	var keys []string
+	for field := range typ.Fields() {
+		name := field.Tag.Get("toml")
+		if name == "" || name == "stage" || name == "resolver" {
+			continue
+		}
+		keys = append(keys, name)
+		fieldType := field.Type
+		for fieldType.Kind() == reflect.Pointer || fieldType.Kind() == reflect.Slice {
+			fieldType = fieldType.Elem()
+		}
+		if fieldType.Kind() == reflect.Struct {
+			keys = append(keys, tomlKeys(fieldType)...)
+		}
+	}
+	return keys
+}
+
+func TestReadmeNamesEveryConfigurationKey(t *testing.T) {
+	var listing strings.Builder
+	for _, block := range readmeDefaults(t) {
+		listing.WriteString(block)
+	}
+	for _, key := range tomlKeys(reflect.TypeFor[config.Config]()) {
+		pattern := regexp.MustCompile(`(?m)^#?\s*` + regexp.QuoteMeta(key) + `\s*=|^#?\s*\[+[\w.]*\b` + regexp.QuoteMeta(key) + `\]+`)
+		if !pattern.MatchString(listing.String()) {
+			t.Errorf("the README Configuration listing does not show the key %q", key)
+		}
+	}
+}
+
 func TestLoadWithoutFileGivesDefaults(t *testing.T) {
 	got, err := config.Load(t.TempDir(), "")
 	if err != nil {

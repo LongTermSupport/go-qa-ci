@@ -120,7 +120,16 @@ func TestRulesListsTheRecordAndItsBudget(t *testing.T) {
 	}
 }
 
-const summaryConfig = "[summary]\nfile = \"AGENTS.md\"\n"
+func TestRulesTextShowsEachExceptionWithItsJustification(t *testing.T) {
+	root := module(t, "[tools]\ngolangci = false\n")
+	writeFile(t, root, "qa/record.toml", "[[exception]]\nrule = \"errcheck\"\npath = \"p.go\"\njustification = \"the fixture ignores the error on purpose\"\n")
+	r := exec("--root", root, "rules")
+	if !strings.Contains(r.out, "#1 errcheck  p.go\n      the fixture ignores the error on purpose\n") {
+		t.Errorf("the justification is not beside its exception:\n%s", r.out)
+	}
+}
+
+const summaryConfig ="[summary]\nfile = \"AGENTS.md\"\n"
 
 func TestSummaryWritesTheRegionAndCheckPassesUntilTheConfigurationChanges(t *testing.T) {
 	root := module(t, summaryConfig)

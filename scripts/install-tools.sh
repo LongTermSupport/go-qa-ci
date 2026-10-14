@@ -135,6 +135,13 @@ while read -r section name value; do
         release:ast-grep) install_ast_grep "${version}" ;;
         *) echo "install-tools: no installer for ${name}" >&2; exit 2 ;;
     esac
+    # The binary the shell resolves must now be the pinned one: an older copy earlier in the search
+    # path than the install directory would otherwise answer for it while the script reports success.
+    resolved="$(installed_version "${section}" "${name}")"
+    if [[ "${resolved}" != "${version}" ]]; then
+        echo "install-tools: installed ${name} ${version}, but the ${name} found first reports ${resolved:-nothing}; put $(bin_dir) before any other copy in the search path" >&2
+        exit 1
+    fi
     echo "installed ${name} ${version}"
 done < <(pins)
 

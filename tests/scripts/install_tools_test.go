@@ -184,6 +184,16 @@ func TestInstallToolsCheckRejectsAnotherVersion(t *testing.T) {
 	}
 }
 
+func TestInstallToolsFailsWhenAnOlderCopyShadowsTheInstalledOne(t *testing.T) {
+	// The stub go reports an old module version for every binary and installs nothing, as if an
+	// older copy earlier in the search path answered for the tool that was just installed.
+	stubs := map[string]string{"go": "\tmod\tgolang.org/x/tools\tv0.0.1", "deadcode": "deadcode"}
+	r := runInstall(t, stubs, "deadcode")
+	if r.code != 1 || !strings.Contains(r.out, "found first reports v0.0.1") {
+		t.Fatalf("want exit 1 naming the shadowing copy, got %d: %s", r.code, r.out)
+	}
+}
+
 func TestInstallToolsCheckWithoutSelectionCoversEveryPinnedTool(t *testing.T) {
 	r := runInstall(t, nil, "--check")
 	if r.code != 1 {

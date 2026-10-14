@@ -53,7 +53,7 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `linters.disable` item                                                                                                                             | `linters.disable::X`                                                   |
 | `linters.default` other than `standard` or `all`                                                                                                   | `linters.default::X`                                                   |
 | `severity.rules` entry that is not `error`; `severity.default` other than `error`                                                                  | `severity.rules::<linters>/<severity>`, `severity.default::X`          |
-| `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                  | `issues.<key>::<value>`                                                |
+| `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                   | `issues.<key>::<value>`                                                |
 | `issues.new`, `new-from-rev`, `new-from-merge-base`, `new-from-patch`                                                                              | `issues.new`, `issues.new-from-rev::X`, and so on                      |
 | `run.tests: false`                                                                                                                                 | `run.tests`                                                            |
 | `errcheck.exclude-functions`, `gosec.excludes`, `govet.disable`, `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable` items | `<linter>.<setting>::X`                                                |
@@ -105,3 +105,8 @@ go-qa does not claim conformance with 4.3; these routes are not covered:
   baseline disables the `govet` `fieldalignment` analyzer. This repository records that exception
   against its own `.golangci.yml`.
 - Only files under the root are scanned; vendored and `testdata` trees are skipped by design.
+- Every `linters.exclusions.rules` entry with neither `linters` nor `text` (a path-only or
+  source-only rule) is the same rule, `exclusions.rules::*`, so one record entry licenses any
+  number of them in the file; the justification has to say which exclusions it covers.
+- A golangci-lint configuration keeps no per-exclusion identity beyond that detail, so the
+  one-decision-per-exclusion property holds only for exclusions that name a linter or a text.

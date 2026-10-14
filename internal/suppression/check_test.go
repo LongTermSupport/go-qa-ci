@@ -50,6 +50,14 @@ func TestEveryRouteFailsUnrecordedAndPassesRecorded(t *testing.T) {
 		{"golangci exclusion rule", cfg, "linters:\n  exclusions:\n    rules:\n      - linters: [gosec]\n        text: G306\n" + capsOff, "golangci.yml::exclusions.rules::gosec/G306", cfg},
 		{"golangci linter setting", cfg, "linters:\n  settings:\n    gosec:\n      excludes: [G204]\n" + capsOff, "golangci.yml::gosec.excludes::G204", cfg},
 		{"golangci new-from-rev", cfg, "issues:\n  new-from-rev: HEAD~1\n  max-issues-per-linter: 0\n  max-same-issues: 0\n", "golangci.yml::issues.new-from-rev::HEAD~1", cfg},
+		{"golangci new-from-merge-base", cfg, "issues:\n  new-from-merge-base: main\n  max-issues-per-linter: 0\n  max-same-issues: 0\n", "golangci.yml::issues.new-from-merge-base::main", cfg},
+		{"golangci exclusion presets", cfg, "linters:\n  exclusions:\n    presets: [comments]\n" + capsOff, "golangci.yml::exclusions.presets::comments", cfg},
+		{"golangci exclusion paths", cfg, "linters:\n  exclusions:\n    paths:\n      - vendor\n" + capsOff, "golangci.yml::exclusions.paths::vendor", cfg},
+		{"golangci disabled linter", cfg, "linters:\n  disable: [errcheck]\n" + capsOff, "golangci.yml::linters.disable::errcheck", cfg},
+		{"golangci issue cap above zero", cfg, "issues:\n  max-issues-per-linter: 50\n  max-same-issues: 0\n", "golangci.yml::issues.max-issues-per-linter::50", cfg},
+		{"staticcheck.conf initialisms", "staticcheck.conf", "checks = [\"all\"]\ninitialisms = [\"ID\"]\n", "staticcheck.conf::initialisms", "staticcheck.conf"},
+		{"staticcheck.conf dot-import whitelist", "staticcheck.conf", "checks = [\"all\"]\ndot_import_whitelist = [\"x\"]\n", "staticcheck.conf::dot_import_whitelist", "staticcheck.conf"},
+		{"staticcheck.conf status-code whitelist", "staticcheck.conf", "checks = [\"all\"]\nhttp_status_code_whitelist = [\"200\"]\n", "staticcheck.conf::http_status_code_whitelist", "staticcheck.conf"},
 	}
 	for _, tc := range routes {
 		t.Run(tc.name, func(t *testing.T) {

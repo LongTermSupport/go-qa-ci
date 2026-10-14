@@ -15,19 +15,20 @@ import (
 )
 
 const (
-	diffMod       = "example.com/diff"
-	leafSource    = "// Package leaf is a fixture.\npackage leaf\n\n// Leaf is a fixture.\nfunc Leaf() int { return 1 }\n"
-	leafTest      = "package leaf\n\nimport \"testing\"\n\nfunc TestLeaf(t *testing.T) {\n\tif Leaf() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
-	midSource     = "// Package mid is a fixture.\npackage mid\n\nimport \"" + diffMod + "/leaf\"\n\n// Mid is a fixture.\nfunc Mid() int { return leaf.Leaf() }\n"
-	midTest       = "package mid\n\nimport \"testing\"\n\nfunc TestMid(t *testing.T) {\n\tif Mid() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
-	otherSource   = "// Package other is a fixture.\npackage other\n\n// Other is a fixture.\nfunc Other() int { return 2 }\n\n// Untested is never called by a test.\nfunc Untested() int { return 3 }\n"
-	otherTest     = "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {\n\tt.Fatal(\"the unrelated package must not run\")\n}\n"
-	otherUnsafe   = "// Package other is a fixture.\npackage other\n\nimport \"os\"\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\")\n}\n"
-	midUnsafe     = "// Package mid is a fixture.\npackage mid\n\nimport (\n\t\"os\"\n\n\t\"" + diffMod + "/leaf\"\n)\n\n// Mid is a fixture.\nfunc Mid() int { return leaf.Leaf() }\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\")\n}\n"
-	leafChanged   = "// Package leaf is a fixture.\npackage leaf\n\n// Leaf is a fixture.\nfunc Leaf() int { return 1 + 0 }\n"
-	nolintSource  = "// Package other is a fixture.\npackage other\n\nimport \"os\"\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\") //nolint:errcheck // fixture\n}\n"
-	goModEdited   = "module " + diffMod + "\n\ngo 1.26\n\n// edited\n"
-	diffThreshold = 80
+	diffMod        = "example.com/diff"
+	leafSource     = "// Package leaf is a fixture.\npackage leaf\n\n// Leaf is a fixture.\nfunc Leaf() int { return 1 }\n"
+	leafTest       = "package leaf\n\nimport \"testing\"\n\nfunc TestLeaf(t *testing.T) {\n\tif Leaf() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+	midSource      = "// Package mid is a fixture.\npackage mid\n\nimport \"" + diffMod + "/leaf\"\n\n// Mid is a fixture.\nfunc Mid() int { return leaf.Leaf() }\n"
+	midTest        = "package mid\n\nimport \"testing\"\n\nfunc TestMid(t *testing.T) {\n\tif Mid() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+	otherSource    = "// Package other is a fixture.\npackage other\n\n// Other is a fixture.\nfunc Other() int { return 2 }\n\n// Untested is never called by a test.\nfunc Untested() int { return 3 }\n"
+	otherTest      = "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {\n\tt.Fatal(\"the unrelated package must not run\")\n}\n"
+	otherUnsafe    = "// Package other is a fixture.\npackage other\n\nimport \"os\"\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\")\n}\n"
+	midUnsafe      = "// Package mid is a fixture.\npackage mid\n\nimport (\n\t\"os\"\n\n\t\"" + diffMod + "/leaf\"\n)\n\n// Mid is a fixture.\nfunc Mid() int { return leaf.Leaf() }\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\")\n}\n"
+	leafChanged    = "// Package leaf is a fixture.\npackage leaf\n\n// Leaf is a fixture.\nfunc Leaf() int { return 1 + 0 }\n"
+	nolintSource   = "// Package other is a fixture.\npackage other\n\nimport \"os\"\n\n// Clean removes a file.\nfunc Clean() {\n\tos.Remove(\"x\") //nolint:errcheck // fixture\n}\n"
+	otherForbidden = "// Package other is a fixture.\npackage other\n\n// Forbidden is forbidden.\nfunc Forbidden() {}\n\n// F calls it.\nfunc F() { Forbidden() }\n"
+	goModEdited    = "module " + diffMod + "\n\ngo 1.26\n\n// edited\n"
+	diffThreshold  = 80
 )
 
 func runGit(t *testing.T, dir string, args ...string) {
@@ -126,6 +127,20 @@ func TestDiffGolangciLintsTheChangedPackagesAndImportersOnly(t *testing.T) {
 	exec, stderr = narrowed(t, root)
 	if out := exec.Run(stepNamed(t, "golangci")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "mid/mid.go") {
 		t.Fatalf("an importer's findings must be reported: %+v\n%s", out, stderr)
+	}
+}
+
+func TestDiffAnalyzersVetsTheChangedPackagesAndImportersOnly(t *testing.T) {
+	root := diffProject(t, map[string]string{"other/other.go": otherForbidden})
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "analyzers")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("the unrelated package's findings must not be reported: %+v\n%s", out, stderr)
+	}
+	put(t, root, map[string]string{"other/other.go": strings.Replace(otherForbidden, "func F()", "func G()", 1)})
+	exec, stderr = narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "analyzers")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "error[gqaci_test]") {
+		t.Fatalf("a changed package's findings must be reported: %+v\n%s", out, stderr)
 	}
 }
 

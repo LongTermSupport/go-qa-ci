@@ -71,6 +71,12 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
   project can see.
 - `ast-grep` is not invoked with a pinned version check; the version in use is whatever is on
   `PATH`.
+- ast-grep honours `.gitignore` files, including those of a parent repository. A module that sits
+  under a directory a parent repository ignores yields no matches on a full run or a `-p` directory
+  run, and the step reports `passed`; naming a file path explicitly does scan it. A silent pass is
+  a hole for such a layout, so keep the module outside ignored trees.
+- `scan_exclude` is applied as `--globs` to the bundled pack only. The project's rules are limited
+  by `sgconfig.yml` (its own ignores), not by `scan_exclude`.
 
 ## Writing Go call patterns
 

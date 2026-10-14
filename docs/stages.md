@@ -83,5 +83,14 @@ prints to resolve (`gqaci.docs.dangling`), and a page for either is not an orpha
   enumerates them itself rather than from the listing.
 - A findings exception whose rule no defence reports is not yet rejected as invalid for stage rules;
   only the unused-exception check above applies.
+- A `status` stage with no `files_command` and no `{files}` runs over the whole project under
+  `-p`, and its output is shown unscoped: a subset run is not honoured for that stage
+  (DETECTOR-SPEC 5.2, TOOLING-SPEC 4.4).
+- A `findings` stage with no `rules` command never has its findings exceptions checked for
+  staleness, because the list of rule ids is empty.
+- A `findings` stage is judged with the record even when the record is invalid; the run still fails
+  through the `record` tool, so this is not a pass.
+- A `findings` file may leave the stage's `dir` (`../shared/b.ts`) as long as it stays inside the
+  project root.
 - Stage commands run with the environment go-qa was started in; a stage's `dir` selects the working
   directory only, and a per-directory toolchain is the stage's own business.
