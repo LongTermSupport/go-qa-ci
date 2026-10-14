@@ -9,8 +9,8 @@ and `modules`). A required program that is not on `PATH` is an error, never a sk
 | --------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `vuln`                | `govulncheck -format json ./...`                                                      | the code calls a vulnerable symbol the record does not license                     |
 | `mod`                 | `go mod tidy -diff`, then `go mod verify`                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
-| `test`                | `go test -race -shuffle=on -count=1 ./...`                                            | a test fails or the code does not build                                            |
-| `coverage`            | `go test -covermode=atomic -coverpkg=./... -coverprofile`, then `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
+| `test`                | `go test -race -shuffle=on -count=1 [-covermode=atomic -coverprofile] ./...`          | a test fails or the code does not build                                            |
+| `coverage`            | the `test` run's own `-covermode=atomic -coverpkg=./... -coverprofile`, read by `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
 | `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                  | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
 | `deadcode` (detector) | `deadcode -test -json ./...`                                                          | a function is unreachable from every `main` function and test                      |
 

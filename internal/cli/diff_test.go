@@ -100,6 +100,18 @@ func TestRunChangedGoModChangeWidensAndSaysWhy(t *testing.T) {
 	}
 }
 
+func TestRunTellsTheExecutorWhichToolsWereSelected(t *testing.T) {
+	t.Setenv("CI", "")
+	rec := &recorder{}
+	code, _, errOut := runWith(rec, "--root", gitModule(t), "run", "-t", "test", "-t", "coverage")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+	if !slices.Contains(rec.ctx.Selected, "test") || !slices.Contains(rec.ctx.Selected, "coverage") {
+		t.Errorf("selected %v", rec.ctx.Selected)
+	}
+}
+
 func TestRunChangedRefusesABaseThatLooksLikeAnOption(t *testing.T) {
 	t.Setenv("CI", "")
 	dir := gitModule(t)

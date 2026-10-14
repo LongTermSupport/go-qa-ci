@@ -34,7 +34,7 @@ type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
 // Run executes go-qa with args (without the program name) and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
 	return RunWith(args, stdout, stderr, func(ctx tools.Context, errOut io.Writer) pipeline.Executor {
-		return tools.Executor{Ctx: ctx, Stderr: errOut}
+		return tools.NewExecutor(ctx, errOut)
 	})
 }
 

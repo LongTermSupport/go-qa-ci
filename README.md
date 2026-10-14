@@ -38,7 +38,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 | runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
 |           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
 |           | `test`           | `go test -race -shuffle=on -count=1 ./...`                                                                                                                                          |
-|           | `coverage`       | statement coverage with a threshold                                                                                                                                                 |
+|           | `coverage`       | statement coverage with a threshold, read from the `test` run itself (one `-race -shuffle=on -count=1` run feeds both verdicts)                                                                                                                                                 |
 |           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                  |
 
 Options: `-t <tool or stage>` (repeatable), `-p <path>` (repeatable; a file or a directory under

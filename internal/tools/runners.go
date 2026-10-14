@@ -152,7 +152,7 @@ func (e Executor) runTest() pipeline.Outcome {
 		if !run {
 			return nil
 		}
-		output, passed, err := runners.Test(context.Background(), dir, packages...)
+		output, passed, err := e.testModule(module, dir, packages)
 		if err != nil {
 			return fmt.Errorf("test in %s: %w", displayModule(module), err)
 		}
@@ -168,6 +168,19 @@ func (e Executor) runTest() pipeline.Outcome {
 	return e.verdict(err, failed)
 }
 
+// testModule runs the tests of a module. When the run shares its test run with the coverage step,
+// the same go test run also measures the coverage and keeps it for that step.
+func (e Executor) testModule(module, dir string, packages []string) (output string, passed bool, err error) {
+	if e.Shared == nil {
+		return runners.Test(context.Background(), dir, packages...)
+	}
+	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, packages...)
+	if err == nil && passed {
+		e.Shared.put(module, cov)
+	}
+	return output, passed, err
+}
+
 // runCoverage fails a module whose statement coverage is below the configured threshold.
 func (e Executor) runCoverage() pipeline.Outcome {
 	threshold := e.Ctx.Config.Coverage.FailUnderStatements
@@ -177,7 +190,7 @@ func (e Executor) runCoverage() pipeline.Outcome {
 		if !run {
 			return nil
 		}
-		message, err := coverageProblem(dir, threshold, packages)
+		message, err := e.coverageProblem(module, dir, threshold, packages)
 		if err != nil {
 			return fmt.Errorf("coverage in %s: %w", displayModule(module), err)
 		}
@@ -193,16 +206,22 @@ func (e Executor) runCoverage() pipeline.Outcome {
 	return e.verdict(err, failed)
 }
 
-// coverageProblem measures the module and describes how it misses the threshold; it is empty when
-// the threshold is met. Failing tests are a problem of the coverage gate too: nothing was measured.
-func coverageProblem(dir string, threshold int, packages []string) (string, error) {
-	cov, err := runners.MeasureCoverage(context.Background(), dir, packages...)
-	var testsFailed *runners.TestsFailedError
-	if errors.As(err, &testsFailed) {
-		return strings.TrimSpace(testsFailed.Error()), nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("measuring: %w", err)
+// coverageProblem describes how the module misses the threshold; it is empty when the threshold is
+// met. The coverage is the test step's, from the shared run, when there is one; otherwise it is
+// measured here in a run of its own. Failing tests are a problem of the coverage gate too: nothing
+// was measured.
+func (e Executor) coverageProblem(module, dir string, threshold int, packages []string) (string, error) {
+	cov, shared := e.Shared.take(module)
+	if !shared {
+		var err error
+		cov, err = runners.MeasureCoverage(context.Background(), dir, packages...)
+		var testsFailed *runners.TestsFailedError
+		if errors.As(err, &testsFailed) {
+			return strings.TrimSpace(testsFailed.Error()), nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("measuring: %w", err)
+		}
 	}
 	if cov.Total >= float64(threshold) {
 		return "", nil

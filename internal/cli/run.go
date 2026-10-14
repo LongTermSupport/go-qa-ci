@@ -126,6 +126,9 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 		Today:  date.Today(),
 		Diff:   diff,
 	}
+	for _, step := range steps {
+		ctx.Selected = append(ctx.Selected, step.Name)
+	}
 	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
 	if _, err := io.WriteString(stdout, renderRunSummary(report, scope, diff)); err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)

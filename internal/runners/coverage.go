@@ -37,38 +37,58 @@ type Coverage struct {
 	Uncovered []string
 }
 
-// MeasureCoverage runs the module's tests in dir counting statements across every package
-// (atomic mode, so it is correct under the race detector too) and reads the total back. Given
-// package patterns, it tests and counts only those packages.
+// MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)
+// and returns the coverage; tests that did not pass are a TestsFailedError, since nothing was
+// measured.
 func MeasureCoverage(ctx context.Context, dir string, packages ...string) (Coverage, error) {
-	scratch, err := os.MkdirTemp("", "go-qa-coverage-")
-	if err != nil {
-		return Coverage{}, fmt.Errorf("creating a coverage directory: %w", err)
-	}
-	cov, measureErr := measure(ctx, dir, filepath.Join(scratch, profileName), orAll(packages))
-	if removeErr := os.RemoveAll(scratch); removeErr != nil && measureErr == nil {
-		measureErr = fmt.Errorf("removing %s: %w", scratch, removeErr)
-	}
-	return cov, measureErr
-}
-
-func measure(ctx context.Context, dir, profile string, packages []string) (Coverage, error) {
-	args := slices.Concat([]string{"test", "-covermode=atomic", "-coverpkg=" + strings.Join(packages, ","), "-coverprofile=" + profile}, packages)
-	tests, err := Capture(ctx, dir, goBinary, args...)
+	output, passed, cov, err := TestAndMeasure(ctx, dir, packages...)
 	if err != nil {
 		return Coverage{}, err
 	}
+	if !passed {
+		return Coverage{}, &TestsFailedError{Output: output}
+	}
+	return cov, nil
+}
+
+// TestAndMeasure is the one test run of the gate: the module's tests in dir with the race
+// detector, shuffled and uncached, counting statements across every package (atomic mode, which
+// is correct under the race detector). The same run supplies the test verdict (passed, with output
+// everything go test printed) and the coverage, which is zero and meaningless when the tests did
+// not pass. Given package patterns, it tests and counts only those packages.
+func TestAndMeasure(ctx context.Context, dir string, packages ...string) (output string, passed bool, cov Coverage, err error) {
+	scratch, err := os.MkdirTemp("", "go-qa-coverage-")
+	if err != nil {
+		return "", false, Coverage{}, fmt.Errorf("creating a coverage directory: %w", err)
+	}
+	output, passed, cov, err = testAndMeasure(ctx, dir, filepath.Join(scratch, profileName), orAll(packages))
+	if removeErr := os.RemoveAll(scratch); removeErr != nil && err == nil {
+		err = fmt.Errorf("removing %s: %w", scratch, removeErr)
+	}
+	return output, passed, cov, err
+}
+
+func testAndMeasure(ctx context.Context, dir, profile string, packages []string) (output string, passed bool, cov Coverage, err error) {
+	args := slices.Concat(testFlags, []string{"-covermode=atomic", "-coverpkg=" + strings.Join(packages, ","), "-coverprofile=" + profile}, packages)
+	tests, err := Capture(ctx, dir, goBinary, args...)
+	if err != nil {
+		return "", false, Coverage{}, err
+	}
 	if tests.Code != 0 {
-		return Coverage{}, &TestsFailedError{Output: tests.Combined()}
+		return tests.Combined(), false, Coverage{}, nil
 	}
 	report, err := Capture(ctx, dir, goBinary, "tool", "cover", "-func="+profile)
 	if err != nil {
-		return Coverage{}, err
+		return "", false, Coverage{}, err
 	}
 	if report.Code != 0 {
-		return Coverage{}, fmt.Errorf("go tool cover exited %d: %s", report.Code, strings.TrimSpace(report.Stderr))
+		return "", false, Coverage{}, fmt.Errorf("go tool cover exited %d: %s", report.Code, strings.TrimSpace(report.Stderr))
 	}
-	return ParseCoverFunc(report.Stdout)
+	cov, err = ParseCoverFunc(report.Stdout)
+	if err != nil {
+		return "", false, Coverage{}, err
+	}
+	return tests.Combined(), true, cov, nil
 }
 
 // ParseCoverFunc reads `go tool cover -func` output: the total line gives the percentage, and a

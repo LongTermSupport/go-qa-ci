@@ -184,6 +184,9 @@ type Context struct {
 	Today date.Date
 	// Diff is the plan of a diff-mode run (`run --changed`); nil for a full run.
 	Diff *changed.Plan
+	// Selected names the tools of the run, in order; the test and coverage steps share one test
+	// run when both are among them.
+	Selected []string
 }
 
 // Pending is the executor for a step no engine is built for. It fails every step, saying
