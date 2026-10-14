@@ -13,7 +13,7 @@ the page; an identifier with none is dangling and exits 1.
 
 A project page is named after the identifier exactly as printed. A page whose name differs only in
 case, or in `-` against `_`, documents the same identifier. Resolution order: project page, then
-bundled page. A project page therefore overrides a bundled one; an unreadable project page is an
+bundled page, then the documentation of a registered analyzer (`docs/analyzers.md`). A project page therefore overrides a bundled one; an unreadable project page is an
 error, never a silent fall-through. Nothing is fetched from the network.
 
 ## What a page contains
@@ -41,8 +41,8 @@ pages exist ahead of them so that the release audit (below) never has a gap to e
 
 These are gaps, not claims (TOOLING-SPEC 9.2):
 
-- Identifiers of third-party detectors (golangci-lint linters, staticcheck checks, vet analyzers)
-  do not resolve yet. The `golangci` detector prints them (`errcheck`, `staticcheck::SA1019`) but
+- Identifiers of third-party detectors (golangci-lint linters, staticcheck checks) do not resolve
+  yet; analyzers do, through the driver's `help`. The `golangci` detector prints them (`errcheck`, `staticcheck::SA1019`) but
   `go-qa rule-doc` has no page for them; they join the resolution order through their own explain
   routes (TOOLING-SPEC 4.2). `docs/golangci.md` records the gap per clause.
 - The defence listing (`rules`, M11) does not exist, so the detector cannot require a page for a

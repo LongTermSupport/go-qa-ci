@@ -23,10 +23,20 @@ type Config struct {
 	Tools Tools `toml:"tools"`
 	// AstGrep configures the ast-grep detector.
 	AstGrep AstGrep `toml:"ast_grep"`
+	// Analyzers configures the analyzers detector.
+	Analyzers Analyzers `toml:"analyzers"`
 	// Coverage configures the coverage gate.
 	Coverage Coverage `toml:"coverage"`
 	// Mutants configures mutation testing.
 	Mutants Mutants `toml:"mutants"`
+}
+
+// Analyzers configures the analyzers detector.
+type Analyzers struct {
+	// Driver is the project's analyzer driver: a package pattern inside the root, "./..." style,
+	// whose main calls driver.Main with the project's analyzers. Empty means go-qa itself is the
+	// vet tool, with the analyzers bundled in it.
+	Driver string `toml:"driver"`
 }
 
 // RecordPolicy is the [record] table: where the project record lives and how large it may grow.

@@ -132,6 +132,10 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		{"absolute docs_dir", "docs_dir = \"/etc\"\n", []string{"docs_dir"}},
 		{"escaping record path", "record = \"../record.toml\"\n", []string{"record.path"}},
 		{"module without go.mod", "modules = [\"nested\"]\n", []string{"nested", "go.mod"}},
+		{"absolute analyzers driver", "[analyzers]\ndriver = \"/usr/lib/driver\"\n", []string{"analyzers.driver"}},
+		{"escaping analyzers driver", "[analyzers]\ndriver = \"../driver\"\n", []string{"analyzers.driver"}},
+		{"analyzers driver not a relative package", "[analyzers]\ndriver = \"example.com/other/driver\"\n", []string{"analyzers.driver", "./"}},
+		{"unknown analyzers key", "[analyzers]\ndrivers = \"./x\"\n", []string{"analyzers.drivers"}},
 		{"not toml", "this is = = not toml\n", []string{config.DefaultPath}},
 	}
 	for _, tc := range tests {
@@ -148,6 +152,18 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAnalyzersDriverIsAPackageInsideTheRoot(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, config.DefaultPath, "[analyzers]\ndriver = \"./internal/qa/vetdriver\"\n")
+	got, err := config.Load(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Analyzers.Driver != "./internal/qa/vetdriver" || config.Default().Analyzers.Driver != "" {
+		t.Errorf("driver = %q, default %q", got.Analyzers.Driver, config.Default().Analyzers.Driver)
 	}
 }
 

@@ -120,6 +120,9 @@ func (c Config) problems(root string) []string {
 			problems = append(problems, fmt.Sprintf("%s %q must be a relative path inside the root", key, value))
 		}
 	}
+	if driver := c.Analyzers.Driver; driver != "" && (!strings.HasPrefix(driver, "./") || !filepath.IsLocal(driver)) {
+		problems = append(problems, fmt.Sprintf("analyzers.driver %q must be a package inside the root, written like ./internal/qa/vetdriver", driver))
+	}
 	for _, module := range c.Modules {
 		switch {
 		case !filepath.IsLocal(module):

@@ -63,8 +63,10 @@ reports the rest as `gqaci.record.stale`. The `record` tool does not judge stale
 because that needs every detector that applies the record to have run first. The `suppression` tool
 is the only one that applies `covers = "suppressions"` exceptions, so on a run over the whole project
 it reports the unused ones as `gqaci.record.stale` (docs/suppression.md). Exceptions with
-`covers = "findings"` are applied by the golangci detector and, later, the analyzers; no run
-reports them stale yet, which is a recorded gap, not a claim.
+`covers = "findings"` are applied by the golangci detector and the analyzers detector. The
+analyzers detector reports the unused ones for analyzer names on a run over the whole project
+(docs/analyzers.md); no run reports an unused findings exception for a golangci-lint linter yet,
+which is a recorded gap, not a claim.
 
 ## Anti-bloat controls (TOOLING-SPEC 6.4)
 

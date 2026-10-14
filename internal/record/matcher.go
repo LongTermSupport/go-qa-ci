@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
@@ -55,6 +56,14 @@ func (m *Matcher) Stale(recordPath string) []finding.Finding {
 // alone applies that kind (the suppression guard for suppressions) can judge it without the others.
 func (m *Matcher) StaleCovering(covers Covers, recordPath string) []finding.Finding {
 	return m.stale(recordPath, func(e Exception) bool { return e.EffectiveCovers() == covers })
+}
+
+// StaleFindingsOf is Stale limited to the findings exceptions for the given rules. The detector
+// that owns those rules (the analyzers detector for analyzer names) can judge them without the others.
+func (m *Matcher) StaleFindingsOf(rules []string, recordPath string) []finding.Finding {
+	return m.stale(recordPath, func(e Exception) bool {
+		return e.EffectiveCovers() == CoversFindings && slices.Contains(rules, strings.TrimSpace(e.Rule))
+	})
 }
 
 func (m *Matcher) stale(recordPath string, wanted func(Exception) bool) []finding.Finding {

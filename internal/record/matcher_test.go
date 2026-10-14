@@ -76,3 +76,22 @@ func TestStaleCoveringJudgesOnlyTheExceptionsOfOneKind(t *testing.T) {
 		t.Errorf("a used entry was reported: %v", stale)
 	}
 }
+
+func TestStaleFindingsOfJudgesOnlyFindingsEntriesForTheGivenRules(t *testing.T) {
+	analyzer := entry("gqaci_test", "src/a.go", good)
+	analyzer.Covers = record.CoversFindings
+	other := entry("errcheck", "src/a.go", good)
+	other.Covers = record.CoversFindings
+	suppression := entry("gqaci_test", "src/b.go", good)
+	m := record.Record{Exceptions: []record.Exception{analyzer, other, suppression}}.Matcher()
+	stale := m.StaleFindingsOf([]string{"gqaci_test"}, "qa/record.toml")
+	if len(stale) != 1 || stale[0].Rule != finding.RecordStale || !strings.Contains(stale[0].Message, "gqaci_test") {
+		t.Fatalf("got %v", stale)
+	}
+	if _, ok := m.Finding("gqaci_test", "src/a.go"); !ok {
+		t.Fatal("entry did not match")
+	}
+	if stale := m.StaleFindingsOf([]string{"gqaci_test"}, "qa/record.toml"); len(stale) != 0 {
+		t.Errorf("a used entry is stale: %v", stale)
+	}
+}

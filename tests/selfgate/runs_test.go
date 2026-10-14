@@ -11,8 +11,8 @@ import (
 )
 
 // selfGateTools are the tools whose rules are proven active: the formatter, the golangci-lint
-// detector and the suppression detector.
-var selfGateTools = []string{"fmt", "golangci", "suppression"}
+// detector, the suppression detector and the analyzers detector.
+var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers"}
 
 // disabledSelfGateTools names the proven tools that a plain `go-qa run` would not execute.
 func disabledSelfGateTools(cfg config.Tools) []string {
@@ -59,6 +59,8 @@ func TestSelfGateToolCheckDetectsASwitchedOffTool(t *testing.T) {
 			cfg.Golangci = false
 		case "suppression":
 			cfg.Suppression = false
+		case "analyzers":
+			cfg.Analyzers = false
 		}
 		if off := disabledSelfGateTools(cfg); !slices.Equal(off, []string{name}) {
 			t.Errorf("switching %s off reported %v", name, off)

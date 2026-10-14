@@ -12,6 +12,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/configs"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/relpath"
 )
 
 const (
@@ -134,31 +135,17 @@ func (r Runner) Format(ctx context.Context, dir, configPath string, paths []stri
 // dir. Absolute output is requested because the default base is the configuration file's
 // directory, which for the temporary baseline is not the module.
 func relativize(findings []finding.Finding, dir string) error {
-	bases := []string{dir}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil && resolved != dir {
-		bases = append(bases, resolved)
-	}
 	for i, f := range findings {
 		if !filepath.IsAbs(f.Path) {
 			continue
 		}
-		rel, ok := within(bases, f.Path)
+		rel, ok := relpath.Within(dir, f.Path)
 		if !ok {
 			return fmt.Errorf("%s reported %s outside the module %s", binary, f.Path, dir)
 		}
 		findings[i].Path = rel
 	}
 	return nil
-}
-
-func within(bases []string, path string) (string, bool) {
-	for _, base := range bases {
-		rel, err := filepath.Rel(base, path)
-		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return filepath.ToSlash(rel), true
-		}
-	}
-	return "", false
 }
 
 func configArgs(configPath string) []string {

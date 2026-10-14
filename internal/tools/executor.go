@@ -31,6 +31,8 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 		return e.runDocs()
 	case "golangci":
 		return e.runGolangci()
+	case "analyzers":
+		return e.runAnalyzers()
 	default:
 		return Pending{}.Run(step)
 	}

@@ -3,7 +3,7 @@
 A Defence Before Fix (DBF) Toolchain for Go modules. Work in progress: no conformance to the DBF
 Tooling Specification is claimed. No declaration exists yet; one is added when the Toolchain has
 something to declare. Known gaps are recorded as they are found (TOOLING-SPEC 9.2), currently in
-`docs/golangci.md`, `docs/defences.md` and `docs/suppression.md`.
+`docs/golangci.md`, `docs/defences.md`, `docs/suppression.md` and `docs/analyzers.md`.
 
 ## Status
 
@@ -14,8 +14,9 @@ to bundled or project pages (`go-qa rule-doc`, `go-qa docs-check`, the `docs` to
 `docs/defences.md`). Formatting (`fmt`) and the aggregated linters (`golangci`) run through
 golangci-lint, which must be installed (see `docs/golangci.md`). The `suppression` tool fails every
 route that silences a defence without an entry in the project record (see `docs/suppression.md`).
-Every other tool engine is not
-built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
+The `analyzers` tool runs `go/analysis` analyzers through `go vet -vettool` and prints each finding
+under the analyzer name (see `docs/analyzers.md`; no analyzer is bundled yet). Every other tool
+engine is not built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
 to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 
 ## Commands
@@ -32,6 +33,7 @@ success, 1 a defence or tool failed, 2 usage or configuration error.
 | `go-qa record list [--json]`                                          | every exception with its justification, enumerated like the defences                     |
 | `go-qa record explain <rule or number>`                               | one exception (or every exception for a rule) in full                                    |
 | `go-qa rule-doc <id>`                                                 | the page for an identifier, offline; exit 1 when it is dangling                          |
+| `go-qa rules`                                                         | the registered `go/analysis` analyzers with their summaries (the complete listing is not built yet) |
 | `go-qa docs-check`                                                    | the docs detector: dangling identifiers, orphan pages, malformed bundled pages           |
 | `go-qa --version`                                                     | the version                                                                              |
 
@@ -79,6 +81,9 @@ mutants = true
 [ast_grep]
 bundled = true               # run the bundled gqaci.ast.* pack beside the project's own rules
 
+[analyzers]
+# driver = "./internal/qa/vetdriver"  # your analyzer driver package; unset = go-qa is the vet tool
+
 [coverage]
 fail_under_statements = 80   # percent of statements covered, 0 to 100
 
@@ -118,8 +123,8 @@ max_count = 1
 ```
 
 Paths in the file (`record`, `docs_dir`, `summary.file`, `modules`) must be relative and stay
-inside the root; each `modules` entry must hold a `go.mod`. `[[stage]]`, `[[resolver]]` and the
-analyzer driver setting are not accepted yet and are rejected as unknown keys until they are built.
+inside the root; each `modules` entry must hold a `go.mod`; `analyzers.driver` is a package of the
+project written like `./internal/qa/driver`. `[[stage]]` and `[[resolver]]` are not accepted yet and are rejected as unknown keys until they are built.
 
 ## Public safety
 

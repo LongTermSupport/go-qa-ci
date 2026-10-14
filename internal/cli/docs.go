@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/docs"
@@ -17,13 +18,29 @@ func runRuleDoc(rootPath string, cfg config.Config, args []string, stdout, stder
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
 	if !found {
-		return emit(stderr, ExitFailure, "no documentation for `%s` (dangling identifier); a project rule's page is %s/%s",
-			args[0], cfg.DocsDir, docs.FileName(args[0]))
+		return ruleDocFromAnalyzers(rootPath, cfg, args[0], stdout, stderr)
 	}
 	if code := emit(stdout, ExitOK, "%s", doc.Text); code != ExitOK {
 		return code
 	}
 	return emit(stderr, ExitOK, "(source: %s)", doc.Source)
+}
+
+// ruleDocFromAnalyzers is the last place an identifier is looked up: the documentation of the
+// analyzers of the project's vet tool. An identifier nothing documents is dangling.
+func ruleDocFromAnalyzers(rootPath string, cfg config.Config, id string, stdout, stderr io.Writer) int {
+	text, found, err := analyzerDoc(rootPath, cfg, id)
+	if err != nil {
+		return emit(stderr, ExitFailure, "go-qa: %v", err)
+	}
+	if found {
+		if code := emit(stdout, ExitOK, "%s", strings.TrimRight(text, "\n")); code != ExitOK {
+			return code
+		}
+		return emit(stderr, ExitOK, "(source: %s)", analyzerSource)
+	}
+	return emit(stderr, ExitFailure, "no documentation for `%s` (dangling identifier); a project rule's page is %s/%s",
+		id, cfg.DocsDir, docs.FileName(id))
 }
 
 // runDocsCheck fails when an identifier is dangling, a page is an orphan or a bundled page is
