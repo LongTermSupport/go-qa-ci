@@ -131,14 +131,17 @@ func Compute(ctx context.Context, opts Options) (*Plan, error) {
 	goFiles := slices.DeleteFunc(slices.Clone(files), func(file string) bool {
 		return !strings.HasSuffix(file, ".go") || ignoredByGo(file)
 	})
-	if len(goFiles) == 0 {
+	otherFiles := slices.DeleteFunc(slices.Clone(files), func(file string) bool {
+		return slices.Contains(goFiles, file) || (strings.HasSuffix(file, ".go") && !strings.Contains("/"+path.Dir(file)+"/", "/testdata/"))
+	})
+	if len(goFiles) == 0 && len(otherFiles) == 0 {
 		return plan, nil
 	}
 	packages, err := listPackages(ctx, opts.Root, opts.Modules)
 	if err != nil {
 		return nil, err
 	}
-	affected, orphan := packages.affectedBy(goFiles)
+	affected, orphan := packages.affectedBy(goFiles, otherFiles)
 	if orphan != "" {
 		plan.Widened = orphan + " changed outside any package that still exists"
 		return plan, nil

@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -21,7 +24,10 @@ const maxPercent = 100
 func Load(root, explicit string) (Config, error) {
 	shown := DefaultPath
 	if explicit != "" {
-		shown = explicit
+		var err error
+		if shown, err = RootRelative(root, explicit); err != nil {
+			return Config{}, err
+		}
 	}
 	data, err := readInRoot(root, shown)
 	switch {
@@ -38,6 +44,27 @@ func Load(root, explicit string) (Config, error) {
 		return Config{}, fmt.Errorf("%s: %s", shown, strings.Join(problems, "; "))
 	}
 	return cfg, nil
+}
+
+// RootRelative turns an explicit --config value into the root-relative form the rest of the tool
+// compares against: an absolute path is accepted when it lies inside the root.
+// An empty explicit gives DefaultPath; the result is slash-separated.
+func RootRelative(root, explicit string) (string, error) {
+	switch {
+	case explicit == "":
+		return DefaultPath, nil
+	case !filepath.IsAbs(explicit):
+		return filepath.ToSlash(filepath.Clean(explicit)), nil
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve root: %w", err)
+	}
+	rel, err := filepath.Rel(absRoot, explicit)
+	if err != nil || !filepath.IsLocal(rel) {
+		return "", fmt.Errorf("--config %s is outside the root %s; give a file inside it", explicit, absRoot)
+	}
+	return filepath.ToSlash(rel), nil
 }
 
 // readInRoot reads a file that must lie inside root.
@@ -61,6 +88,13 @@ func decode(data []byte) (Config, error) {
 	data, err := expandRecordShorthand(data)
 	if err != nil {
 		return Config{}, err
+	}
+	var raw map[string]any
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return Config{}, fmt.Errorf("invalid TOML: %w", err)
+	}
+	if spelling := spellingProblems(raw, reflect.TypeFor[Config]()); len(spelling) > 0 {
+		return Config{}, errors.New(strings.Join(spelling, "; "))
 	}
 	cfg := Default()
 	dec := toml.NewDecoder(bytes.NewReader(data))
@@ -120,7 +154,8 @@ func (c Config) problems(root string) []string {
 	if c.Summary.File != "" {
 		local["summary.file"] = c.Summary.File
 	}
-	for key, value := range local {
+	for _, key := range slices.Sorted(maps.Keys(local)) {
+		value := local[key]
 		if !filepath.IsLocal(value) {
 			problems = append(problems, fmt.Sprintf("%s %q must be a relative path inside the root", key, value))
 		}

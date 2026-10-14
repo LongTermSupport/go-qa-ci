@@ -139,6 +139,12 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		{"analyzers driver not a relative package", "[analyzers]\ndriver = \"example.com/other/driver\"\n", []string{"analyzers.driver", "./"}},
 		{"unknown analyzers key", "[analyzers]\ndrivers = \"./x\"\n", []string{"analyzers.drivers"}},
 		{"not toml", "this is = = not toml\n", []string{config.DefaultPath}},
+		{"table spelt in another case", "[Tools]\nfmt = false\n", []string{"Tools", "tools"}},
+		{"key spelt in another case", "[tools]\nFMT = false\n", []string{"tools.FMT", "tools.fmt"}},
+		{"nested key spelt in another case", "[record.trust.high]\nMax_Review_Days = 3\n", []string{"max_review_days"}},
+		{"negative max_total", "[record]\nmax_total = -1\nmax_per_rule = -2\nmax_policy = -3\n", []string{"record.max_total", "record.max_per_rule", "record.max_policy"}},
+		{"negative max_review_days", "[record]\nmax_review_days = -5\n", []string{"record.max_review_days"}},
+		{"negative tier limits", "[record.trust.low]\nmax_review_days = -1\nmax_count = -1\n", []string{"record.trust.low.max_review_days", "record.trust.low.max_count"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -194,6 +200,41 @@ func TestExplicitConfigPath(t *testing.T) {
 	}
 	if got.Tools.Deadcode {
 		t.Error("explicit file was not read")
+	}
+}
+
+func TestAbsoluteConfigPathInsideTheRootIsRead(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "qa/other.toml", "[tools]\ndeadcode = false\n")
+	got, err := config.Load(dir, filepath.Join(dir, "qa", "other.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Tools.Deadcode {
+		t.Error("the absolute path was not read")
+	}
+	outside := t.TempDir()
+	writeFile(t, outside, "x.toml", "")
+	_, err = config.Load(dir, filepath.Join(outside, "x.toml"))
+	if err == nil || !strings.Contains(err.Error(), "outside the root") {
+		t.Errorf("a config outside the root must say so, got %v", err)
+	}
+}
+
+func TestProblemMessagesComeInAStableOrder(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, config.DefaultPath, "docs_dir = \"/a\"\nrecord = \"/b\"\n[summary]\nfile = \"/c\"\n[record.trust]\nmodels = { z = \"human\", y = \"human\", x = \"human\", w = \"human\" }\n")
+	var first string
+	for i := range 20 {
+		_, err := config.Load(dir, "")
+		if err == nil {
+			t.Fatal("accepted")
+		}
+		if i == 0 {
+			first = err.Error()
+		} else if err.Error() != first {
+			t.Fatalf("message order changed:\n%s\n%s", first, err)
+		}
 	}
 }
 

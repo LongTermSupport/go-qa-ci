@@ -206,11 +206,26 @@ func TestNonGoChangeNeedsNoPackages(t *testing.T) {
 	}
 }
 
-func TestTestdataGoFileIsNoPackage(t *testing.T) {
+func TestTestdataFileRunsOnlyThePackageThatOwnsIt(t *testing.T) {
 	dir := project(t)
 	write(t, dir, "leaf/testdata/x.go", "package x\n")
+	write(t, dir, "leaf/testdata/golden/out.txt", "golden\n")
 	plan := compute(t, dir, "")
-	if !plan.Narrow() || len(plan.Packages) != 0 {
+	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./leaf"}) {
+		t.Fatalf("plan %+v", plan)
+	}
+}
+
+func TestEmbeddedFileRunsItsPackageAndItsImporters(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "leaf/text.txt", "one\n")
+	write(t, dir, "leaf/leaf.go", "package leaf\n\nimport _ \"embed\"\n\n//go:embed text.txt\nvar Text string\n\nfunc Leaf() int { return 1 }\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "embed")
+	write(t, dir, "leaf/text.txt", "two\n")
+	write(t, dir, "other/readme.md", "not embedded\n")
+	plan := compute(t, dir, "")
+	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./leaf", "./mid", "./top"}) {
 		t.Fatalf("plan %+v", plan)
 	}
 }

@@ -29,23 +29,27 @@ type goPackage struct {
 type packageSet struct {
 	byImport map[string]*goPackage
 	byDir    map[string]*goPackage
+	byEmbed  map[string]*goPackage
 }
 
 type listed struct {
-	ImportPath   string
-	Dir          string
-	Imports      []string
-	TestImports  []string
-	XTestImports []string
+	ImportPath      string
+	Dir             string
+	Imports         []string
+	TestImports     []string
+	XTestImports    []string
+	EmbedFiles      []string
+	TestEmbedFiles  []string
+	XTestEmbedFiles []string
 }
 
 // listPackages runs go list in every module.
 func listPackages(ctx context.Context, root string, modules []string) (packageSet, error) {
-	set := packageSet{byImport: map[string]*goPackage{}, byDir: map[string]*goPackage{}}
+	set := packageSet{byImport: map[string]*goPackage{}, byDir: map[string]*goPackage{}, byEmbed: map[string]*goPackage{}}
 	for _, module := range modules {
 		dir := filepath.Join(root, filepath.FromSlash(module))
 		var stdout, stderr bytes.Buffer
-		cmd := exec.CommandContext(ctx, "go", "list", "-json=ImportPath,Dir,Imports,TestImports,XTestImports", "./...")
+		cmd := exec.CommandContext(ctx, "go", "list", "-json=ImportPath,Dir,Imports,TestImports,XTestImports,EmbedFiles,TestEmbedFiles,XTestEmbedFiles", "./...")
 		cmd.Dir = dir
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -77,6 +81,9 @@ func listPackages(ctx context.Context, root string, modules []string) (packageSe
 			}
 			set.byImport[entry.ImportPath] = pkg
 			set.byDir[path.Join(module, rel)] = pkg
+			for _, file := range slices.Concat(entry.EmbedFiles, entry.TestEmbedFiles, entry.XTestEmbedFiles) {
+				set.byEmbed[path.Join(module, rel, filepath.ToSlash(file))] = pkg
+			}
 		}
 	}
 	return set, nil
@@ -93,7 +100,11 @@ func displayModule(module string) string {
 // of every package that imports one of them, directly or not. A changed file whose directory is
 // no package is returned as orphan: it was deleted with its package, or is excluded by build
 // constraints, and either way the importers cannot be known.
-func (s packageSet) affectedBy(goFiles []string) (affected map[string][]string, orphan string) {
+//
+// Files that are no Go source of the package still decide its result: an embedded file changes the
+// package and so its importers; a file under testdata changes only the tests of the package that
+// owns the directory. Both are mapped to their package; a file that belongs to none is ignored.
+func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected map[string][]string, orphan string) {
 	importers := map[string][]string{}
 	for importPath, pkg := range s.byImport {
 		for _, imported := range pkg.imports {
@@ -110,7 +121,18 @@ func (s packageSet) affectedBy(goFiles []string) (affected map[string][]string, 
 		}
 		queue = append(queue, pkg.importPath)
 	}
+	var direct []string
+	for _, file := range otherFiles {
+		if pkg, ok := s.byEmbed[file]; ok {
+			queue = append(queue, pkg.importPath)
+		} else if pkg := s.testdataOwner(file); pkg != nil {
+			direct = append(direct, pkg.importPath)
+		}
+	}
 	seen := map[string]bool{}
+	for _, importPath := range direct {
+		seen[importPath] = true
+	}
 	for len(queue) > 0 {
 		importPath := queue[0]
 		queue = queue[1:]
@@ -129,4 +151,27 @@ func (s packageSet) affectedBy(goFiles []string) (affected map[string][]string, 
 		slices.Sort(affected[module])
 	}
 	return affected, ""
+}
+
+// testdataOwner is the package whose directory holds the testdata directory that contains file.
+func (s packageSet) testdataOwner(file string) *goPackage {
+	dir := path.Dir(file)
+	for {
+		parent, last := path.Split(dir)
+		parent = path.Clean(parent)
+		if last == "testdata" {
+			for owner := parent; ; owner = path.Dir(owner) {
+				if pkg, ok := s.byDir[owner]; ok {
+					return pkg
+				}
+				if owner == "." || owner == "/" {
+					return nil
+				}
+			}
+		}
+		if parent == dir || dir == "." {
+			return nil
+		}
+		dir = parent
+	}
 }

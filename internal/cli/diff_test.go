@@ -101,15 +101,24 @@ func TestRunChangedGoModChangeWidensAndSaysWhy(t *testing.T) {
 }
 
 func TestRunChangedWidensWhenTheExplicitConfigFileChanges(t *testing.T) {
-	t.Setenv("CI", "")
-	dir := gitModule(t)
-	writeIn(t, dir, "ci/custom.toml", "\n")
-	gitIn(t, dir, "add", "-A")
-	gitIn(t, dir, "commit", "-m", "config")
-	writeIn(t, dir, "ci/custom.toml", "# edited\n")
-	_, out, errOut := runWith(&recorder{}, "--root", dir, "--config", "ci/custom.toml", "run", "--changed")
-	if !strings.Contains(out, "widened: ci/custom.toml changed") {
-		t.Errorf("summary:\n%s\n%s", out, errOut)
+	for name, spelling := range map[string]func(dir string) string{
+		"relative":          func(string) string { return "ci/custom.toml" },
+		"dot-relative":      func(string) string { return "./ci/custom.toml" },
+		"absolute":          func(dir string) string { return filepath.Join(dir, "ci", "custom.toml") },
+		"with a parent hop": func(string) string { return "ci/../ci/custom.toml" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("CI", "")
+			dir := gitModule(t)
+			writeIn(t, dir, "ci/custom.toml", "\n")
+			gitIn(t, dir, "add", "-A")
+			gitIn(t, dir, "commit", "-m", "config")
+			writeIn(t, dir, "ci/custom.toml", "# edited\n")
+			_, out, errOut := runWith(&recorder{}, "--root", dir, "--config", spelling(dir), "run", "--changed")
+			if !strings.Contains(out, "widened: ci/custom.toml changed") {
+				t.Errorf("summary:\n%s\n%s", out, errOut)
+			}
+		})
 	}
 }
 

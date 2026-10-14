@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -98,12 +97,15 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 	}
 	var diff *changed.Plan
 	if opts.changed {
-		var err error
+		configRel, err := config.RootRelative(rootPath, configFile)
+		if err != nil {
+			return emit(stderr, ExitUsage, "go-qa: %v", err)
+		}
 		diff, err = changed.Compute(context.Background(), changed.Options{
 			Root:    rootPath,
 			Base:    opts.base,
 			Modules: append([]string{""}, cfg.Modules...),
-			Widen:   []string{cfg.Record.Path, cmp.Or(configFile, config.DefaultPath)},
+			Widen:   []string{cfg.Record.Path, configRel},
 		})
 		if err != nil {
 			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)

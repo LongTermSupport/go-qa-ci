@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -48,7 +50,8 @@ func (p RecordPolicy) TierOf(model string) Tier {
 		return TierHuman
 	}
 	best, bestLen := TierUnknown, 0
-	for prefix, tier := range p.Trust.Models {
+	for _, prefix := range slices.Sorted(maps.Keys(p.Trust.Models)) {
+		tier := p.Trust.Models[prefix]
 		prefix = strings.ToLower(strings.TrimSpace(prefix))
 		if prefix != "" && strings.HasPrefix(model, prefix) && len(prefix) > bestLen {
 			best, bestLen = tier, len(prefix)
@@ -152,6 +155,7 @@ func (p RecordPolicy) Problems() []string {
 			problems = append(problems, fmt.Sprintf("record.deciders: `%s` looks like an automation identity; deciders must be people", decider))
 		}
 	}
+	problems = append(problems, p.negativeProblems()...)
 	if p.MaxPerRule > p.MaxTotal {
 		problems = append(problems, fmt.Sprintf("record.max_per_rule (%d) exceeds record.max_total (%d)", p.MaxPerRule, p.MaxTotal))
 	}
@@ -166,7 +170,8 @@ func (p RecordPolicy) Problems() []string {
 
 func (p RecordPolicy) modelProblems() []string {
 	var problems []string
-	for prefix, tier := range p.Trust.Models {
+	for _, prefix := range slices.Sorted(maps.Keys(p.Trust.Models)) {
+		tier := p.Trust.Models[prefix]
 		if strings.TrimSpace(prefix) == "" {
 			problems = append(problems, "record.trust.models: empty model prefix")
 		}
@@ -218,6 +223,32 @@ func (p RecordPolicy) cosignProblems() []string {
 			problems = append(problems, fmt.Sprintf("record.trust.cosign: unknown min_tier %q", category.MinTier))
 		case category.MinTier == TierUnknown:
 			problems = append(problems, "record.trust.cosign: min_tier cannot be `unknown`")
+		}
+	}
+	return problems
+}
+
+// negativeProblems rejects a negative cap or horizon, which would make every non-empty record
+// fail with a budget message instead of a configuration error.
+func (p RecordPolicy) negativeProblems() []string {
+	var problems []string
+	for _, c := range []struct {
+		name  string
+		value int
+	}{{"max_total", p.MaxTotal}, {"max_per_rule", p.MaxPerRule}, {"max_policy", p.MaxPolicy}, {"max_review_days", p.MaxReviewDays}} {
+		if c.value < 0 {
+			problems = append(problems, fmt.Sprintf("record.%s (%d) must not be negative", c.name, c.value))
+		}
+	}
+	for _, t := range []struct {
+		name   string
+		limits TierLimits
+	}{{"human", p.Trust.Human}, {"high", p.Trust.High}, {"medium", p.Trust.Medium}, {"low", p.Trust.Low}} {
+		if d := t.limits.MaxReviewDays; d != nil && *d < 0 {
+			problems = append(problems, fmt.Sprintf("record.trust.%s.max_review_days (%d) must not be negative", t.name, *d))
+		}
+		if c := t.limits.MaxCount; c != nil && *c < 0 {
+			problems = append(problems, fmt.Sprintf("record.trust.%s.max_count (%d) must not be negative", t.name, *c))
 		}
 	}
 	return problems
