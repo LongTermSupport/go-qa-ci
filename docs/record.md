@@ -158,6 +158,15 @@ and `golangci.yml::govet.disable::fieldalignment`, all against `.golangci.yml`. 
 are the owner's to re-decide; a lapsed one fails `gqaci.record.expired`. The `example-owner`
 decider in `qa/go-qa.toml` is a placeholder to replace before the first public release.
 
+## Order of checks
+
+The matcher that detectors use to apply the record also matches an entry that validation rejects
+(a glob without `policy = true`, say). That is deliberate and relies on an ordering: the `record`
+tool is a detector and fails the run with `gqaci.record.invalid` before any runner starts, so an
+invalid entry never licenses anything in a green run. An entry whose `added_by_model` maps to no tier
+is likewise invalid, and counts toward no tier's `max_count` while being reviewed against the lowest
+tier's horizon.
+
 ## Not yet built
 
 `record prune` takes explicit numbers; it does not yet find the stale exceptions itself. The

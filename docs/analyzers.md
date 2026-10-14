@@ -20,10 +20,10 @@ error[project_nopanic]: panic is forbidden
 
 The tool is chosen by `[analyzers] driver` in `qa/go-qa.toml`.
 
-| `driver`                 | The vet tool                                                                                                                     |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `driver`                 | The vet tool                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | unset (default)          | the `go-qa` binary itself, started with `GQACI_VETTOOL=1` in its environment; it then registers the bundled analyzers (below) |
-| `"./internal/qa/driver"` | the project's own package, built with `go build` into a temporary file for the run and deleted afterwards                        |
+| `"./internal/qa/driver"` | the project's own package, built with `go build` into a temporary file for the run and deleted afterwards                     |
 
 A project driver is a few lines in a `main` package of the project's module, calling the public
 `driver` package with its analyzers:
@@ -64,8 +64,8 @@ run limited with `-p` cannot judge staleness.
 
 ## Bundled analyzers
 
-| Identifier               | Blocks                                                                                         | Page                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Identifier               | Blocks                                                                                        | Page                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | `gqaci_sensitive_format` | a value holding a sensitive-named type printed by fmt, log or slog without a redacting method | `ruledocs/rules/gqaci_sensitive_format.md` |
 
 The analyzer is Blocking (it has no advisory mode) and its only exception is a project-record entry
@@ -117,5 +117,9 @@ These are gaps, not claims:
 - `-p` filters findings only after the whole module has been analysed (`go vet ./...` always
   runs), so a single-file run costs as much as a full run; DETECTOR-SPEC 5.2 is met in effect, not
   in cost.
+- The `[analyzers] driver` wiring (`internal/cli/analyzers.go`) is proven in pieces: the CLI lists
+  the test binary's analyzer, and `internal/vet` builds a project driver and runs it. No CLI test
+  sets `driver` and then runs `go-qa rules` or `run -t analyzers` end to end; that was checked by
+  hand with the real binary.
 - A project driver is built with whatever `go.mod` the project has; go-qa does not check that the
   driver's go-qa-ci version matches the running binary.

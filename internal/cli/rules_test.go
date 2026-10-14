@@ -129,7 +129,7 @@ func TestRulesTextShowsEachExceptionWithItsJustification(t *testing.T) {
 	}
 }
 
-const summaryConfig ="[summary]\nfile = \"AGENTS.md\"\n"
+const summaryConfig = "[summary]\nfile = \"AGENTS.md\"\n"
 
 func TestSummaryWritesTheRegionAndCheckPassesUntilTheConfigurationChanges(t *testing.T) {
 	root := module(t, summaryConfig)

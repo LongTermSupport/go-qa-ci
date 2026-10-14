@@ -23,10 +23,9 @@ func walkKeys(value any, schema reflect.Type, given, canon string, problems *[]s
 	}
 	switch typed := value.(type) {
 	case map[string]any:
-		switch schema.Kind() {
-		case reflect.Struct:
+		if schema.Kind() == reflect.Struct {
 			walkStruct(typed, schema, given, canon, problems)
-		case reflect.Map:
+		} else if schema.Kind() == reflect.Map {
 			for _, v := range typed {
 				walkKeys(v, schema.Elem(), given, canon, problems)
 			}
