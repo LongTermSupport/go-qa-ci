@@ -245,13 +245,13 @@ func TestTheDetectorFailsARuleTestThatDoesNotHold(t *testing.T) {
 	}
 }
 
-func TestTheDetectorReportsItselfSkippedWithTheReasonWithoutTheBinary(t *testing.T) {
+func TestTheDetectorFailsWithTheReasonWithoutTheBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if _, err := exec.LookPath(astgrep.Binary); err == nil {
 		t.Fatal("ast-grep is still on PATH")
 	}
 	outcome, stderr := detect(t, project(t, nil), config.Default(), astgrep.Pack{})
-	if outcome.Kind != pipeline.KindSkipped || !strings.Contains(outcome.Reason, "ast-grep is not installed") {
+	if outcome.Kind != pipeline.KindFailed || !strings.Contains(stderr, "ast-grep is not installed") {
 		t.Errorf("got %+v\n%s", outcome, stderr)
 	}
 }

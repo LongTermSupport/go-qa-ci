@@ -26,12 +26,10 @@ Findings print compiler-style with the rule identifier exactly as ast-grep repor
 ## Without the binary
 
 The executable is `ast-grep`, never `sg`: on Linux `sg` is another program. When it is not on
-`PATH` the step is skipped and says why (`ast-grep is not installed`), after the rules themselves
-have passed the checks in item 2; a rule with no id or no proof fails whether the binary is
-installed or not. A skip is not a pass: the summary shows it as skipped, and the scans did not run.
-This is a recorded gap (TOOLING-SPEC 9.2): ast-grep is pinned in `tools.lock` and installed by
-`scripts/install-tools.sh`, but a machine without it still cannot be told apart from a project
-with nothing to scan except by that skip line.
+`PATH` the step fails with `ast-grep is not installed`, after the rules themselves have passed
+the checks in item 2; a rule with no id or no proof fails whether the binary is installed or not.
+A missing binary is an error like any other missing tool, never a skip, so no runner follows it.
+ast-grep is pinned in `tools.lock` and installed by `scripts/install-tools.sh`.
 
 With no `sgconfig.yml` and an empty or switched-off pack there is nothing to scan, and the step is
 skipped saying so.

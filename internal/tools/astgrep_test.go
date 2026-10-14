@@ -70,11 +70,11 @@ func TestAstGrepIsSkippedWithoutAProjectAndWithoutAPack(t *testing.T) {
 	}
 }
 
-func TestAstGrepIsSkippedWithTheReasonWhenTheBinaryIsMissing(t *testing.T) {
+func TestAstGrepFailsWhenTheBinaryIsMissing(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	root := fixture(t, projectFiles())
 	outcome, stderr := runAstGrep(t, tools.Context{Root: root}, astgrep.Pack{})
-	if outcome.Kind != pipeline.KindSkipped || !strings.Contains(outcome.Reason, "ast-grep is not installed") {
+	if outcome.Kind != pipeline.KindFailed || !strings.Contains(stderr, "ast-grep is not installed") {
 		t.Errorf("got %+v\n%s", outcome, stderr)
 	}
 }

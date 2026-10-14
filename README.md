@@ -46,8 +46,7 @@ the root; one file is enough), `--ci` (also implied by a `CI` variable that is s
 or `0`: autofix, then fail if the working tree changed), `--no-fix` (only check formatting),
 `--fail-fast` (stop at the first failure of any kind). An unknown `-t` name lists the known ones.
 Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error. A required
-program that is not on `PATH` is an error, never a skipped check; the one exception is `ast-grep`,
-whose skip is a recorded gap (docs/astgrep.md).
+program that is not on `PATH` is an error, never a skipped check.
 
 Global flags: `--root DIR` (default: the directory of the active `go.work`, else of the enclosing
 `go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root).
