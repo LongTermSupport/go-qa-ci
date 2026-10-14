@@ -76,17 +76,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install actionlint (checksum-verified)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ACTIONLINT_VERSION: "1.7.12"
+      - name: Install actionlint (version and sha256 from tools.lock)
         run: |
-          mkdir -p "${RUNNER_TEMP}/actionlint"
-          cd "${RUNNER_TEMP}/actionlint"
-          gh release download "v${ACTIONLINT_VERSION}" -R rhysd/actionlint \
-            -p "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -p "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
-          sha256sum -c --ignore-missing "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
-          tar xzf "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" actionlint
-          echo "${PWD}" >> "${GITHUB_PATH}"
+          export GOBIN="${RUNNER_TEMP}/bin"
+          PATH="${GOBIN}:${PATH}" scripts/install-tools.sh actionlint
+          echo "${GOBIN}" >> "${GITHUB_PATH}"
       - run: actionlint
       - run: shellcheck scripts/*.sh .githooks/* .github/scripts/*.sh

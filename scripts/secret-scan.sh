@@ -11,11 +11,11 @@
 # No suppression route: a tracked .gitleaks.toml or .gitleaksignore is refused and inline
 # `gitleaks:allow` comments are ignored. A false positive is fixed by changing the content (for
 # example a visibly fake value) or, if that is impossible, by changing this script in review.
-# The gitleaks version used in CI is pinned in .github/workflows/public-safety.yml.
+# The gitleaks version used in CI is pinned in tools.lock, with the sha256 of its archive.
 set -euo pipefail
 
 if ! command -v gitleaks > /dev/null; then
-    echo "secret-scan: gitleaks is not installed (see .github/workflows/public-safety.yml for the pinned version)" >&2
+    echo "secret-scan: gitleaks is not installed (scripts/install-tools.sh gitleaks installs the version tools.lock pins)" >&2
     exit 2
 fi
 repo_dir="$(git rev-parse --show-toplevel)"

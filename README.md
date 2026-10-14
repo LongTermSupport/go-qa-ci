@@ -24,22 +24,22 @@ that is switched off does not run (`go-qa tools` shows it as disabled) and a ste
 fails as not implemented; neither counts as a pass. Within a phase the built-in tools run first, then the project's own stages (see
 "Project stages").
 
-| Phase     | Tool (`-t` name) | What                                                                                                                                                                                |
-| --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| format    | `fmt`            | the formatters of the golangci-lint configuration (`gofumpt`, `goimports`); fixes locally, `--no-fix` checks                                                                        |
-| detectors | `record`         | project record validation and anti-bloat policy (`gqaci.record.invalid`, `.budget`, `.ratchet`, `.expired`, `.stale`)                                                               |
-|           | `suppression`    | every route that silences a defence without a record entry (`gqaci.suppression.unrecorded`)                                                                                         |
-|           | `summary`        | agent summary freshness (`gqaci.summary.stale`)                                                                                                                                     |
-|           | `docs`           | every listed identifier resolves to documentation (`gqaci.docs.dangling`), every page documents a listed identifier (`gqaci.docs.orphan`)                                           |
+| Phase     | Tool (`-t` name) | What                                                                                                                                                                                                                            |
+| --------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| format    | `fmt`            | the formatters of the golangci-lint configuration (`gofumpt`, `goimports`); fixes locally, `--no-fix` checks                                                                                                                    |
+| detectors | `record`         | project record validation and anti-bloat policy (`gqaci.record.invalid`, `.budget`, `.ratchet`, `.expired`, `.stale`)                                                                                                           |
+|           | `suppression`    | every route that silences a defence without a record entry (`gqaci.suppression.unrecorded`)                                                                                                                                     |
+|           | `summary`        | agent summary freshness (`gqaci.summary.stale`)                                                                                                                                                                                 |
+|           | `docs`           | every listed identifier resolves to documentation (`gqaci.docs.dangling`), every page documents a listed identifier (`gqaci.docs.orphan`)                                                                                       |
 |           | `ast-grep`       | syntactic rules: the project's `sgconfig.yml` rules, then the bundled `gqaci.ast.*` pack (whatever it holds; `go-qa rules` lists it); every project rule has an id (`gqaci.rules.unnamed`) and a proof (`gqaci.rules.untested`) |
-|           | `golangci`       | golangci-lint over a strict bundled baseline; every finding prints its linter (and check code)                                                                                      |
-|           | `analyzers`      | `go/analysis` analyzers through `go vet -vettool`: the bundled `gqaci_sensitive_format` and the project's own driver; every finding prints its analyzer name                        |
-|           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                           |
-| runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
-|           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
-|           | `test`           | `go test -race -shuffle=on -count=1 ./...`                                                                                                                                          |
-|           | `coverage`       | statement coverage with a threshold, read from the `test` run itself (one `-race -shuffle=on -count=1` run feeds both verdicts)                                                                                                                                                 |
-|           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                  |
+|           | `golangci`       | golangci-lint over a strict bundled baseline; every finding prints its linter (and check code)                                                                                                                                  |
+|           | `analyzers`      | `go/analysis` analyzers through `go vet -vettool`: the bundled `gqaci_sensitive_format` and the project's own driver; every finding prints its analyzer name                                                                    |
+|           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                                                                       |
+| runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                                                                       |
+|           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                                                                       |
+|           | `test`           | `go test -race -shuffle=on -count=1 ./...`                                                                                                                                                                                      |
+|           | `coverage`       | statement coverage with a threshold, read from the `test` run itself (one `-race -shuffle=on -count=1` run feeds both verdicts)                                                                                                 |
+|           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                                                              |
 
 Options: `-t <tool or stage>` (repeatable), `-p <path>` (repeatable; a file or a directory under
 the root; one file is enough), `--ci` (also implied by a `CI` variable that is set and not `false`
@@ -69,7 +69,7 @@ plus the working tree (so a committed change on a branch is covered).
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
 | `coverage` (narrowed)                                                     | the module-wide `fail_under_statements` threshold is applied to the affected packages only, so the result can differ from the full run's |
-| `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module) |
+| `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module)  |
 
 A changed file under a `testdata` directory runs the tests of the package that owns the directory
 (not its importers); a changed file a package embeds (`go:embed`) runs that package and its
@@ -108,7 +108,7 @@ Other commands, none of which run a defence:
 | `go-qa rules [--json]`                  | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
 | `go-qa rule-doc <id>`                   | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
 | `go-qa docs-check`                      | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
-| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                                                                         |
+| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                       |
 | `go-qa record prune <number>...`        | remove the exceptions numbered as `record list` shows them, and lower the ratchet to what remains                                                                           |
 | `go-qa record list [--json]`            | every exception with its justification, enumerated like the defences                                                                                                        |
 | `go-qa record explain <rule or number>` | one exception (or every exception for a rule) in full                                                                                                                       |
@@ -255,8 +255,8 @@ module written like `./internal/qa/driver`, and `analyzers.module` (a relative d
 
 ## Installing
 
-go-qa-ci pins every external tool in [tools.lock](tools.lock): golangci-lint, ast-grep, deadcode,
-govulncheck and gremlins. Pin an exact tag of this repository (none is published yet). Install the
+go-qa-ci pins every external tool in [tools.lock](tools.lock): golangci-lint, ast-grep, gitleaks,
+actionlint, deadcode, govulncheck and gremlins. Pin an exact tag of this repository (none is published yet). Install the
 binary, then the pinned tools from a checkout of the same tag:
 
 ```bash
@@ -268,9 +268,10 @@ git clone --depth 1 --branch <tag> https://github.com/LongTermSupport/go-qa-ci /
 ```
 
 Tools land in `$GOBIN`, else `$(go env GOPATH)/bin`, which must be on `PATH`. The Go tools compile
-from source with `go install` (verified by the Go checksum database); golangci-lint is verified
-against the checksum file published with its release and ast-grep against the sha256 in
-`tools.lock`. Release archives are linux/amd64 only. The Go toolchain itself is the one `go.mod`
+from source with `go install` (verified by the Go checksum database); every release archive
+(golangci-lint, ast-grep, gitleaks, actionlint) is verified against the sha256 pinned in
+`tools.lock`, never against a checksum file published beside it, and a release tool with no pinned
+sha256 is refused. Release archives are linux/amd64 only. The Go toolchain itself is the one `go.mod`
 requires. This repository's CI installs its tools the same way and then runs `go-qa run --ci`
 over itself (job `self-gate`).
 
