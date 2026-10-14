@@ -138,3 +138,39 @@ func TestNoPinnedToolIsInstalledOutsideTheLock(t *testing.T) {
 		}
 	}
 }
+
+// patchedToolchain is the first Go release carrying every standard library advisory fix that
+// govulncheck reports against this module's own code; a lower toolchain turns the vuln runner red.
+const patchedToolchain = "go1.26.9"
+
+func TestEverySetupGoStepReadsTheToolchainFromGoMod(t *testing.T) {
+	w, _ := readWorkflow(t)
+	var seen int
+	for name, j := range w.Jobs {
+		for _, s := range j.Steps {
+			if !strings.HasPrefix(s.Uses, "actions/setup-go@") {
+				continue
+			}
+			seen++
+			if s.With["go-version-file"] != "go.mod" {
+				t.Errorf("job %s: setup-go must read the toolchain from go.mod, got %v", name, s.With)
+			}
+		}
+	}
+	if seen == 0 {
+		t.Error("ci.yml has no setup-go step")
+	}
+}
+
+func TestGoModPinsThePatchedToolchain(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if line == "toolchain "+patchedToolchain {
+			return
+		}
+	}
+	t.Errorf("go.mod must contain %q so CI and consumers build with the patched standard library", "toolchain "+patchedToolchain)
+}
