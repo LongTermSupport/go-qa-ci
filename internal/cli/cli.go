@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
@@ -16,8 +17,29 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
 
-// Version is the go-qa version.
-const Version = "0.0.0-dev"
+// DevVersion is what go-qa reports when it was not built from a tagged module version.
+const DevVersion = "0.0.0-dev"
+
+// Version is the go-qa version: the module version the binary was built from (a tag, through
+// `go install ...@<tag>`), else DevVersion.
+var Version = currentVersion()
+
+func currentVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return DevVersion
+	}
+	return VersionFrom(info)
+}
+
+// VersionFrom is the module version recorded in info, or DevVersion when there is none or the
+// binary was built from a checkout ("(devel)").
+func VersionFrom(info *debug.BuildInfo) string {
+	if info == nil || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return DevVersion
+	}
+	return info.Main.Version
+}
 
 // Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error.
 const (
@@ -34,7 +56,7 @@ type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
 // Run executes go-qa with args (without the program name) and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
 	return RunWith(args, stdout, stderr, func(ctx tools.Context, errOut io.Writer) pipeline.Executor {
-		return tools.Executor{Ctx: ctx, Stderr: errOut}
+		return tools.NewExecutor(ctx, errOut)
 	})
 }
 

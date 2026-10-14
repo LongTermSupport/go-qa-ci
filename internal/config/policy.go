@@ -95,6 +95,15 @@ func (p RecordPolicy) CountCap(tier Tier) (int, bool) {
 	return min(*count, p.MaxTotal), true
 }
 
+// DecidersHint is the sentence that tells a project with no deciders how to configure them, and
+// is empty once some are: a record cannot hold a human entry or a signed ratchet until then.
+func (p RecordPolicy) DecidersHint() string {
+	if len(p.Deciders) > 0 {
+		return ""
+	}
+	return " (no deciders are configured: add deciders = [\"<name>\"] under [record] in " + DefaultPath + ")"
+}
+
 // IsDecider reports whether who is a configured decider.
 func (p RecordPolicy) IsDecider(who string) bool {
 	who = strings.TrimSpace(who)

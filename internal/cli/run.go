@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
@@ -54,7 +55,7 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 	flags.BoolVar(&opts.changed, "changed", false, "diff mode, for fast local iteration (the full run stays the gate before a push): "+
 		"per-package engines run on the changed packages and their importers, file-scoped detectors on the changed files, "+
 		"the repo-wide defences always; changed = files changed against HEAD plus untracked files that are not ignored; "+
-		"a change to go.mod, go.sum, the golangci configuration, qa/ or the tool lock widens the run to everything")
+		"a change to go.mod, go.sum, the golangci configuration, the tool lock or a configured rule source widens the run to everything")
 	flags.StringVar(&opts.base, "base", "", "with --changed: compare with the merge base of this ref and HEAD (plus the working tree) instead of HEAD")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -101,11 +102,16 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 		if err != nil {
 			return emit(stderr, ExitUsage, "go-qa: %v", err)
 		}
+		ruleSources, err := widenSources(rootPath, cfg)
+		if err != nil {
+			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)
+		}
 		diff, err = changed.Compute(context.Background(), changed.Options{
-			Root:    rootPath,
-			Base:    opts.base,
-			Modules: append([]string{""}, cfg.Modules...),
-			Widen:   []string{cfg.Record.Path, configRel},
+			Root:      rootPath,
+			Base:      opts.base,
+			Modules:   append([]string{""}, cfg.Modules...),
+			Widen:     append([]string{cfg.Record.Path, configRel}, ruleSources.files...),
+			WidenDirs: ruleSources.dirs,
 		})
 		if err != nil {
 			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)
@@ -119,6 +125,9 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 		Fix:    !opts.noFix,
 		Today:  date.Today(),
 		Diff:   diff,
+	}
+	for _, step := range steps {
+		ctx.Selected = append(ctx.Selected, step.Name)
 	}
 	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
 	if _, err := io.WriteString(stdout, renderRunSummary(report, scope, diff)); err != nil {
@@ -161,4 +170,34 @@ func renderRunSummary(report pipeline.Report, scope []string, diff *changed.Plan
 		out.WriteString("\n" + DBFPointer + "\n")
 	}
 	return out.String()
+}
+
+// ruleSources are the project paths whose change can alter a detector's verdict on files it did
+// not touch: a tightened rule must be re-applied to the whole project.
+type ruleSources struct {
+	files []string
+	dirs  []string
+}
+
+// widenSources reads, from the configuration, where the project keeps its rules: the ast-grep
+// configuration and its rule and test directories, the documentation directory, and the analyzer
+// module (else the directory of the driver package). Nothing is assumed by directory name.
+func widenSources(rootPath string, cfg config.Config) (ruleSources, error) {
+	sources := ruleSources{dirs: []string{cfg.DocsDir}}
+	project, found, err := astgrep.LoadProject(rootPath)
+	if err != nil {
+		return ruleSources{}, fmt.Errorf("reading the ast-grep rule sources: %w", err)
+	}
+	if found {
+		sources.files = append(sources.files, astgrep.ConfigFile)
+		sources.dirs = append(sources.dirs, project.RuleDirs...)
+		sources.dirs = append(sources.dirs, project.TestDirs...)
+	}
+	switch {
+	case cfg.Analyzers.Module != "":
+		sources.dirs = append(sources.dirs, cfg.Analyzers.Module)
+	case cfg.Analyzers.Driver != "":
+		sources.dirs = append(sources.dirs, strings.TrimSuffix(strings.TrimPrefix(cfg.Analyzers.Driver, "./"), "/..."))
+	}
+	return sources, nil
 }

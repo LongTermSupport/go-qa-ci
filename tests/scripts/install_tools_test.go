@@ -66,7 +66,7 @@ func lockValue(t *testing.T, section, name string) string {
 func TestToolsLockPinsEveryExternalTool(t *testing.T) {
 	want := map[string]string{
 		"deadcode": "go", "govulncheck": "go", "gremlins": "go",
-		"golangci-lint": "release", "ast-grep": "release",
+		"golangci-lint": "release", "ast-grep": "release", "gitleaks": "release", "actionlint": "release",
 	}
 	got := map[string]string{}
 	for _, e := range readLock(t) {
@@ -105,9 +105,6 @@ func TestToolsLockVersionsArePinnedExactly(t *testing.T) {
 		default:
 			t.Errorf("tools.lock: unknown section [%s]", e.section)
 		}
-	}
-	if lockValue(t, "checksums", "ast-grep") == "" {
-		t.Error("ast-grep publishes no checksum file, so tools.lock must carry its sha256")
 	}
 }
 

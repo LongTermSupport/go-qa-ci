@@ -5,14 +5,14 @@ The runners execute code or audit dependencies, after every format and detector 
 and `mutants` from running. Each runs once per Go module the configuration covers (the root module
 and `modules`). A required program that is not on `PATH` is an error, never a skipped check.
 
-| Tool                  | Command                                                                               | Fails when                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `vuln`                | `govulncheck -format json ./...`                                                      | the code calls a vulnerable symbol the record does not license                     |
-| `mod`                 | `go mod tidy -diff`, then `go mod verify`                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
-| `test`                | `go test -race -shuffle=on -count=1 ./...`                                            | a test fails or the code does not build                                            |
-| `coverage`            | `go test -covermode=atomic -coverpkg=./... -coverprofile`, then `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
-| `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                  | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
-| `deadcode` (detector) | `deadcode -test -json ./...`                                                          | a function is unreachable from every `main` function and test                      |
+| Tool                  | Command                                                                                               | Fails when                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `vuln`                | `govulncheck -format json ./...`                                                                      | the code calls a vulnerable symbol the record does not license                     |
+| `mod`                 | `go mod tidy -diff`, then `go mod verify`                                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
+| `test`                | `go test -race -shuffle=on -count=1 [-covermode=atomic -coverprofile] ./...`                          | a test fails or the code does not build                                            |
+| `coverage`            | the `test` run's own `-covermode=atomic -coverpkg=./... -coverprofile`, read by `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
+| `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                              | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
+| `deadcode` (detector) | `deadcode -test -json ./...`                                                                          | a function is unreachable from every `main` function and test                      |
 
 ## Identifiers
 
@@ -42,8 +42,8 @@ gremlins v0.6.0 ignores that flag (its flag value reaches the comparison as a st
 0, so no gate applies and a run with 0% efficacy exits 0), but honours `unleash.threshold.efficacy`
 from a configuration file. gremlins fails when efficacy is at or below the threshold and treats 0
 as no gate, so the file holds `threshold_efficacy` less 0.0001: a run at exactly the threshold
-passes, one below it fails. A test with a real gremlins run (skipped when gremlins is not on
-`PATH`) proves the gate; the fakes in the other tests only prove the exit code is honoured.
+passes, one below it fails. A test with a real gremlins run (it fails when gremlins is not
+installed, as every test needing a pinned tool does) proves the gate; the fakes in the other tests only prove the exit code is honoured.
 
 ## Recorded gaps (TOOLING-SPEC 9.2)
 

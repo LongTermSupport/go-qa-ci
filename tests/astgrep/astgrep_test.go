@@ -1,7 +1,7 @@
 // Package astgrep_test runs the ast-grep detector against the real ast-grep binary: each rule fires
 // on a violating Go snippet and stays quiet on a clean one, the project's rule tests pass, an
 // ignore comment silences a rule, and a project rule and a bundled rule are reported in one run.
-// Every test here needs the binary and is skipped, saying so, when it is not on PATH; the
+// Every test here needs the binary and fails, saying how to install it, when it is missing; the
 // detector's own logic (argument vector, exit codes, record, scope) is tested without it in
 // internal/tools.
 package astgrep_test
@@ -22,15 +22,15 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
+	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
 
-// requireAstGrep skips the test when the ast-grep binary is not installed.
+// requireAstGrep fails the test when the ast-grep binary is not installed: it is pinned in
+// tools.lock, so a test that cannot run is not a pass (internal/tooltest names the opt-out).
 func requireAstGrep(t *testing.T) astgrep.Runner {
 	t.Helper()
 	runner, err := astgrep.Locate()
-	if err != nil {
-		t.Skipf("needs the ast-grep binary: %v", err)
-	}
+	tooltest.Require(t, "ast-grep", err)
 	return runner
 }
 

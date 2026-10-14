@@ -25,4 +25,9 @@ clone with every branch and tag fetched (`git fetch --all --tags`).
 8. Settings: no deploy keys, secrets other than `GQACI_DENYLIST`, environments, webhooks, topics or
    description naming private systems.
 9. Licence: a `LICENSE` file is present and the go.mod module path and licence metadata match it.
-10. Record the audit (date, commit hash, who ran it) in the release notes of the first public tag.
+10. Project record: the self-gate's record entries (`qa/record.toml`) were written by a model and
+    lapse 30 days after they were decided, failing `gqaci.record.expired` on every branch until
+    re-decided. `go-qa record list` shows each review date. Re-decide each as the owner (a fresh
+    `decided_on`, `added_by_model = "human"`, `decided_by` a name in `[record] deciders` of
+    `qa/go-qa.toml`) or delete the entry and fix the code it excuses.
+11. Record the audit (date, commit hash, who ran it) in the release notes of the first public tag.

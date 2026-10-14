@@ -13,14 +13,19 @@ var wideningNames = []string{
 	".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json",
 }
 
-// widenDir is the directory holding go-qa's configuration and the project record by default.
-const widenDir = "qa/"
-
-// widens reports whether a change to file calls for a run over the whole project.
-func widens(file string, extra []string) bool {
+// widens reports whether a change to file calls for a run over the whole project: it is a
+// widening name, one of the extra files, or inside one of the extra directories. Which files and
+// directories those are is the project's configuration, never assumed here.
+func widens(file string, extraFiles, extraDirs []string) bool {
 	return slices.Contains(wideningNames, path.Base(file)) ||
-		strings.HasPrefix(file, widenDir) ||
-		slices.Contains(extra, file)
+		slices.Contains(extraFiles, file) ||
+		slices.ContainsFunc(extraDirs, func(dir string) bool { return within(file, dir) })
+}
+
+// within reports whether file lies inside dir; "." and "" are the whole project.
+func within(file, dir string) bool {
+	dir = path.Clean(dir)
+	return dir == "." || strings.HasPrefix(file, dir+"/")
 }
 
 // ignoredByGo reports whether the go command never builds file as part of a package: it lies under

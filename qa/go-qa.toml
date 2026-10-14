@@ -1,8 +1,10 @@
 # The self-gate (go-qa run --ci) runs every tool; a tool is switched off below only with the
 # reason stated beside it.
 [record]
-# Placeholder identity: replace it with the repository owner before the first public release.
-deciders = ["example-owner"]
+# A role, not a person: whoever owns this repository signs as "repository-owner". It is the name
+# decided_by must carry for the ratchet and for any entry marked human (docs/record.md,
+# "Deciders"); a project replaces it with the names of its own deciders.
+deciders = ["repository-owner"]
 
 [record.trust.models]
 # Entries written by this model family are medium trust: 30-day review, at most three entries.

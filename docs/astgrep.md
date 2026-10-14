@@ -60,15 +60,13 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
 
 - The tests that need the real binary (`tests/astgrep`: each rule fires on a violating Go snippet
   and stays quiet on a clean one, the project's rule tests pass, an ignore comment silences a rule,
-  a project rule and a bundled rule are reported in one run) are skipped when it is not on `PATH`.
-  CI installs the pinned ast-grep (`tools.lock`) before `go test`, so CI runs them; elsewhere they
-  run wherever the binary is installed (verified with ast-grep 0.50.0).
+  a project rule and a bundled rule are reported in one run) fail when it is not installed (`internal/tooltest`: a test that cannot run is not a pass), naming
+  `scripts/install-tools.sh ast-grep`. `GQACI_TEST_WITHOUT_TOOLS=ast-grep` (names comma separated,
+  or `all`) skips them knowingly on a machine without the pinned tools; CI sets nothing and
+  installs the pinned ast-grep (`tools.lock`) before `go test` (verified with ast-grep 0.50.0).
+  The same rule holds for the gremlins and golangci-lint tests.
   The detector's own logic is tested everywhere with a stand-in executable
   (`internal/astgreptest`).
-- A project rule's identifier does not yet resolve to a page through `go-qa rule-doc`: the defence
-  listing (`docs/enumeration.md`) lists project rules, but the docs detector does not take its identifiers
-  from it yet and treats only built-ins and rules named in the project record as identifiers the
-  project can see.
 - `ast-grep` is not invoked with a pinned version check; the version in use is whatever is on
   `PATH`.
 - ast-grep honours `.gitignore` files, including those of a parent repository. A module that sits

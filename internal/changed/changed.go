@@ -30,6 +30,10 @@ type Options struct {
 	// Widen lists further project-relative paths whose change widens the run (the project record
 	// and the go-qa configuration, wherever the project put them).
 	Widen []string
+	// WidenDirs lists project-relative directories whose every file widens the run when changed:
+	// the rule sources the project's detectors read (ast-grep rule and test directories, the
+	// documentation directory, the analyzer module or driver package).
+	WidenDirs []string
 }
 
 // Plan is what a diff-mode run covers.
@@ -111,6 +115,9 @@ func (p *Plan) packageList() []string {
 
 // Compute works out the plan for a run.
 func Compute(ctx context.Context, opts Options) (*Plan, error) {
+	if strings.HasPrefix(opts.Base, "-") {
+		return nil, fmt.Errorf("--base %q must be a git ref, not an option", opts.Base)
+	}
 	files, err := changedFiles(ctx, opts.Root, opts.Base)
 	if err != nil {
 		return nil, err
@@ -123,7 +130,7 @@ func Compute(ctx context.Context, opts Options) (*Plan, error) {
 		}
 	}
 	for _, file := range files {
-		if widens(file, opts.Widen) {
+		if widens(file, opts.Widen, opts.WidenDirs) {
 			plan.Widened = file + " changed"
 			return plan, nil
 		}

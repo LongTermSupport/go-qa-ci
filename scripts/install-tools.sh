@@ -59,6 +59,8 @@ installed_version() {
         go:*) go version -m "${bin}" | awk '$1 == "mod" { print $3; exit }' ;;
         release:golangci-lint) "${bin}" --version | awk '{ for (i = 1; i < NF; i++) if ($i == "version") { print $(i + 1); exit } }' ;;
         release:ast-grep) "${bin}" --version | awk '{ print $2; exit }' ;;
+        release:gitleaks) "${bin}" version | awk 'NR == 1 { print; exit }' ;;
+        release:actionlint) "${bin}" -version | awk 'NR == 1 { print; exit }' ;;
         *) echo "install-tools: no version probe for ${name}" >&2; exit 2 ;;
     esac
 }
@@ -74,39 +76,68 @@ require_linux_amd64() {
     fi
 }
 
+# The directory the running install works in, removed however the script ends.
+scratch=""
+trap 'if [[ -n "${scratch}" ]]; then rm -rf "${scratch}"; fi' EXIT
+
 fetch() {
     curl --proto '=https' --tlsv1.2 -sSfL -o "$2" "$1"
 }
 
-install_golangci_lint() {
-    local version="$1" work archive checksums base
+# Downloads a release archive, verifies it against the sha256 pinned in tools.lock [checksums] (never
+# against a checksum file published beside it: a replaced asset could ship a replaced file), and
+# installs the binary found at <member> in the archive.
+#   install_archive <name> <url> <member> <strip-components>
+install_archive() {
+    local name="$1" url="$2" member="$3" strip="$4" sum archive
     require_linux_amd64
-    work="$(mktemp -d)"
-    trap 'rm -rf "${work}"' RETURN
-    archive="golangci-lint-${version}-linux-amd64.tar.gz"
-    checksums="golangci-lint-${version}-checksums.txt"
-    base="https://github.com/golangci/golangci-lint/releases/download/v${version}"
-    fetch "${base}/${archive}" "${work}/${archive}"
-    fetch "${base}/${checksums}" "${work}/${checksums}"
-    (cd "${work}" && sha256sum -c --ignore-missing "${checksums}")
-    tar -xzf "${work}/${archive}" -C "${work}" --strip-components=1 "golangci-lint-${version}-linux-amd64/golangci-lint"
-    install -D -m 0755 "${work}/golangci-lint" "$(bin_dir)/golangci-lint"
+    sum="$(pinned checksums "${name}")"
+    if [[ -z "${sum}" ]]; then
+        echo "install-tools: ${name} is a [release] tool, so tools.lock [checksums] must pin its sha256" >&2
+        exit 2
+    fi
+    scratch="$(mktemp -d)"
+    archive="${scratch}/archive"
+    fetch "${url}" "${archive}"
+    echo "${sum}  ${archive}" | sha256sum -c -
+    tar -xzf "${archive}" -C "${scratch}" --strip-components="${strip}" "${member}"
+    install -D -m 0755 "${scratch}/$(basename "${member}")" "$(bin_dir)/${name}"
+}
+
+install_golangci_lint() {
+    local version="$1"
+    install_archive golangci-lint \
+        "https://github.com/golangci/golangci-lint/releases/download/v${version}/golangci-lint-${version}-linux-amd64.tar.gz" \
+        "golangci-lint-${version}-linux-amd64/golangci-lint" 1
+}
+
+install_gitleaks() {
+    local version="$1"
+    install_archive gitleaks \
+        "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" \
+        gitleaks 0
+}
+
+install_actionlint() {
+    local version="$1"
+    install_archive actionlint \
+        "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
+        actionlint 0
 }
 
 install_ast_grep() {
-    local version="$1" work sum
+    local version="$1" sum
     require_linux_amd64
     sum="$(pinned checksums ast-grep)"
     if [[ -z "${sum}" ]]; then
-        echo "install-tools: ast-grep publishes no checksum file; tools.lock [checksums] must pin its sha256" >&2
+        echo "install-tools: ast-grep is a [release] tool, so tools.lock [checksums] must pin its sha256" >&2
         exit 2
     fi
-    work="$(mktemp -d)"
-    trap 'rm -rf "${work}"' RETURN
-    fetch "https://github.com/ast-grep/ast-grep/releases/download/${version}/app-x86_64-unknown-linux-gnu.zip" "${work}/app.zip"
-    echo "${sum}  ${work}/app.zip" | sha256sum -c -
-    unzip -q "${work}/app.zip" ast-grep -d "${work}"
-    install -D -m 0755 "${work}/ast-grep" "$(bin_dir)/ast-grep"
+    scratch="$(mktemp -d)"
+    fetch "https://github.com/ast-grep/ast-grep/releases/download/${version}/app-x86_64-unknown-linux-gnu.zip" "${scratch}/app.zip"
+    echo "${sum}  ${scratch}/app.zip" | sha256sum -c -
+    unzip -q "${scratch}/app.zip" ast-grep -d "${scratch}"
+    install -D -m 0755 "${scratch}/ast-grep" "$(bin_dir)/ast-grep"
 }
 
 missing=0
@@ -133,6 +164,8 @@ while read -r section name value; do
         go:*) GOBIN="$(bin_dir)" go install "${value}" ;;
         release:golangci-lint) install_golangci_lint "${version}" ;;
         release:ast-grep) install_ast_grep "${version}" ;;
+        release:gitleaks) install_gitleaks "${version}" ;;
+        release:actionlint) install_actionlint "${version}" ;;
         *) echo "install-tools: no installer for ${name}" >&2; exit 2 ;;
     esac
     # The binary the shell resolves must now be the pinned one: an older copy earlier in the search

@@ -65,8 +65,8 @@ func Self() (Tool, error) {
 	return Tool{Path: exe, Env: []string{EnvVar + "=" + markerOn}}, nil
 }
 
-// Build compiles the project driver package pkg (a package pattern relative to moduleDir) into a
-// vet tool. cleanup removes it and is always safe to call.
+// Build compiles the project driver package pkg (a package pattern relative to moduleDir, the
+// directory of the module that holds it: `go build -C moduleDir`) into a vet tool. cleanup removes it and is always safe to call.
 func Build(ctx context.Context, moduleDir, pkg string) (tool Tool, cleanup func(), err error) {
 	noop := func() {}
 	goBinary, err := exec.LookPath("go")
@@ -83,8 +83,7 @@ func Build(ctx context.Context, moduleDir, pkg string) (tool Tool, cleanup func(
 		}
 	}
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, goBinary, "build", "-o", filepath.Join(dir, driverName), pkg)
-	cmd.Dir = moduleDir
+	cmd := exec.CommandContext(ctx, goBinary, "build", "-C", moduleDir, "-o", filepath.Join(dir, driverName), pkg)
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		cleanup()

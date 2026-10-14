@@ -62,6 +62,71 @@ func TestCoverageNamesFailingTests(t *testing.T) {
 	}
 }
 
+// countingTest appends a line to runs.log each time it executes, so a test can count how many go
+// test runs a sequence of steps cost.
+const countingTest = "package fixture\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestUsed(t *testing.T) {\n" +
+	"\tf, err := os.OpenFile(\"runs.log\", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n" +
+	"\tdefer f.Close()\n\tif _, err := f.WriteString(\"run\\n\"); err != nil {\n\t\tt.Fatal(err)\n\t}\n\tif Used() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+
+func goTestRuns(t *testing.T, root string) int {
+	t.Helper()
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := dir.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	data, err := dir.ReadFile("runs.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Count(string(data), "run\n")
+}
+
+func TestTestAndCoverageStepsShareOneTestRun(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	exec.Ctx.Config.Coverage.FailUnderStatements = 50
+	exec.Shared = tools.NewMeasurements()
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": countingTest})
+	for _, name := range []string{"test", "coverage"} {
+		if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+			t.Fatalf("%s: got %+v, %q", name, out, stderr)
+		}
+	}
+	if runs := goTestRuns(t, exec.Ctx.Root); runs != 1 {
+		t.Errorf("the test and coverage steps ran the tests %d times; one run must feed both verdicts", runs)
+	}
+}
+
+func TestTheSharedCoverageVerdictStillFailsBelowTheThreshold(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	exec.Shared = tools.NewMeasurements()
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": passingTest})
+	if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("test: got %+v, %q", out, stderr)
+	}
+	out := exec.Run(stepNamed(t, "coverage"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "statement coverage 50.0% is below fail_under_statements = 80") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+func TestCoverageAloneStillMeasuresItself(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	exec.Ctx.Config.Coverage.FailUnderStatements = 50
+	exec.Shared = tools.NewMeasurements()
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": countingTest})
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+		t.Fatalf("got %+v, %q", out, stderr)
+	}
+	if runs := goTestRuns(t, exec.Ctx.Root); runs != 1 {
+		t.Errorf("got %d runs", runs)
+	}
+}
+
 func TestUntidyGoModFailsMod(t *testing.T) {
 	exec, stderr := executorFor(t, "")
 	project(t, exec, map[string]string{

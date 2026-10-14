@@ -26,17 +26,24 @@ linters:
             - go.yaml.in/yaml/v3
             - gopkg.in/yaml.v3
             - golang.org/x/tools
-    gosec:
-      excludes:
-        # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G204 flags
-        # subprocess launches with a variable program or arguments. Hazard: command injection
-        # through a shell or an attacker-chosen program name. It does not apply because this
-        # toolchain's whole purpose is to run fixed external tools: every launch is an argument
-        # vector (never a shell), the program name is a constant or a resolved tool path, and no
-        # argument is ever interpreted as shell text. Scope: the whole module.
-        - G204
   exclusions:
     rules:
+      # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G204 flags
+      # subprocess launches with a variable program or arguments. Hazard: command injection
+      # through a shell or an attacker-chosen program name. It does not apply because this
+      # toolchain's whole purpose is to run fixed external tools: every launch is an argument
+      # vector (never a shell), the program name is a constant or a resolved tool path, and no
+      # argument is ever interpreted as shell text. Scope: the seven files that launch the
+      # tools (below) and the test files that run git, go and the built test binary; every
+      # other file is held to the rule.
+      - path: ^(internal/astgrep/run|internal/changed/git|internal/golangci/run|internal/record/gate|internal/runners/command|internal/stage/files|internal/vet/vet)\.go$
+        linters:
+          - gosec
+        text: "G204"
+      - path: _test\.go$
+        linters:
+          - gosec
+        text: "G204"
       # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G306 flags a
       # file written with permissions above 0600. Hazard: other users reading or altering it.
       # It does not apply because the scripts tests install executable stubs (0700, owner only)

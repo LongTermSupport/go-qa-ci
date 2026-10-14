@@ -241,6 +241,20 @@ func TestAHumanEntryMustNameAConfiguredDecider(t *testing.T) {
 	assertOne(t, review(t, testPolicy(), claimed), finding.RecordInvalid, "deciders")
 }
 
+func TestWithNoDecidersConfiguredTheFindingSaysHowToConfigureThem(t *testing.T) {
+	noDeciders := testPolicy()
+	noDeciders.Deciders = nil
+	assertOne(t, review(t, noDeciders, humanEntry(t, "errcheck", "a.go")), finding.RecordInvalid, "deciders = [")
+	assertOne(t, review(t, noDeciders, humanEntry(t, "errcheck", "a.go")), finding.RecordInvalid, "[record]")
+	if got := review(t, testPolicy(), func() record.Exception {
+		e := humanEntry(t, "errcheck", "a.go")
+		e.DecidedBy = strPtr("mallory")
+		return e
+	}()); len(got) != 1 || strings.Contains(got[0].Message, "deciders = [") {
+		t.Errorf("the how-to-configure hint belongs only to a project with no deciders: %v", got)
+	}
+}
+
 func TestLowerTiersGetShorterReviewHorizons(t *testing.T) {
 	mid := humanEntry(t, "errcheck", "a.go")
 	mid.AddedByModel = strPtr("mid-4")

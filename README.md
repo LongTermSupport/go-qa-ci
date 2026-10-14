@@ -69,15 +69,17 @@ plus the working tree (so a committed change on a branch is covered).
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
 | `coverage` (narrowed)                                                     | the module-wide `fail_under_statements` threshold is applied to the affected packages only, so the result can differ from the full run's |
-| `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module) |
+| `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module)  |
 
 A changed file under a `testdata` directory runs the tests of the package that owns the directory
 (not its importers); a changed file a package embeds (`go:embed`) runs that package and its
 importers. Any other non-Go file selects no package.
 
-A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, anything under
-`qa/`, the project record or the configuration file widens the run to everything, and the summary
-says why. So does a changed `.go` file whose package no longer exists. With no changed files the
+A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, the project
+record, the configuration file or a rule source widens the run to everything, and the summary says
+why. A rule source is whatever the configuration names: `sgconfig.yml`, its rule and test
+directories, `docs_dir`, and the analyzer module (`analyzers.module`, else the directory of
+`analyzers.driver`). Nothing is widened by its directory name alone. So does a changed `.go` file whose package no longer exists. With no changed files the
 run says so, skips what is scoped, runs the repo-wide defences and exits 0 if they pass. Because
 the scope is narrower, the checks that need a whole-project view (a record exception that
 licensed nothing is stale) do not speak in a narrowed run. The run summary opens with the mode
@@ -106,7 +108,7 @@ Other commands, none of which run a defence:
 | `go-qa rules [--json]`                  | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
 | `go-qa rule-doc <id>`                   | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
 | `go-qa docs-check`                      | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
-| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                                                                         |
+| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                       |
 | `go-qa record prune <number>...`        | remove the exceptions numbered as `record list` shows them, and lower the ratchet to what remains                                                                           |
 | `go-qa record list [--json]`            | every exception with its justification, enumerated like the defences                                                                                                        |
 | `go-qa record explain <rule or number>` | one exception (or every exception for a rule) in full                                                                                                                       |
@@ -120,7 +122,8 @@ and a red proof.
 
 1. A `golang.org/x/tools/go/analysis` analyzer, for anything that needs types, scope or flow. The
    project keeps its analyzers in a small `main` package (a driver) and names it in
-   `[analyzers] driver`; go-qa runs it through `go vet -vettool`, prints each finding under the
+   `[analyzers] driver` (and, when it lives in a nested module so that its dependencies stay out of
+   the project's own `go.mod`, `[analyzers] module`); go-qa runs it through `go vet -vettool`, prints each finding under the
    analyzer name and applies the project record. Prove each analyzer with `analysistest` against a
    `testdata` fixture. See [docs/analyzers.md](docs/analyzers.md).
 2. An ast-grep rule, for a cheap single-file syntactic check, in the project's `sgconfig.yml` rule
@@ -203,6 +206,7 @@ bundled = true               # run the bundled gqaci.ast.* pack beside the proje
 
 [analyzers]
 # driver = "./internal/qa/vetdriver"  # your analyzer driver package; unset = go-qa is the vet tool
+# module = "qa"                       # the nested module (own go.mod) holding the driver; unset = the root module
 
 [coverage]
 fail_under_statements = 80   # percent of statements covered, 0 to 100
@@ -245,13 +249,14 @@ max_count = 1
 
 Paths in the file (`record`, `docs_dir`, `summary.file`, `modules`) must be relative and stay
 inside the root; each `modules` entry must hold a `go.mod`; `analyzers.driver` is a package of the
-project written like `./internal/qa/driver`. `[[stage]]` and `[[resolver]]` are described in
+module written like `./internal/qa/driver`, and `analyzers.module` (a relative directory holding a
+`go.mod`) says which module that is when the rules live in a nested one. `[[stage]]` and `[[resolver]]` are described in
 [docs/stages.md](docs/stages.md).
 
 ## Installing
 
-go-qa-ci pins every external tool in [tools.lock](tools.lock): golangci-lint, ast-grep, deadcode,
-govulncheck and gremlins. Pin an exact tag of this repository (none is published yet). Install the
+go-qa-ci pins every external tool in [tools.lock](tools.lock): golangci-lint, ast-grep, gitleaks,
+actionlint, deadcode, govulncheck and gremlins. Pin an exact tag of this repository (none is published yet). Install the
 binary, then the pinned tools from a checkout of the same tag:
 
 ```bash
@@ -263,9 +268,10 @@ git clone --depth 1 --branch <tag> https://github.com/LongTermSupport/go-qa-ci /
 ```
 
 Tools land in `$GOBIN`, else `$(go env GOPATH)/bin`, which must be on `PATH`. The Go tools compile
-from source with `go install` (verified by the Go checksum database); golangci-lint is verified
-against the checksum file published with its release and ast-grep against the sha256 in
-`tools.lock`. Release archives are linux/amd64 only. The Go toolchain itself is the one `go.mod`
+from source with `go install` (verified by the Go checksum database); every release archive
+(golangci-lint, ast-grep, gitleaks, actionlint) is verified against the sha256 pinned in
+`tools.lock`, never against a checksum file published beside it, and a release tool with no pinned
+sha256 is refused. Release archives are linux/amd64 only. The Go toolchain itself is the one `go.mod`
 requires. This repository's CI installs its tools the same way and then runs `go-qa run --ci`
 over itself (job `self-gate`).
 

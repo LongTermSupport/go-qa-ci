@@ -50,7 +50,6 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `linters.exclusions.paths`, `.presets`                                                                                                             | `exclusions.paths::X`, `exclusions.presets::X`                         |
 | `linters.exclusions.generated` other than `disable`                                                                                                | `exclusions.generated::X`                                              |
 | `formatters.exclusions.paths`, `.generated` other than `disable`                                                                                   | `formatters.exclusions.paths::X`, `formatters.exclusions.generated::X` |
-| `linters.disable` item                                                                                                                             | `linters.disable::X`                                                   |
 | `linters.default` other than `standard` or `all`                                                                                                   | `linters.default::X`                                                   |
 | `severity.rules` entry that is not `error`; `severity.default` other than `error`                                                                  | `severity.rules::<linters>/<severity>`, `severity.default::X`          |
 | `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                   | `issues.<key>::<value>`                                                |
@@ -60,6 +59,12 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `staticcheck.checks` item starting with `-`                                                                                                        | `staticcheck.checks::<check>`                                          |
 | `govet.disable-all`, `testifylint.disable-all`, `revive.ignore-generated-header` set to true                                                       | the setting name                                                       |
 | `revive` rule with `disabled: true` or a non-empty `exclude`                                                                                       | `revive.rules::<name>/disabled`, `revive.rules::<name>/exclude`        |
+
+`linters.enable` and `linters.disable` are not in the table: which linters run is the defence set a
+project chooses (README: "Writing rules"), not an exclusion of findings, so disabling a linter
+needs no record entry. The choice stays visible, because `go-qa rules` and the generated summary
+list the linters that run. A check switched off inside a running linter (the `<linter>.<setting>`
+rows) and a `linters.default` other than `standard` or `all` do drop findings, and stay routes.
 
 A `<linters>` detail is the linters joined by `+`, or `*` for none. The record cannot bind an entry
 to one exclusion among several in a file: the path of the exception is the configuration file, so

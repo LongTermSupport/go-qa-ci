@@ -12,16 +12,15 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/configs"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
 	"github.com/LongTermSupport/go-qa-ci/internal/golangci"
+	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
 
 // locate fails the test when golangci-lint is not installed: the tool is a required dependency,
-// so its absence must never turn into a skipped test.
+// so its absence is a failure like that of every other pinned tool (internal/tooltest).
 func locate(t *testing.T) golangci.Runner {
 	t.Helper()
 	runner, err := golangci.Locate()
-	if err != nil {
-		t.Fatal(err)
-	}
+	tooltest.Require(t, "golangci-lint", err)
 	return runner
 }
 

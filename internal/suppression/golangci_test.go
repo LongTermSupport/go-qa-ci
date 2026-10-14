@@ -45,7 +45,8 @@ func TestGolangciRoutes(t *testing.T) {
 		{"new switched off", "issues:\n  new: false\n  max-issues-per-linter: 0\n  max-same-issues: 0\n", nil},
 		{"tests not analysed", "run:\n  tests: false\n" + capsOff, []string{"golangci.yml::run.tests@" + cfg + ":2"}},
 		{"tests analysed", "run:\n  tests: true\n" + capsOff, nil},
-		{"linters disabled", "linters:\n  disable: [errcheck, unused]\n" + capsOff, []string{"golangci.yml::linters.disable::errcheck@" + cfg + ":2", "golangci.yml::linters.disable::unused@" + cfg + ":2"}},
+		{"linters disabled is choosing the defence set, not a suppression", "linters:\n  default: all\n  disable: [errcheck, unused, wsl]\n" + capsOff, nil},
+		{"linters enabled and disabled beside a real exclusion", "linters:\n  disable: [wsl]\n  exclusions:\n    presets: [comments]\n" + capsOff, []string{"golangci.yml::exclusions.presets::comments@" + cfg + ":4"}},
 		{"a reduced default set", "linters:\n  default: none\n" + capsOff, []string{"golangci.yml::linters.default::none@" + cfg + ":2"}},
 		{"every linter", "linters:\n  default: all\n" + capsOff, nil},
 		{"errcheck excludes", "linters:\n  settings:\n    errcheck:\n      exclude-functions: [fmt.Println]\n" + capsOff, []string{"golangci.yml::errcheck.exclude-functions::fmt.Println@" + cfg + ":4"}},
@@ -78,11 +79,11 @@ func TestGolangciRoutes(t *testing.T) {
 
 func TestGolangciConfigFormats(t *testing.T) {
 	t.Parallel()
-	json := "{\"linters\": {\"disable\": [\"errcheck\"]}, \"issues\": {\"max-issues-per-linter\": 0, \"max-same-issues\": 0}}"
-	wantExactly(t, ruleLines(scan(t, map[string]string{"sub/.golangci.json": json})), "golangci.yml::linters.disable::errcheck@sub/.golangci.json:1")
-	toml := "[linters]\ndisable = [\"errcheck\"]\n[issues]\nmax-issues-per-linter = 0\nmax-same-issues = 0\n"
-	wantExactly(t, ruleLines(scan(t, map[string]string{".golangci.toml": toml})), "golangci.yml::linters.disable::errcheck@.golangci.toml:0")
-	wantExactly(t, ruleLines(scan(t, map[string]string{".golangci.yaml": "linters:\n  disable: [errcheck]\n" + capsOff})), "golangci.yml::linters.disable::errcheck@.golangci.yaml:2")
+	json := "{\"linters\": {\"exclusions\": {\"presets\": [\"comments\"]}}, \"issues\": {\"max-issues-per-linter\": 0, \"max-same-issues\": 0}}"
+	wantExactly(t, ruleLines(scan(t, map[string]string{"sub/.golangci.json": json})), "golangci.yml::exclusions.presets::comments@sub/.golangci.json:1")
+	toml := "[linters.exclusions]\npresets = [\"comments\"]\n[issues]\nmax-issues-per-linter = 0\nmax-same-issues = 0\n"
+	wantExactly(t, ruleLines(scan(t, map[string]string{".golangci.toml": toml})), "golangci.yml::exclusions.presets::comments@.golangci.toml:0")
+	wantExactly(t, ruleLines(scan(t, map[string]string{".golangci.yaml": "linters:\n  exclusions:\n    presets: [comments]\n" + capsOff})), "golangci.yml::exclusions.presets::comments@.golangci.yaml:3")
 }
 
 func TestUnparseableGolangciConfigIsReported(t *testing.T) {

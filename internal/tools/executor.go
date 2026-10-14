@@ -20,6 +20,9 @@ type Executor struct {
 	Stderr io.Writer
 	// Pack is the bundled ast-grep rule pack; nil means the pack shipped inside the binary.
 	Pack *astgrep.Pack
+	// Shared, when set, makes the test step measure coverage in the same run and hand it to the
+	// coverage step; nil means each step runs on its own.
+	Shared *Measurements
 }
 
 // Run executes one step; in a narrowed diff-mode run the step first narrows to what changed.

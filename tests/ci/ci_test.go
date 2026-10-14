@@ -4,6 +4,7 @@
 package ci_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,8 +86,8 @@ func TestGoJobRunsFormatVetTestAndLint(t *testing.T) {
 
 func TestGoJobInstallsItsToolsFromTheLock(t *testing.T) {
 	w, _ := readWorkflow(t)
-	if !jobNamed(t, w, "go").runs("scripts/install-tools.sh", "golangci-lint", "ast-grep") {
-		t.Error("job go must install golangci-lint and ast-grep (whose tests run the real binary) with scripts/install-tools.sh")
+	if !jobNamed(t, w, "go").runs("scripts/install-tools.sh", "golangci-lint", "ast-grep", "gremlins") {
+		t.Error("job go must install golangci-lint, ast-grep and gremlins (whose tests run the real binary and fail without it) with scripts/install-tools.sh")
 	}
 }
 
@@ -136,6 +137,50 @@ func TestNoPinnedToolIsInstalledOutsideTheLock(t *testing.T) {
 		if strings.Contains(text, forbidden) {
 			t.Errorf("ci.yml pins a tool itself (%q); the versions live in tools.lock", forbidden)
 		}
+	}
+}
+
+// Every external tool a workflow downloads comes through scripts/install-tools.sh, which verifies it
+// against the sha256 tools.lock pins; a workflow that downloads and checks a tool itself would
+// trust the checksum file of the same release.
+func TestNoWorkflowDownloadsAReleaseToolItself(t *testing.T) {
+	workflows, err := os.OpenRoot(filepath.Join("..", "..", ".github", "workflows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := workflows.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	entries, err := fs.ReadDir(workflows.FS(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		data, readErr := workflows.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		for _, forbidden := range []string{"gh release download", "checksums.txt", "sha256sum -c --ignore-missing", "ACTIONLINT_VERSION", "GITLEAKS_VERSION"} {
+			if strings.Contains(string(data), forbidden) {
+				t.Errorf("%s fetches or pins a release tool itself (%q); use scripts/install-tools.sh, which verifies the sha256 tools.lock pins", entry.Name(), forbidden)
+			}
+		}
+	}
+}
+
+func TestWorkflowsInstallActionlintAndGitleaksFromTheLock(t *testing.T) {
+	_, ciText := readWorkflow(t)
+	if !strings.Contains(ciText, "scripts/install-tools.sh actionlint") {
+		t.Error("a ci.yml job must install actionlint with scripts/install-tools.sh actionlint")
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "public-safety.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "scripts/install-tools.sh gitleaks") {
+		t.Error("public-safety.yml must install gitleaks with scripts/install-tools.sh gitleaks")
 	}
 }
 

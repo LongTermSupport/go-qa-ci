@@ -115,11 +115,11 @@ func trustProblems(policy config.RecordPolicy, rule, model, decidedBy string, ti
 		return []string{fmt.Sprintf("added_by_model `%s` maps to no trust tier; list its prefix under [record.trust] models, or write \"human\"", model)}
 	case config.TierHuman:
 		if decidedBy != "" && !coSigned {
-			return []string{fmt.Sprintf("is marked human but decided_by `%s` is not one of the configured deciders", decidedBy)}
+			return []string{fmt.Sprintf("is marked human but decided_by `%s` is not one of the configured deciders%s", decidedBy, policy.DecidersHint())}
 		}
 	case config.TierHigh, config.TierMedium, config.TierLow:
 		if threshold, ok := policy.CosignThreshold(rule); ok && tier.Rank() < threshold.Rank() && !coSigned {
-			return []string{fmt.Sprintf("needs a human co-sign: written by a %s-tier model below the `%s` threshold for this rule, so decided_by must be one of the configured deciders", tier, threshold)}
+			return []string{fmt.Sprintf("needs a human co-sign: written by a %s-tier model below the `%s` threshold for this rule, so decided_by must be one of the configured deciders%s", tier, threshold, policy.DecidersHint())}
 		}
 	}
 	return nil

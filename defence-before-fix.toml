@@ -21,7 +21,7 @@ record = "docs/golangci.md"
 
 [[project.gap]]
 clause = "4.2"
-summary = "golangci-lint linters, staticcheck checks, govulncheck advisories and deadcode do not resolve through rule-doc, and the docs detector does not enumerate golangci-lint linters (a project page named for one is an orphan), and the bundled gqaci.ast.* rules have no pages and are not checked"
+summary = "golangci-lint linters, staticcheck checks, govulncheck advisories and deadcode do not resolve through rule-doc, and the docs detector does not enumerate golangci-lint linters (a project page named for one is an orphan), and a rule of the bundled gqaci.ast.* pack is neither enumerated by the docs detector nor checked for a page"
 record = "docs/defences.md"
 
 [[project.gap]]
@@ -85,5 +85,5 @@ record = "docs/CONFORMANCE.md"
 
 [[artefact.gap]]
 clause = "8.2"
-summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (module-wide) and G306 (one test file) are configured away there, and only the golangci-lint rules are proven active there by a test"
+summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (seven launcher files and test files) and G306 (one test file) are configured away there, and only the golangci-lint rules are proven active there by a test"
 record = "docs/golangci.md"

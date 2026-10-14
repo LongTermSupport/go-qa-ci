@@ -18,12 +18,31 @@ error[project_nopanic]: panic is forbidden
 
 ## The vet tool
 
-The tool is chosen by `[analyzers] driver` in `qa/go-qa.toml`.
+The tool is chosen by `[analyzers] driver` (and optionally `module`) in `qa/go-qa.toml`.
 
 | `driver`                 | The vet tool                                                                                                                  |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | unset (default)          | the `go-qa` binary itself, started with `GQACI_VETTOOL=1` in its environment; it then registers the bundled analyzers (below) |
 | `"./internal/qa/driver"` | the project's own package, built with `go build` into a temporary file for the run and deleted afterwards                     |
+
+`driver` is a package pattern relative to the module that holds it. That is the root module unless
+`module` names another: `module = "qa"` builds the driver with `go build -C qa`, in the Go module
+whose `go.mod` is `qa/go.mod`. Use it when the rules live in a nested module, so that
+`golang.org/x/tools` and go-qa-ci stay out of the `go.mod` of the project's own binaries, which then
+stays free of dependencies:
+
+```toml
+[analyzers]
+module = "qa"            # a directory with its own go.mod, relative to the root
+driver = "./driver"      # the main package, relative to that module
+```
+
+`module` must be a relative path inside the root holding a `go.mod`, and needs `driver`. The nested
+module is not part of the root module, so `go vet ./...` over the root does not enter it; list it
+under `modules` as well to have the tools that work per module (`golangci`, `test`, ...) run over
+it too. In `--changed` runs, a change under the module widens the run to the whole project (with no
+`module`, a change under the driver package's directory does), because a changed rule must be
+re-applied everywhere.
 
 A project driver is a few lines in a `main` package of the project's module, calling the public
 `driver` package with its analyzers:
@@ -138,18 +157,14 @@ These are gaps, not claims:
 - `gqaci_map_range_order` and `gqaci_init_side_effects` read one function at a time: a slice passed
   on through other variables or functions, and an effect hidden behind a call to a function of the
   same package, are missed, in exchange for few false findings.
-- The docs detector does not know the registered analyzers, so a project page for an analyzer in
-  `docs_dir` is reported as an orphan unless a record entry names the analyzer, and a missing page for
-  an analyzer is not reported as dangling. `rule-doc` resolves the analyzer's `Doc` regardless.
 - A findings exception whose rule is not a registered analyzer is never reported stale by an
   analyzers run, so a mistyped analyzer name, or an analyzer removed from the driver, leaves a dead
   entry; golangci-lint findings exceptions are not judged for staleness either (docs/record.md).
 - `-p` filters findings only after the whole module has been analysed (`go vet ./...` always
   runs), so a single-file run costs as much as a full run; DETECTOR-SPEC 5.2 is met in effect, not
   in cost.
-- The `[analyzers] driver` wiring (`internal/cli/analyzers.go`) is proven in pieces: the CLI lists
-  the test binary's analyzer, and `internal/vet` builds a project driver and runs it. No CLI test
-  sets `driver` and then runs `go-qa rules` or `run -t analyzers` end to end; that was checked by
-  hand with the real binary.
+- Rules a driver imports from a package outside the driver's own directory (and outside `module`)
+  do not widen a `--changed` run when they change; keep the rules in the nested module, or beside
+  the driver.
 - A project driver is built with whatever `go.mod` the project has; go-qa does not check that the
   driver's go-qa-ci version matches the running binary.

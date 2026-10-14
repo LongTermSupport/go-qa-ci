@@ -165,9 +165,7 @@ func (c Config) problems(root string) []string {
 			problems = append(problems, fmt.Sprintf("%s %q must be a relative path inside the root", key, value))
 		}
 	}
-	if driver := c.Analyzers.Driver; driver != "" && (!strings.HasPrefix(driver, "./") || !filepath.IsLocal(driver)) {
-		problems = append(problems, fmt.Sprintf("analyzers.driver %q must be a package inside the root, written like ./internal/qa/vetdriver", driver))
-	}
+	problems = append(problems, c.analyzerProblems(root)...)
 	problems = append(problems, c.stageProblems()...)
 	for _, module := range c.Modules {
 		switch {
@@ -176,6 +174,25 @@ func (c Config) problems(root string) []string {
 		case !isFile(filepath.Join(root, module, "go.mod")):
 			problems = append(problems, fmt.Sprintf("modules entry %q has no go.mod", module))
 		}
+	}
+	return problems
+}
+
+// analyzerProblems checks the analyzer driver and the module that holds it.
+func (c Config) analyzerProblems(root string) []string {
+	var problems []string
+	if driver := c.Analyzers.Driver; driver != "" && (!strings.HasPrefix(driver, "./") || !filepath.IsLocal(driver)) {
+		problems = append(problems, fmt.Sprintf("analyzers.driver %q must be a package inside the module (the root when analyzers.module is unset), written like ./internal/qa/vetdriver", driver))
+	}
+	module := c.Analyzers.Module
+	switch {
+	case module == "":
+	case !filepath.IsLocal(module):
+		problems = append(problems, fmt.Sprintf("analyzers.module %q must be a relative path inside the root", module))
+	case !isFile(filepath.Join(root, module, "go.mod")):
+		problems = append(problems, fmt.Sprintf("analyzers.module %q has no go.mod", module))
+	case c.Analyzers.Driver == "":
+		problems = append(problems, fmt.Sprintf("analyzers.module %q needs analyzers.driver, the package in it that is the driver", module))
 	}
 	return problems
 }

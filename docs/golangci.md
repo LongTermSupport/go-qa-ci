@@ -3,7 +3,8 @@
 Both tools run the `golangci-lint` binary, which must be on `PATH`; a missing binary fails the step
 (`golangci-lint not found on PATH`), it is never skipped. The pinned release is in
 `tools.lock`; `scripts/install-tools.sh golangci-lint` installs it after verifying the archive against
-the checksum file published with the release (CI uses the same script).
+the sha256 pinned beside it in `tools.lock` (CI uses the same script). Tests that need the binary fail
+when it is missing, like those of every other pinned tool (`GQACI_TEST_WITHOUT_TOOLS`, docs/astgrep.md).
 
 ## `fmt`
 
@@ -47,9 +48,11 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
   strict baseline `configs/golangci.yml` is used. The file is looked for in the module's own
   directory only: a nested module without a file of its own gets the baseline, even when a parent
   directory holds a `.golangci.yml` that golangci-lint's own discovery would pick. A project file's
-  `linters.exclusions`, presets, `issues.new-from-*`, disabled linters and narrowed linter set can
-  drop findings, so the `suppression` tool reads the file and requires a record entry for each
-  (docs/suppression.md); the settings of golangci-lint's own that it does not list are a recorded
+  `linters.exclusions`, presets, `issues.new-from-*`, a check disabled inside a running linter and a
+  narrowed `linters.default` can drop findings, so the `suppression` tool reads the file and requires a
+  record entry for each (docs/suppression.md). Which linters run (`linters.enable`, `linters.disable`)
+  is the defence set the project chooses, not a suppression: it needs no entry, and `go-qa rules`
+  lists the linters as they are, so what a project does not run is visible rather than recorded; the settings of golangci-lint's own that it does not list are a recorded
   gap there.
 
 ## The bundled baseline
@@ -63,7 +66,7 @@ its allow-list is specific to a project; this repository adds its own in the ove
 
 ## Configuration exceptions
 
-This repository's overlay configures away `gosec G204` (module-wide) and `gosec G306` (one test
+This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in test files) and `gosec G306` (one test
 file). Each is listed in `docs/record.md` as a configuration exception, and the suppression
 detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
 disabling of the `govet` `fieldalignment` analyzer.
@@ -96,8 +99,9 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- Two Rules are not active on the toolchain's own source: `gosec::G204` (switched off for the whole
-  module, a configuration exception) and `gosec::G306` (one test file). Both are in the record with
+- Two Rules are not fully active on the toolchain's own source: `gosec::G204` (switched off in the
+  seven files that launch the tools and in test files, a configuration exception; every other file is
+  held to it) and `gosec::G306` (one test file). Both are in the record with
   a justification (docs/record.md), but the Rule is not held on this repository.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.

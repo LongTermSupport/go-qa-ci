@@ -100,6 +100,24 @@ func TestTheShippedPackIsValid(t *testing.T) {
 	}
 }
 
+// The documentation says the pack is empty exactly when it is: a claim about the shipped pack is
+// read from the code, so filling the pack without editing the page (or the reverse) fails here.
+func TestTheDocumentationSaysThePackIsEmptyExactlyWhenItIs(t *testing.T) {
+	t.Parallel()
+	pack, err := astgrep.Bundled()
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join("..", "..", "docs", "astgrep.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	says := strings.Contains(string(page), "**The pack is empty.**")
+	if says != pack.Empty() {
+		t.Errorf("docs/astgrep.md says the pack is empty: %v; the embedded pack is empty: %v", says, pack.Empty())
+	}
+}
+
 func TestAnEmptyPackWritesNothing(t *testing.T) {
 	t.Parallel()
 	pack, err := astgrep.LoadPack(fstest.MapFS{})

@@ -223,7 +223,7 @@ func analyzers(ctx context.Context, in Input) ([]Defence, error) {
 		origin = OriginProject
 	}
 	var out []Defence
-	err = vet.WithAnalyzers(ctx, in.Root, in.Config.Analyzers.Driver, func(_ vet.Tool, found []vet.Analyzer) error {
+	err = vet.WithAnalyzers(ctx, in.Config.Analyzers.BuildDir(in.Root), in.Config.Analyzers.Driver, func(_ vet.Tool, found []vet.Analyzer) error {
 		for _, a := range found {
 			out = append(out, Defence{ID: a.Name, Engine: EngineAnalyzer, Origin: origin, Phase: s.Phase, Level: levelBlocking, Description: oneLine(a.Summary)})
 		}

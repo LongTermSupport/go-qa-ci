@@ -214,6 +214,10 @@ func asMap(t *testing.T, v any) map[string]any {
 	return m
 }
 
+// g204ProductionFiles are the files that launch the fixed external tools the toolchain exists to
+// run: the only non-test sources gosec G204 is excluded in.
+const g204ProductionFiles = `^(internal/astgrep/run|internal/changed/git|internal/golangci/run|internal/record/gate|internal/runners/command|internal/stage/files|internal/vet/vet)\.go$`
+
 // The overlay holds only the documented configuration exceptions plus the project's dependency
 // allow-list; each exception is named in docs/record.md for the suppression detector (M6).
 func TestOverlayHoldsOnlyDocumentedExceptions(t *testing.T) {
@@ -230,24 +234,23 @@ func TestOverlayHoldsOnlyDocumentedExceptions(t *testing.T) {
 		t.Fatalf("overlay enables %v, want only depguard", got)
 	}
 	settings := asMap(t, linters["settings"])
-	if keys := mapKeys(settings); !slices.Equal(keys, []string{"depguard", "gosec"}) {
-		t.Fatalf("overlay settings %v, want depguard and gosec only", keys)
-	}
-	gosec := asMap(t, settings["gosec"])
-	if keys := mapKeys(gosec); !slices.Equal(keys, []string{"excludes"}) {
-		t.Fatalf("overlay gosec keys %v", keys)
-	}
-	if got := asList(t, gosec["excludes"]); !reflect.DeepEqual(got, []any{"G204"}) {
-		t.Fatalf("overlay gosec excludes %v, want only G204", got)
+	if keys := mapKeys(settings); !slices.Equal(keys, []string{"depguard"}) {
+		t.Fatalf("overlay settings %v, want depguard only: gosec G204 is excluded per file, not module-wide", keys)
 	}
 	exclusions := asMap(t, linters["exclusions"])
 	rules := asList(t, exclusions["rules"])
-	if len(rules) != 1 {
-		t.Fatalf("overlay exclusion rules %v, want only the G306 test file rule", rules)
+	got := map[string]string{}
+	for _, entry := range rules {
+		rule := asMap(t, entry)
+		got[fmt.Sprint(rule["text"])+" "+fmt.Sprint(rule["path"])] = fmt.Sprint(rule["linters"])
 	}
-	rule := asMap(t, rules[0])
-	if rule["text"] != "G306" || rule["path"] != `tests/scripts/secret_scan_test\.go` {
-		t.Fatalf("unexpected exclusion rule %v", rule)
+	want := map[string]string{
+		"G204 " + g204ProductionFiles:              "[gosec]",
+		"G204 _test\\.go$":                         "[gosec]",
+		"G306 tests/scripts/secret_scan_test\\.go": "[gosec]",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("overlay exclusion rules %v, want exactly %v", got, want)
 	}
 
 	docs := readRepoFile(t, repoPath("docs", "record.md"))

@@ -50,6 +50,48 @@ func TestMeasureCoverageCountsStatementsAcrossPackages(t *testing.T) {
 	}
 }
 
+// gateProbe is a module whose test fails unless it was run the way the gate runs tests: race
+// detector on, shuffled, uncached (-count=1), and counting statements in atomic mode.
+func gateProbe() map[string]string {
+	return map[string]string{
+		"f.go":        "package fixture\n\nfunc Used() int { return 1 }\n",
+		"race_on.go":  "//go:build race\n\npackage fixture\n\nconst raceEnabled = true\n",
+		"race_off.go": "//go:build !race\n\npackage fixture\n\nconst raceEnabled = false\n",
+		"f_test.go":   "package fixture\n\nimport (\n\t\"flag\"\n\t\"testing\"\n)\n\nfunc TestRunsLikeTheGate(t *testing.T) {\n\tif Used() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n\tif testing.CoverMode() != \"atomic\" {\n\t\tt.Errorf(\"cover mode %q\", testing.CoverMode())\n\t}\n\tfor name, want := range map[string]string{\"test.shuffle\": \"on\", \"test.count\": \"1\"} {\n\t\tif got := flag.Lookup(name).Value.String(); got != want {\n\t\t\tt.Errorf(\"-%s=%s, want %s\", name, got, want)\n\t\t}\n\t}\n\tif !raceEnabled {\n\t\tt.Error(\"the race detector is off\")\n\t}\n}\n",
+	}
+}
+
+func TestMeasureCoverageRunsTheTestsTheWayTheTestStepDoes(t *testing.T) {
+	got, err := runners.MeasureCoverage(ctx(), module(t, gateProbe()))
+	if err != nil {
+		t.Fatalf("the coverage run is not the gate's test run: %v", err)
+	}
+	if got.Total != 100 {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestTestAndMeasureIsOneRunThatFeedsBothVerdicts(t *testing.T) {
+	output, passed, cov, err := runners.TestAndMeasure(ctx(), module(t, gateProbe()))
+	if err != nil || !passed {
+		t.Fatalf("got %q, %v, %v", output, passed, err)
+	}
+	if cov.Total != 100 {
+		t.Errorf("coverage %+v", cov)
+	}
+}
+
+func TestTestAndMeasureKeepsTheOutputOfFailingTests(t *testing.T) {
+	dir := module(t, map[string]string{
+		"f.go":      "package fixture\n\nfunc Used() int { return 1 }\n",
+		"f_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestUsed(t *testing.T) {\n\tt.Fatal(\"deliberate failure\")\n}\n",
+	})
+	output, passed, cov, err := runners.TestAndMeasure(ctx(), dir)
+	if err != nil || passed || !strings.Contains(output, "deliberate failure") || cov.Total != 0 {
+		t.Errorf("got %q, %v, %+v, %v", output, passed, cov, err)
+	}
+}
+
 func TestMeasureCoverageReportsFailingTestsAsSuch(t *testing.T) {
 	dir := module(t, map[string]string{
 		"f.go":      "package fixture\n\nfunc Used() int { return 1 }\n",

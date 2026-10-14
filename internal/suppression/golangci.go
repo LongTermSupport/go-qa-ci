@@ -103,11 +103,14 @@ func removals(item string) (string, bool) {
 	return rest, ok
 }
 
+// listRoutes are the lists of things exempted from a defence. `linters.enable` and `linters.disable`
+// are deliberately absent: choosing which linters run is choosing the defence set, which
+// `go-qa rules` and the generated summary list as it stands; only an exclusion of findings, or of
+// a check inside a running linter, is a suppression.
 var listRoutes = []listRoute{
 	{keys: []string{"linters", "exclusions", "paths"}, name: "exclusions.paths"},
 	{keys: []string{"linters", "exclusions", "presets"}, name: "exclusions.presets"},
 	{keys: []string{"formatters", "exclusions", "paths"}, name: "formatters.exclusions.paths"},
-	{keys: []string{"linters", "disable"}, name: "linters.disable"},
 	{keys: []string{"linters", "settings", "errcheck", "exclude-functions"}, name: "errcheck.exclude-functions"},
 	{keys: []string{"linters", "settings", "gosec", "excludes"}, name: "gosec.excludes"},
 	{keys: []string{"linters", "settings", "govet", "disable"}, name: "govet.disable"},
