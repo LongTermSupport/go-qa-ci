@@ -305,3 +305,29 @@ func TestResolveWithoutADriverIsSelfAndWithOneBuildsIt(t *testing.T) {
 		t.Error("the project driver was not built")
 	}
 }
+
+func TestWithAnalyzersHandsTheToolAndItsAnalyzersToTheCaller(t *testing.T) {
+	var names []string
+	err := vet.WithAnalyzers(context.Background(), t.TempDir(), "", func(_ vet.Tool, analyzers []vet.Analyzer) error {
+		for _, a := range analyzers {
+			names = append(names, a.Name)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(names, "gqaci_test") {
+		t.Errorf("analyzers = %v", names)
+	}
+}
+
+func TestWithAnalyzersReportsAnUnbuildableDriver(t *testing.T) {
+	err := vet.WithAnalyzers(context.Background(), fixtureModule(t, map[string]string{"p.go": "package p\n"}), "./nope", func(vet.Tool, []vet.Analyzer) error {
+		t.Error("the callback ran without a tool")
+		return nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "analyzer driver") {
+		t.Errorf("err = %v", err)
+	}
+}

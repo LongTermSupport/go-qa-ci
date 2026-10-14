@@ -19,21 +19,21 @@ type stageRules struct {
 
 // stageRules are the rules every stage's rules command prints, in stage order. A command that
 // fails is an error: an identifier must never be called dangling because a command did not run.
-func (r Resolver) stageRules() ([]stage.Rule, error) {
+func (r Resolver) stageRules(ctx context.Context) ([]stage.Rule, error) {
 	if len(r.Stages) == 0 {
 		return nil, nil
 	}
 	if r.rules == nil {
-		return loadStageRules(r.Root, r.Stages)
+		return loadStageRules(ctx, r.Root, r.Stages)
 	}
-	r.rules.once.Do(func() { r.rules.rules, r.rules.err = loadStageRules(r.Root, r.Stages) })
+	r.rules.once.Do(func() { r.rules.rules, r.rules.err = loadStageRules(ctx, r.Root, r.Stages) })
 	return r.rules.rules, r.rules.err
 }
 
-func loadStageRules(root string, stages []stage.Stage) ([]stage.Rule, error) {
+func loadStageRules(ctx context.Context, root string, stages []stage.Stage) ([]stage.Rule, error) {
 	var all []stage.Rule
 	for _, s := range stages {
-		rules, err := stagerun.LoadRules(context.Background(), root, s)
+		rules, err := stagerun.LoadRules(ctx, root, s)
 		if err != nil {
 			return nil, fmt.Errorf("reading the rules of the project stages: %w", err)
 		}
@@ -44,8 +44,8 @@ func loadStageRules(root string, stages []stage.Stage) ([]stage.Rule, error) {
 
 // stageIdentifiers are the identifiers the project's stages make: each stage's name and every
 // rule it prints.
-func (r Resolver) stageIdentifiers() ([]string, error) {
-	rules, err := r.stageRules()
+func (r Resolver) stageIdentifiers(ctx context.Context) ([]string, error) {
+	rules, err := r.stageRules(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"strings"
 
@@ -13,7 +14,7 @@ func runRuleDoc(rootPath string, cfg config.Config, args []string, stdout, stder
 	if len(args) != 1 {
 		return emit(stderr, ExitUsage, "go-qa rule-doc: want exactly one identifier\nusage: go-qa rule-doc <id>")
 	}
-	doc, found, err := docs.ForConfig(rootPath, cfg).Resolve(args[0])
+	doc, found, err := docs.ForConfig(rootPath, cfg).Resolve(context.Background(), args[0])
 	if err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
@@ -49,7 +50,7 @@ func runDocsCheck(rootPath string, cfg config.Config, args []string, stdout, std
 	if len(args) > 0 {
 		return emit(stderr, ExitUsage, "go-qa docs-check: unexpected argument %q", args[0])
 	}
-	findings, err := docs.Run(rootPath, cfg)
+	findings, err := docs.Run(context.Background(), rootPath, cfg)
 	if err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}

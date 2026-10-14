@@ -79,9 +79,8 @@ prints to resolve (`gqaci.docs.dangling`), and a page for either is not an orpha
 
 ## Recorded gaps (TOOLING-SPEC 9.2)
 
-- The defence listing (`go-qa rules`, M11) does not list stages or their rules yet; the docs
-  detector enumerates them itself. The listing, the summary and the `summary_rules` switch arrive
-  with M11.
+- `go-qa rules` lists stages and their rules (`docs/enumeration.md`), but the docs detector still
+  enumerates them itself rather than from the listing.
 - A findings exception whose rule no defence reports is not yet rejected as invalid for stage rules;
   only the unused-exception check above applies.
 - Stage commands run with the environment go-qa was started in; a stage's `dir` selects the working

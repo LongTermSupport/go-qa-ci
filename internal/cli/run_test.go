@@ -216,9 +216,9 @@ func TestRunRejectsBadUsage(t *testing.T) {
 	}
 }
 
-func TestDefaultExecutorNeverClaimsAToolPassed(t *testing.T) {
-	code, out, _ := run("--root", module(t, ""), "run", "-t", "summary")
-	if code != 1 || !strings.Contains(out, "summary      FAILED (not implemented") {
-		t.Errorf("exit %d, stdout %q; want a failure naming the tool", code, out)
+func TestDefaultExecutorRunsTheSummaryToolAndSaysItIsOffWithoutAFile(t *testing.T) {
+	code, out, errOut := run("--root", module(t, ""), "run", "-t", "summary")
+	if code != 0 || !strings.Contains(out, "summary      passed") || !strings.Contains(errOut, "summary.file") {
+		t.Errorf("exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
 }

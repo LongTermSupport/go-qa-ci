@@ -266,3 +266,18 @@ func toFinding(rule string, d diagnostic, dir string) (finding.Finding, error) {
 	}
 	return finding.Finding{Rule: rule, Path: rel, Line: line, Message: d.Message}, nil
 }
+
+// WithAnalyzers resolves the project's vet tool (see Resolve), lists its analyzers and runs fn
+// with both; anything built is removed afterwards.
+func WithAnalyzers(ctx context.Context, moduleDir, driverPkg string, fn func(Tool, []Analyzer) error) error {
+	tool, cleanup, err := Resolve(ctx, moduleDir, driverPkg)
+	if err != nil {
+		return fmt.Errorf("resolving the analyzer driver: %w", err)
+	}
+	defer cleanup()
+	analyzers, err := tool.Analyzers(ctx)
+	if err != nil {
+		return fmt.Errorf("listing the analyzers: %w", err)
+	}
+	return fn(tool, analyzers)
+}

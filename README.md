@@ -16,9 +16,9 @@ to bundled or project pages (`go-qa rule-doc`, `go-qa docs-check`, the `docs` to
 golangci-lint, which must be installed (see `docs/golangci.md`). The `suppression` tool fails every
 route that silences a defence without an entry in the project record (see `docs/suppression.md`).
 The `analyzers` tool runs `go/analysis` analyzers through `go vet -vettool` and prints each finding
-under the analyzer name (see `docs/analyzers.md`; no analyzer is bundled yet). The runners `vuln`, `mod`, `test`, `coverage` and `mutants` and the `deadcode` detector
-run the Go toolchain, govulncheck, deadcode and gremlins (see `docs/runners.md`). Every other tool
-engine is not built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
+under the analyzer name (see `docs/analyzers.md`). The runners `vuln`, `mod`, `test`, `coverage` and `mutants` and the `deadcode` detector
+run the Go toolchain, govulncheck, deadcode and gremlins (see `docs/runners.md`). The `summary` tool keeps the generated defence region of the agent instruction file current, and `go-qa rules` lists
+what is active (see `docs/enumeration.md`). A step with no engine fails as not implemented; nothing is claimed
 to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 
 ## Commands
@@ -35,7 +35,8 @@ success, 1 a defence or tool failed, 2 usage or configuration error.
 | `go-qa record list [--json]`                                          | every exception with its justification, enumerated like the defences                                |
 | `go-qa record explain <rule or number>`                               | one exception (or every exception for a rule) in full                                               |
 | `go-qa rule-doc <id>`                                                 | the page for an identifier, offline; exit 1 when it is dangling                                     |
-| `go-qa rules`                                                         | the registered `go/analysis` analyzers with their summaries (the complete listing is not built yet) |
+| `go-qa rules [--json]` | every active defence (built-ins, linters, analyzers, ast-grep rules, project stages), the gate steps, the record and its budget; see `docs/enumeration.md` |
+| `go-qa summary [--check]` | write the generated defence region into `[summary] file`; `--check` fails as `gqaci.summary.stale` when it is out of date |
 | `go-qa docs-check`                                                    | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                      |
 | `go-qa --version`                                                     | the version                                                                                         |
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
+	"github.com/LongTermSupport/go-qa-ci/internal/defences"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/stage"
 )
@@ -167,11 +168,30 @@ type Context struct {
 	Today date.Date
 }
 
-// Pending is the executor for tools whose engine is not built yet. It fails every step, saying
+// Pending is the executor for a step no engine is built for. It fails every step, saying
 // so, so an unbuilt defence is never reported as passing.
 type Pending struct{}
 
 // Run fails the step.
 func (Pending) Run(pipeline.Step) pipeline.Outcome {
 	return pipeline.Outcome{Kind: pipeline.KindFailed, Reason: "not implemented yet"}
+}
+
+// Steps lists every step of the gate in execution order, as the defence listing reports them: per
+// phase, the built-in tools first and then the project's own stages in declared order.
+func Steps(cfg config.Config) []defences.Step {
+	var steps []defences.Step
+	for _, phase := range []pipeline.Phase{pipeline.PhaseFormat, pipeline.PhaseDetectors, pipeline.PhaseRunners} {
+		for _, tool := range Catalogue() {
+			if tool.Phase == phase {
+				steps = append(steps, defences.Step{Name: tool.Name, Phase: phase.String(), Enabled: tool.Enabled(cfg.Tools)})
+			}
+		}
+		for _, s := range cfg.Stages {
+			if s.Phase == phase.String() {
+				steps = append(steps, defences.Step{Name: s.Name, Phase: s.Phase, Project: true, Enabled: true})
+			}
+		}
+	}
+	return steps
 }

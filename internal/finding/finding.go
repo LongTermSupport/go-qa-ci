@@ -23,6 +23,8 @@ const (
 	SuppressionUnrecorded = builtin.SuppressionUnrecorded
 	// SuppressionBare marks a suppression that names no rule or gives no reason.
 	SuppressionBare = builtin.SuppressionBare
+	// SummaryStale marks a generated agent summary region that is out of date.
+	SummaryStale = builtin.SummaryStale
 	// DocsDangling marks an identifier that resolves to no documentation.
 	DocsDangling = builtin.DocsDangling
 	// DocsOrphan marks a project page that documents no identifier the project can see.

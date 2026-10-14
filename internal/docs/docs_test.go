@@ -32,7 +32,7 @@ func TestEveryBuiltinHasAPageWithTheRequiredShape(t *testing.T) {
 	t.Parallel()
 	resolver := docs.Resolver{Root: t.TempDir(), DocsDir: docsDir}
 	for _, id := range builtin.All() {
-		doc, found, err := resolver.Resolve(id)
+		doc, found, err := resolver.Resolve(t.Context(), id)
 		if err != nil || !found {
 			t.Errorf("%s: found=%v err=%v", id, found, err)
 			continue
@@ -63,11 +63,11 @@ func TestProjectPageResolvedByIdentifierAndWinsOverBundled(t *testing.T) {
 	write(t, root, docsDir+"/"+builtin.RecordStale+".md", "# "+builtin.RecordStale+"\n\nproject text\n")
 	resolver := docs.Resolver{Root: root, DocsDir: docsDir}
 
-	doc, found, err := resolver.Resolve("example.rule")
+	doc, found, err := resolver.Resolve(t.Context(), "example.rule")
 	if err != nil || !found || doc.Source != docs.Project || doc.Path != docsDir+"/example.rule.md" {
 		t.Fatalf("project page: %+v found=%v err=%v", doc, found, err)
 	}
-	doc, found, err = resolver.Resolve(builtin.RecordStale)
+	doc, found, err = resolver.Resolve(t.Context(), builtin.RecordStale)
 	if err != nil || !found || doc.Source != docs.Project || !strings.Contains(doc.Text, "project text") {
 		t.Fatalf("project page must win over the bundled one: %+v found=%v err=%v", doc, found, err)
 	}
@@ -78,7 +78,7 @@ func TestProjectPageFoundUnderAnotherSpellingOfTheName(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, docsDir+"/Gqaci-Test-Rule.md", page("gqaci_test_rule"))
 	resolver := docs.Resolver{Root: root, DocsDir: docsDir}
-	if _, found, err := resolver.Resolve("gqaci_test_rule"); err != nil || !found {
+	if _, found, err := resolver.Resolve(t.Context(), "gqaci_test_rule"); err != nil || !found {
 		t.Fatalf("found=%v err=%v", found, err)
 	}
 }
@@ -89,7 +89,7 @@ func TestResolveUnknownAndUnsafeIdentifiers(t *testing.T) {
 	write(t, root, "secret.md", "outside the docs directory")
 	resolver := docs.Resolver{Root: root, DocsDir: docsDir}
 	for _, id := range []string{"no.such.rule", "", "  ", "../../secret", "a/b", `a\b`, ".."} {
-		if doc, found, err := resolver.Resolve(id); err != nil || found {
+		if doc, found, err := resolver.Resolve(t.Context(), id); err != nil || found {
 			t.Errorf("Resolve(%q) = %+v found=%v err=%v", id, doc, found, err)
 		}
 	}
@@ -98,7 +98,7 @@ func TestResolveUnknownAndUnsafeIdentifiers(t *testing.T) {
 func TestResolveTrimsTheIdentifier(t *testing.T) {
 	t.Parallel()
 	resolver := docs.Resolver{Root: t.TempDir(), DocsDir: docsDir}
-	if _, found, err := resolver.Resolve(" " + builtin.DocsOrphan + "\n"); err != nil || !found {
+	if _, found, err := resolver.Resolve(t.Context(), " "+builtin.DocsOrphan+"\n"); err != nil || !found {
 		t.Fatalf("found=%v err=%v", found, err)
 	}
 }
@@ -111,7 +111,7 @@ func TestResolveFailsLoudlyWhenAProjectPageCannotBeRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	resolver := docs.Resolver{Root: root, DocsDir: docsDir}
-	if _, _, err := resolver.Resolve("example.rule"); err == nil {
+	if _, _, err := resolver.Resolve(t.Context(), "example.rule"); err == nil {
 		t.Fatal("an unreadable project page must be an error, not a fall-through to a later source")
 	}
 }
@@ -145,7 +145,7 @@ func TestCheckCleanProject(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	write(t, root, docsDir+"/example.rule.md", page("example.rule"))
-	findings, err := docs.Check(docs.Input{Root: root, DocsDir: docsDir, Listed: []string{"example.rule"}})
+	findings, err := docs.Check(t.Context(), docs.Input{Root: root, DocsDir: docsDir, Listed: []string{"example.rule"}})
 	if err != nil || len(findings) > 0 {
 		t.Fatalf("findings=%v err=%v", findings, err)
 	}
@@ -155,7 +155,7 @@ func TestCheckOrphanPageFails(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	write(t, root, docsDir+"/orphaned.rule.md", page("orphaned.rule"))
-	findings, err := docs.Check(docs.Input{Root: root, DocsDir: docsDir})
+	findings, err := docs.Check(t.Context(), docs.Input{Root: root, DocsDir: docsDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestCheckPageOfADocumentedRuleIsNotAnOrphan(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	write(t, root, docsDir+"/example.recorded.md", page("example.recorded"))
-	findings, err := docs.Check(docs.Input{Root: root, DocsDir: docsDir, Documented: []string{"example.recorded"}})
+	findings, err := docs.Check(t.Context(), docs.Input{Root: root, DocsDir: docsDir, Documented: []string{"example.recorded"}})
 	if err != nil || len(findings) > 0 {
 		t.Fatalf("findings=%v err=%v", findings, err)
 	}
@@ -176,7 +176,7 @@ func TestCheckPageOfADocumentedRuleIsNotAnOrphan(t *testing.T) {
 
 func TestCheckListedIdentifierWithoutAPageIsDangling(t *testing.T) {
 	t.Parallel()
-	findings, err := docs.Check(docs.Input{Root: t.TempDir(), DocsDir: docsDir, Listed: []string{"example.rule"}})
+	findings, err := docs.Check(t.Context(), docs.Input{Root: t.TempDir(), DocsDir: docsDir, Listed: []string{"example.rule"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestCheckListedIdentifierWithoutAPageIsDangling(t *testing.T) {
 func TestCheckReportsInDeterministicOrder(t *testing.T) {
 	t.Parallel()
 	in := docs.Input{Root: t.TempDir(), DocsDir: docsDir, Listed: []string{"z.rule", "a.rule", "a.rule"}}
-	findings, err := docs.Check(in)
+	findings, err := docs.Check(t.Context(), in)
 	if err != nil {
 		t.Fatal(err)
 	}

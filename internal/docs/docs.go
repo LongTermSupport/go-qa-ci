@@ -10,6 +10,7 @@
 package docs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -106,7 +107,7 @@ func usable(id string) bool {
 
 // Resolve returns the page for id. found is false when the identifier is dangling; an error means
 // a page exists but cannot be read, which never falls through to a later source.
-func (r Resolver) Resolve(id string) (doc Doc, found bool, err error) {
+func (r Resolver) Resolve(ctx context.Context, id string) (doc Doc, found bool, err error) {
 	id = strings.TrimSpace(id)
 	if !usable(id) {
 		return Doc{}, false, nil
@@ -115,7 +116,7 @@ func (r Resolver) Resolve(id string) (doc Doc, found bool, err error) {
 	if err != nil || found {
 		return doc, found, err
 	}
-	if doc, found, err = r.fromStages(id); err != nil || found {
+	if doc, found, err = r.fromStages(ctx, id); err != nil || found {
 		return doc, found, err
 	}
 	if text, ok := ruledocs.Page(id); ok {
@@ -126,11 +127,11 @@ func (r Resolver) Resolve(id string) (doc Doc, found bool, err error) {
 
 // fromStages resolves a stage name to the stage's own description, and a rule a stage prints to
 // the documentation its rules command ships for it.
-func (r Resolver) fromStages(id string) (Doc, bool, error) {
+func (r Resolver) fromStages(ctx context.Context, id string) (Doc, bool, error) {
 	if i := slices.IndexFunc(r.Stages, func(s stage.Stage) bool { return s.Name == id }); i >= 0 {
 		return Doc{Source: Stage, Text: r.Stages[i].Doc()}, true, nil
 	}
-	rules, err := r.stageRules()
+	rules, err := r.stageRules(ctx)
 	if err != nil {
 		return Doc{}, false, err
 	}

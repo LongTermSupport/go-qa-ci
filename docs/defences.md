@@ -49,10 +49,11 @@ These are gaps, not claims (TOOLING-SPEC 9.2):
   yet; analyzers do, through the driver's `help`. The `golangci` detector prints them (`errcheck`, `staticcheck::SA1019`) but
   `go-qa rule-doc` has no page for them; they join the resolution order through their own explain
   routes (TOOLING-SPEC 4.2). `docs/golangci.md` records the gap per clause.
-- The defence listing (`rules`, M11) does not exist, so the detector cannot require a page for a
-  project rule it cannot enumerate, and treats only built-ins, project stages and their rules, and
-  rules named in the project record as identifiers the project can see. A page for any other project rule is reported as an
-  orphan until the listing feeds the detector.
+- The defence listing (`go-qa rules`, `docs/enumeration.md`) exists, but the detector does not yet take its
+  identifiers from it, so it treats only built-ins, project stages and their rules, and rules named in
+  the project record as identifiers the project can see. A page for any other project rule is reported
+  as an orphan, and a missing page for one is not reported as dangling, until the listing feeds the
+  detector.
 - Project pages are checked for existence and naming, not for the shape of their content.
 - Advisory identifiers (`GO-YYYY-NNNN`, from `vuln`) and `deadcode` have no page yet; see
   `docs/runners.md`.

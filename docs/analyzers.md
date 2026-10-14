@@ -73,11 +73,11 @@ with `covers = "findings"`. Its configuration is the `-patterns` and `-redacting
 
 ## Listing and documentation
 
-`go-qa rules` lists the registered analyzers, read from the tool's `-flags` output (an analyzer is
+`go-qa rules` lists the registered analyzers (with every other engine, `docs/enumeration.md`), read from the tool's `-flags` output (an analyzer is
 registered exactly when the tool offers its enabling flag), with the first line of each `Doc`:
 
 ```text
-analyzer  project_nopanic  forbids panic
+  analyzer  project    error  project_nopanic  forbids panic
 ```
 
 `go-qa rule-doc <analyzer>` prints the analyzer's `Doc`, obtained from the tool's `help <name>`.
@@ -107,7 +107,6 @@ These are gaps, not claims:
 - One analyzer is bundled so far (`gqaci_sensitive_format`); the rest of the bundled set is a later
   milestone. The bundled analyzer is configured through its flags or `sensitiveformat.New` in a
   project driver; `qa/go-qa.toml` has no key for it yet.
-- `go-qa rules` lists only analyzers; the complete listing is a later milestone.
 - The docs detector does not know the registered analyzers, so a project page for an analyzer in
   `docs_dir` is reported as an orphan unless a record entry names the analyzer, and a missing page for
   an analyzer is not reported as dangling. `rule-doc` resolves the analyzer's `Doc` regardless.

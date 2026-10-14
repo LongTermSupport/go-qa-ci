@@ -1,5 +1,5 @@
-# The self-gate (go-qa run --ci) runs the tools that are built. A tool below is switched on by the
-# milestone that builds it; until then it would fail as "not implemented yet", never pass.
+# The self-gate (go-qa run --ci) runs every tool; a tool is switched off below only with the
+# reason stated beside it.
 [record]
 # Placeholder identity: replace it with the repository owner before the first public release.
 deciders = ["example-owner"]
@@ -8,7 +8,9 @@ deciders = ["example-owner"]
 # Entries written by this model family are medium trust: 30-day review, at most three entries.
 claude-sonnet = "medium"
 
+[summary]
+file = "AGENTS.md"
+
 [tools]
-summary = false
 # Mutation testing is off until gremlins is part of the pinned toolchain install.
 mutants = false

@@ -66,8 +66,9 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
   The detector's own logic is tested everywhere with a stand-in executable
   (`internal/astgreptest`).
 - A project rule's identifier does not yet resolve to a page through `go-qa rule-doc`: the defence
-  listing (M11) does not exist, and the docs detector treats only built-ins and rules named in the
-  project record as identifiers the project can see.
+  listing (`docs/enumeration.md`) lists project rules, but the docs detector does not take its identifiers
+  from it yet and treats only built-ins and rules named in the project record as identifiers the
+  project can see.
 - `ast-grep` is not invoked with a pinned version check; the version in use is whatever is on
   `PATH`.
 

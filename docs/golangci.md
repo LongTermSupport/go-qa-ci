@@ -76,13 +76,12 @@ go-qa with is derived from the bundled baseline, not kept separately:
   nothing but the documented exceptions. The checker is itself tested against configurations that
   drop a linter, a formatter, a setting or the cap.
 
-`qa/go-qa.toml` switches off the tools that are not built yet so that none is reported as passing
-without running.
+`qa/go-qa.toml` switches off only mutation testing, with the reason beside it.
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- Every Rule of a tool that is switched off in `qa/go-qa.toml` is not active on the toolchain's own
-  source until that tool is built and switched on.
+- Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
+  toolchain's own source until that tool is switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the
   baseline fails the build until the file is mirrored; it cannot silently drift.
 - Only the golangci-lint rules are proven active by `tests/selfgate`: the configuration carries

@@ -16,7 +16,7 @@ func TestRunTreatsRecordRulesAsDocumentable(t *testing.T) {
 	write(t, root, "qa/record.toml", record)
 	write(t, root, docsDir+"/errcheck.md", page("errcheck"))
 	write(t, root, docsDir+"/gone.md", page("gone"))
-	findings, err := docs.Run(root, config.Default())
+	findings, err := docs.Run(t.Context(), root, config.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestRunMalformedRecordIsAnError(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	write(t, root, "qa/record.toml", "[[exception]]\nreson = 1\n")
-	if _, err := docs.Run(root, config.Default()); err == nil {
+	if _, err := docs.Run(t.Context(), root, config.Default()); err == nil {
 		t.Fatal("a record that cannot be read must not be treated as empty")
 	}
 }

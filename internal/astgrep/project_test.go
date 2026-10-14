@@ -141,3 +141,21 @@ func TestTestedRulesIsEmptyWithoutTestConfigs(t *testing.T) {
 		t.Errorf("tested=%v err=%v hasTests=%v", tested, err, project.HasTests())
 	}
 }
+
+func TestInventoryCarriesEachRulesMessage(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, "sgconfig.yml", "ruleDirs: [rules]\n")
+	write(t, root, "rules/ok.yml", "id: ok\nlanguage: go\nseverity: error\nmessage: say it plainly\nrule:\n  pattern: x\n")
+	project, _, err := astgrep.LoadProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := project.Inventory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inventory.Rules) != 1 || inventory.Rules[0].Message != "say it plainly" {
+		t.Errorf("rules = %+v", inventory.Rules)
+	}
+}

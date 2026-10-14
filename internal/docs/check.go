@@ -1,6 +1,7 @@
 package docs
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -68,16 +69,16 @@ func Orphans(root, docsDir string, ids []string) ([]string, error) {
 
 // Check is the docs detector: every built-in and listed identifier resolves, the bundled pages
 // pass their audit, and no project page is an orphan.
-func Check(in Input) ([]finding.Finding, error) {
+func Check(ctx context.Context, in Input) ([]finding.Finding, error) {
 	resolver := Resolver{Root: in.Root, DocsDir: in.DocsDir, Stages: in.Stages, Patterns: in.Patterns, rules: &stageRules{}}
-	stageIDs, err := resolver.stageIdentifiers()
+	stageIDs, err := resolver.stageIdentifiers(ctx)
 	if err != nil {
 		return nil, err
 	}
 	must := sortedStrings(slices.Concat(in.Listed, builtin.All(), stageIDs))
 	var findings []finding.Finding
 	for _, id := range must {
-		_, found, resolveErr := resolver.Resolve(id)
+		_, found, resolveErr := resolver.Resolve(ctx, id)
 		if resolveErr != nil {
 			return nil, resolveErr
 		}

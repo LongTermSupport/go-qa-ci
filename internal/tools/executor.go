@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
-// Executor runs the steps of one run. A tool whose engine is not built yet fails with Pending's
+// Executor runs the steps of one run. A step no engine is built for fails with Pending's
 // reason, so it is never reported as passing.
 type Executor struct {
 	// Ctx is the project and invocation the run belongs to.
@@ -30,6 +31,8 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 		return e.runRecord()
 	case "suppression":
 		return e.runSuppression()
+	case "summary":
+		return e.runSummary()
 	case "docs":
 		return e.runDocs()
 	case "ast-grep":
@@ -60,7 +63,7 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 
 // runDocs checks that every identifier resolves and every page belongs to one.
 func (e Executor) runDocs() pipeline.Outcome {
-	findings, err := docs.Run(e.Ctx.Root, e.Ctx.Config)
+	findings, err := docs.Run(context.Background(), e.Ctx.Root, e.Ctx.Config)
 	if err != nil {
 		return e.fail("%v", err)
 	}

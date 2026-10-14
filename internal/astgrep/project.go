@@ -80,6 +80,8 @@ type Rule struct {
 	Severity string
 	// File is the rule file, slash-separated and relative to the project root.
 	File string
+	// Message is what the rule says when it fires; empty when it declares none.
+	Message string
 }
 
 // Inventory is every rule of a project.
@@ -122,7 +124,7 @@ func (p Project) Inventory(root string) (inventory Inventory, err error) {
 				if severity == "" {
 					severity = "hint"
 				}
-				inventory.Rules = append(inventory.Rules, Rule{ID: id, Severity: severity, File: file})
+				inventory.Rules = append(inventory.Rules, Rule{ID: id, Severity: severity, File: file, Message: stringField(document, "message")})
 			}
 			if unnamed {
 				inventory.Unnamed = append(inventory.Unnamed, file)

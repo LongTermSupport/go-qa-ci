@@ -113,3 +113,15 @@ func TestAnEmptyPackWritesNothing(t *testing.T) {
 		t.Error("an empty pack was written")
 	}
 }
+
+func TestPackRulesCarryTheirMessage(t *testing.T) {
+	t.Parallel()
+	pack, err := astgrep.LoadPack(fstest.MapFS{"gqaci.ast.example.yml": {Data: []byte(goodRule)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := pack.Rules()
+	if len(rules) != 1 || rules[0].ID != "gqaci.ast.example" || rules[0].Severity != "error" || rules[0].Message != "m" {
+		t.Errorf("rules = %+v", rules)
+	}
+}

@@ -36,7 +36,7 @@ func configWith(stages []stage.Stage, resolvers ...config.Resolver) config.Confi
 
 func TestAStageNameResolvesToTheStagesOwnDescription(t *testing.T) {
 	root := t.TempDir()
-	doc, found, err := docs.ForConfig(root, configWith([]stage.Stage{webStage()})).Resolve("web")
+	doc, found, err := docs.ForConfig(root, configWith([]stage.Stage{webStage()})).Resolve(t.Context(), "web")
 	if err != nil || !found || doc.Source != docs.Stage {
 		t.Fatalf("found=%v err=%v doc=%+v", found, err, doc)
 	}
@@ -50,7 +50,7 @@ func TestAStageNameResolvesToTheStagesOwnDescription(t *testing.T) {
 func TestAProjectPageBeatsTheStageDescription(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, docsDir+"/web.md", page("web"))
-	doc, found, err := docs.ForConfig(root, configWith([]stage.Stage{webStage()})).Resolve("web")
+	doc, found, err := docs.ForConfig(root, configWith([]stage.Stage{webStage()})).Resolve(t.Context(), "web")
 	if err != nil || !found || doc.Source != docs.Project {
 		t.Errorf("found=%v err=%v doc=%+v", found, err, doc)
 	}
@@ -59,11 +59,11 @@ func TestAProjectPageBeatsTheStageDescription(t *testing.T) {
 func TestARuleTheStagePrintsResolvesToItsDocOnlyWhenItShipsOne(t *testing.T) {
 	faketool.Install(t, "web-rules", faketool.Spec{Stdout: rulesJSON})
 	resolver := docs.ForConfig(t.TempDir(), configWith([]stage.Stage{webStage()}))
-	doc, found, err := resolver.Resolve("web-doc")
+	doc, found, err := resolver.Resolve(t.Context(), "web-doc")
 	if err != nil || !found || doc.Source != docs.Stage || !strings.Contains(doc.Text, "Use the helper.") {
 		t.Errorf("web-doc: found=%v err=%v doc=%+v", found, err, doc)
 	}
-	if _, found, err = resolver.Resolve("web-bare"); err != nil || found {
+	if _, found, err = resolver.Resolve(t.Context(), "web-bare"); err != nil || found {
 		t.Errorf("web-bare is dangling without a doc: found=%v err=%v", found, err)
 	}
 }
@@ -72,7 +72,7 @@ func TestTheRulesCommandRunsOnceNoMatterHowManyIdentifiersAreResolved(t *testing
 	log := faketool.Install(t, "web-rules", faketool.Spec{Stdout: rulesJSON})
 	resolver := docs.ForConfig(t.TempDir(), configWith([]stage.Stage{webStage()}))
 	for _, id := range []string{"web-doc", "web-bare", "other", "web-doc"} {
-		if _, _, err := resolver.Resolve(id); err != nil {
+		if _, _, err := resolver.Resolve(t.Context(), id); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -83,7 +83,7 @@ func TestTheRulesCommandRunsOnceNoMatterHowManyIdentifiersAreResolved(t *testing
 
 func TestABrokenRulesCommandIsAnErrorNotADanglingIdentifier(t *testing.T) {
 	faketool.Install(t, "web-rules", faketool.Spec{Stdout: "garbage"})
-	_, found, err := docs.ForConfig(t.TempDir(), configWith([]stage.Stage{webStage()})).Resolve("anything")
+	_, found, err := docs.ForConfig(t.TempDir(), configWith([]stage.Stage{webStage()})).Resolve(t.Context(), "anything")
 	if err == nil || found {
 		t.Errorf("found=%v err=%v", found, err)
 	}
@@ -92,11 +92,11 @@ func TestABrokenRulesCommandIsAnErrorNotADanglingIdentifier(t *testing.T) {
 func TestAConfiguredResolverDocumentsMatchingIdentifiersLast(t *testing.T) {
 	cfg := configWith(nil, config.Resolver{Matches: "SC[0-9]*", Text: "Read the wiki page for {id}."})
 	resolver := docs.ForConfig(t.TempDir(), cfg)
-	doc, found, err := resolver.Resolve("SC2086")
+	doc, found, err := resolver.Resolve(t.Context(), "SC2086")
 	if err != nil || !found || doc.Source != docs.Configured || doc.Text != "Read the wiki page for SC2086." {
 		t.Errorf("found=%v err=%v doc=%+v", found, err, doc)
 	}
-	if _, found, err = resolver.Resolve("XY1"); err != nil || found {
+	if _, found, err = resolver.Resolve(t.Context(), "XY1"); err != nil || found {
 		t.Errorf("a non-matching identifier resolved: found=%v err=%v", found, err)
 	}
 }
@@ -104,7 +104,7 @@ func TestAConfiguredResolverDocumentsMatchingIdentifiersLast(t *testing.T) {
 func TestCheckRequiresPagesForStageNamesAndTheRulesTheyPrint(t *testing.T) {
 	faketool.Install(t, "web-rules", faketool.Spec{Stdout: rulesJSON})
 	root := t.TempDir()
-	findings, err := docs.Run(root, configWith([]stage.Stage{webStage()}))
+	findings, err := docs.Run(t.Context(), root, configWith([]stage.Stage{webStage()}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestPagesForStageNamesAndRulesAreNotOrphans(t *testing.T) {
 	write(t, root, docsDir+"/web.md", page("web"))
 	write(t, root, docsDir+"/web-bare.md", page("web-bare"))
 	write(t, root, docsDir+"/stray.md", page("stray"))
-	findings, err := docs.Run(root, configWith([]stage.Stage{webStage()}))
+	findings, err := docs.Run(t.Context(), root, configWith([]stage.Stage{webStage()}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestPagesForStageNamesAndRulesAreNotOrphans(t *testing.T) {
 func TestAConfiguredResolverSatisfiesTheCheckForARuleItMatches(t *testing.T) {
 	faketool.Install(t, "web-rules", faketool.Spec{Stdout: `[{"id":"SC2086","description":"quote it"}]`})
 	cfg := configWith([]stage.Stage{webStage()}, config.Resolver{Matches: "SC*", Text: "See {id}."})
-	findings, err := docs.Run(t.TempDir(), cfg)
+	findings, err := docs.Run(t.Context(), t.TempDir(), cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

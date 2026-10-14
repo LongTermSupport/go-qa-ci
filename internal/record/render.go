@@ -7,14 +7,16 @@ import (
 	"strings"
 )
 
-type listedRatchet struct {
+// ListedRatchet is the ratchet as the listing shows it.
+type ListedRatchet struct {
 	HighWater int    `json:"high_water"`
 	DecidedBy string `json:"decided_by"`
 	DecidedOn string `json:"decided_on,omitempty"`
 	Reason    string `json:"reason"`
 }
 
-type listedException struct {
+// ListedException is one exception as the listing shows it.
+type ListedException struct {
 	Number        int    `json:"number"`
 	Rule          string `json:"rule"`
 	Path          string `json:"path"`
@@ -28,20 +30,20 @@ type listedException struct {
 }
 
 type listing struct {
-	Ratchet    *listedRatchet    `json:"ratchet,omitempty"`
-	Exceptions []listedException `json:"exceptions"`
+	Ratchet    *ListedRatchet    `json:"ratchet,omitempty"`
+	Exceptions []ListedException `json:"exceptions"`
 }
 
 func (r Record) listing() listing {
-	out := listing{Exceptions: make([]listedException, 0, len(r.Exceptions))}
+	out := listing{Exceptions: make([]ListedException, 0, len(r.Exceptions))}
 	if r.Ratchet != nil {
-		out.Ratchet = &listedRatchet{
+		out.Ratchet = &ListedRatchet{
 			HighWater: r.Ratchet.HighWater, DecidedBy: r.Ratchet.DecidedBy,
 			DecidedOn: r.Ratchet.DecidedOn.String(), Reason: r.Ratchet.Reason,
 		}
 	}
 	for i, e := range r.Exceptions {
-		out.Exceptions = append(out.Exceptions, listedException{
+		out.Exceptions = append(out.Exceptions, ListedException{
 			Number: i + 1, Rule: e.Rule, Path: e.Path, Covers: e.EffectiveCovers(), Policy: e.Policy,
 			DecidedBy: deref(e.DecidedBy), AddedByModel: deref(e.AddedByModel),
 			DecidedOn: e.DecidedOn.String(), ReviewBy: e.ReviewBy.String(),
@@ -79,7 +81,7 @@ func (r Record) List() string {
 	return out.String()
 }
 
-func writeProvenance(out *strings.Builder, e listedException) {
+func writeProvenance(out *strings.Builder, e ListedException) {
 	var parts []string
 	for _, field := range []struct{ name, value string }{
 		{"decided_by", e.DecidedBy},
@@ -110,7 +112,7 @@ func (r Record) ListJSON() ([]byte, error) {
 func (r Record) Explain(selector string) (string, error) {
 	selector = strings.TrimSpace(selector)
 	entries := r.listing().Exceptions
-	var shown []listedException
+	var shown []ListedException
 	if n, err := strconv.Atoi(selector); err == nil {
 		if n < 1 || n > len(entries) {
 			return "", fmt.Errorf("no exception #%d; the record has %d", n, len(entries))
@@ -136,4 +138,9 @@ func (r Record) Explain(selector string) (string, error) {
 		fmt.Fprintf(&out, "  why:     %s\n", e.Justification)
 	}
 	return out.String(), nil
+}
+
+// Entries are the exceptions as the listing shows them, numbered from 1.
+func (r Record) Entries() []ListedException {
+	return r.listing().Exceptions
 }

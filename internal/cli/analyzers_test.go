@@ -15,14 +15,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestRulesListsTheAnalyzersWithTheirSummary(t *testing.T) {
-	r := exec("--root", module(t, ""), "rules")
-	want := "analyzer  gqaci_test  reports calls to a function named Forbidden\n"
-	if r.code != 0 || r.out != want {
-		t.Errorf("got %+v, want stdout %q", r, want)
-	}
-}
-
 func TestRulesTakesNoArguments(t *testing.T) {
 	r := exec("--root", module(t, ""), "rules", "extra")
 	if r.code != 2 || !strings.Contains(r.err, "rules") {

@@ -89,7 +89,7 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 		Today:  date.Today(),
 	}
 	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
-	if _, err := io.WriteString(stdout, summary(report, scope)); err != nil {
+	if _, err := io.WriteString(stdout, renderRunSummary(report, scope)); err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
 	if !report.Passed {
@@ -98,8 +98,8 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 	return ExitOK
 }
 
-// summary renders the run summary table, the stop notice and, on failure, the DBF pointer.
-func summary(report pipeline.Report, scope []string) string {
+// renderRunSummary renders the run summary table, the stop notice and, on failure, the DBF pointer.
+func renderRunSummary(report pipeline.Report, scope []string) string {
 	var out strings.Builder
 	out.WriteString("\ngo-qa summary:\n")
 	if len(scope) > 0 {

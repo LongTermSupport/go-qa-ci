@@ -29,8 +29,9 @@ type Pack struct {
 }
 
 type packRule struct {
-	id   string
-	text string
+	id      string
+	text    string
+	message string
 }
 
 // Bundled loads the pack shipped inside the binary.
@@ -60,11 +61,11 @@ func LoadPack(files fs.FS) (Pack, error) {
 		if err != nil {
 			return Pack{}, fmt.Errorf("reading %s: %w", name, err)
 		}
-		id, err := checkPackRule(name, text)
+		rule, err := checkPackRule(name, text)
 		if err != nil {
 			return Pack{}, err
 		}
-		pack.rules = append(pack.rules, packRule{id: id, text: string(text)})
+		pack.rules = append(pack.rules, packRule{id: rule.ID, text: string(text), message: rule.Message})
 	}
 	sort.Slice(pack.rules, func(i, j int) bool { return pack.rules[i].id < pack.rules[j].id })
 	return pack, nil
@@ -75,26 +76,27 @@ type rawPackRule struct {
 	Language string `yaml:"language"`
 	Severity string `yaml:"severity"`
 	Note     string `yaml:"note"`
+	Message  string `yaml:"message"`
 }
 
-func checkPackRule(name string, text []byte) (string, error) {
+func checkPackRule(name string, text []byte) (rawPackRule, error) {
 	var rule rawPackRule
 	if err := yaml.Unmarshal(text, &rule); err != nil {
-		return "", fmt.Errorf("bundled rule %s: %w", name, err)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: %w", name, err)
 	}
 	switch {
 	case !strings.HasPrefix(rule.ID, PackPrefix):
-		return "", fmt.Errorf("bundled rule %s: id %q is not in the %s namespace", name, rule.ID, PackPrefix)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: id %q is not in the %s namespace", name, rule.ID, PackPrefix)
 	case name != rule.ID+".yml":
-		return "", fmt.Errorf("bundled rule %s: the file must be named %s.yml", name, rule.ID)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: the file must be named %s.yml", name, rule.ID)
 	case rule.Language != "go":
-		return "", fmt.Errorf("bundled rule %s: language is %q, not go", name, rule.Language)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: language is %q, not go", name, rule.Language)
 	case rule.Severity != "error":
-		return "", fmt.Errorf("bundled rule %s: severity is %q; a bundled rule blocks", name, rule.Severity)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: severity is %q; a bundled rule blocks", name, rule.Severity)
 	case !strings.Contains(rule.Note, "go-qa rule-doc "+rule.ID):
-		return "", fmt.Errorf("bundled rule %s: its note must point at its page with `go-qa rule-doc %s`", name, rule.ID)
+		return rawPackRule{}, fmt.Errorf("bundled rule %s: its note must point at its page with `go-qa rule-doc %s`", name, rule.ID)
 	}
-	return rule.ID, nil
+	return rule, nil
 }
 
 // IDs are the identifiers of the bundled rules, sorted.
@@ -126,4 +128,13 @@ func (p Pack) Write(dir string) (string, error) {
 		return "", fmt.Errorf("writing the pack: %w", err)
 	}
 	return target, nil
+}
+
+// Rules describes the bundled rules, sorted by identifier. Every bundled rule blocks.
+func (p Pack) Rules() []Rule {
+	rules := make([]Rule, len(p.rules))
+	for i, rule := range p.rules {
+		rules[i] = Rule{ID: rule.id, Severity: "error", File: rule.id + ".yml", Message: rule.message}
+	}
+	return rules
 }
