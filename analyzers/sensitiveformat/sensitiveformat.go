@@ -28,11 +28,13 @@ generic type arguments, a type with a sensitive name (password, secret, token, c
 privatekey by default) when it is passed to the %v, %+v, %#v, %s or %w verb of a fmt function, to a
 log function, or to a log/slog call, and the type has no redacting method.
 
-A method redacts when it is String, GoString, Error, Format(fmt.State, rune) or
-LogValue() slog.Value, or the type is listed with -redacting.
+Which method redacts depends on the destination: String, Error or Format(fmt.State, rune) for %v,
+%+v, %s and %w; GoString or Format for %#v; LogValue() slog.Value or Error for slog (slog never
+calls String, and a JSON handler marshals the fields). A type listed with -redacting redacts
+everywhere. fmt calls the methods of a nested field; slog resolves only the top-level value.
 
-Fix it by giving the type a String method (and a LogValue method for slog) that prints a fixed
-placeholder, or by passing only the non-sensitive fields.`
+Fix it by giving the type a String method and a LogValue method that print a fixed placeholder
+(and a GoString method if it is printed with %#v), or by passing only the non-sensitive fields.`
 
 // Config is what the analyzer is told about the project.
 type Config struct {
@@ -177,7 +179,7 @@ func (c *checker) printf(pass *analysis.Pass, call *ast.CallExpr, sig *types.Sig
 		return
 	}
 	params := sig.Params()
-	var verbs map[int][]rune
+	var verbs map[int][]verb
 	formatted := first >= 1 && params.At(first-1).Name() == "format" && isBasic(params.At(first-1).Type(), types.String)
 	if formatted {
 		format := pass.TypesInfo.Types[call.Args[first-1]]
@@ -186,9 +188,9 @@ func (c *checker) printf(pass *analysis.Pass, call *ast.CallExpr, sig *types.Sig
 		}
 	}
 	for index, arg := range call.Args[first:] {
-		for _, verb := range operandVerbs(formatted, verbs, index) {
-			if verb == 'v' || verb == 's' || verb == 'w' {
-				c.report(pass, arg, "%"+string(verb))
+		for _, v := range operandVerbs(formatted, verbs, index) {
+			if v.letter == 'v' || v.letter == 's' || v.letter == 'w' {
+				c.report(pass, arg, fmtSink(v))
 			}
 		}
 	}
@@ -196,9 +198,9 @@ func (c *checker) printf(pass *analysis.Pass, call *ast.CallExpr, sig *types.Sig
 
 // operandVerbs lists the verbs formatting operand index. A Print-style call and a format string
 // that is not a constant are read as %v, which is the cautious reading.
-func operandVerbs(formatted bool, verbs map[int][]rune, index int) []rune {
+func operandVerbs(formatted bool, verbs map[int][]verb, index int) []verb {
 	if !formatted || verbs == nil {
-		return []rune{'v'}
+		return []verb{{letter: 'v'}}
 	}
 	return verbs[index]
 }
@@ -216,19 +218,19 @@ func (c *checker) slog(pass *analysis.Pass, call *ast.CallExpr, sig *types.Signa
 			}
 		}
 		if isEmptyInterface(paramType) {
-			c.report(pass, arg, "slog")
+			c.report(pass, arg, slogSink)
 		}
 	}
 }
 
-func (c *checker) report(pass *analysis.Pass, arg ast.Expr, destination string) {
+func (c *checker) report(pass *analysis.Pass, arg ast.Expr, to sink) {
 	typ := pass.TypesInfo.TypeOf(arg)
 	if typ == nil {
 		return
 	}
-	if found := c.exposed(typ); found != nil {
-		pass.Reportf(arg.Pos(), "%s exposes sensitive type %s to %s and implements no redacting String, GoString, Error, Format or LogValue method",
-			types.TypeString(typ, packageName), types.TypeString(found, packageName), destination)
+	if found := c.exposed(typ, to); found != nil {
+		pass.Reportf(arg.Pos(), "%s exposes sensitive type %s to %s and implements no redacting %s method",
+			types.TypeString(typ, packageName), types.TypeString(found, packageName), to.destination, to.methods)
 	}
 }
 

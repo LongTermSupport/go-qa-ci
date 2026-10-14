@@ -46,7 +46,7 @@ type APIToken string
 func direct(c Credentials) {
 	fmt.Printf("%v", c)                              // want `red.Credentials exposes sensitive type red.Credentials to %v`
 	fmt.Printf("%+v", c)                             // want `to %v`
-	fmt.Printf("%#v", c)                             // want `to %v`
+	fmt.Printf("%#v", c)                             // want `to %#v`
 	fmt.Printf("%s", c)                              // want `to %s`
 	fmt.Println(c)                                   // want `to %v`
 	_ = fmt.Sprint(c)                                // want `to %v`
@@ -91,4 +91,36 @@ func indexed(c Credentials) {
 	fmt.Printf("%[1]s %[1]v", c)  // want `to %s` `to %v`
 	fmt.Printf("%*d %v", 3, 4, c) // want `to %v`
 	fmt.Printf("%d %T %v", 1, c, "x")
+}
+
+// LogValueToken redacts for slog; fmt never calls LogValue and prints the field.
+type LogValueToken struct{ Raw string }
+
+func (LogValueToken) LogValue() slog.Value { return slog.StringValue("[redacted]") }
+
+// GoStringSecret redacts for %#v; fmt calls GoString for no other verb.
+type GoStringSecret struct{ Raw string }
+
+func (GoStringSecret) GoString() string { return "GoStringSecret{}" }
+
+// StringPassword redacts for fmt and log; a slog JSON handler marshals the field instead.
+type StringPassword struct{ Raw string }
+
+func (StringPassword) String() string { return "[redacted]" }
+
+type WrapsLogValue struct{ Inner LogValueToken }
+
+func wrongMethodForTheSink(l LogValueToken, g GoStringSecret, s StringPassword, w WrapsLogValue) {
+	fmt.Println(l)         // want `red.LogValueToken exposes sensitive type red.LogValueToken to %v and implements no redacting String, Error or Format method`
+	fmt.Printf("%s", l)    // want `to %s`
+	fmt.Printf("%v", g)    // want `to %v`
+	fmt.Println(g)         // want `to %v`
+	fmt.Printf("%#v", s)   // want `to %#v and implements no redacting GoString or Format method`
+	slog.Info("x", "s", s) // want `red.StringPassword exposes sensitive type red.StringPassword to slog and implements no redacting LogValue or Error method`
+	slog.Info("x", "g", g) // want `to slog`
+	fmt.Println(w)         // want `red.WrapsLogValue exposes sensitive type red.LogValueToken to %v`
+	slog.Info("x", "w", w) // want `to slog`
+	fmt.Println(s)
+	fmt.Printf("%#v", g)
+	slog.Info("x", "l", l)
 }

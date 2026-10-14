@@ -10,6 +10,38 @@ const (
 	slogPath = "log/slog"
 )
 
+// sink is where a value is printed. What redacts a value depends on it: fmt calls String and Error
+// for %v and %s but GoString only for %#v, and never LogValue; slog calls LogValue and Error but
+// never String, because the handler decides the encoding and a JSON handler marshals the fields.
+type sink struct {
+	destination string
+	methods     string
+	redactedBy  func(*types.MethodSet) bool
+	// nested says whether the sink calls the methods of a value reached through a field, element
+	// or key. fmt does; slog resolves only the top-level value.
+	nested bool
+}
+
+func fmtSink(v verb) sink {
+	if v.sharp {
+		return sink{
+			destination: "%#" + string(v.letter), methods: "GoString or Format", nested: true,
+			redactedBy: func(m *types.MethodSet) bool { return hasStringMethod(m, "GoString") || hasFormat(m) },
+		}
+	}
+	return sink{
+		destination: "%" + string(v.letter), methods: "String, Error or Format", nested: true,
+		redactedBy: func(m *types.MethodSet) bool {
+			return hasStringMethod(m, "String") || hasStringMethod(m, "Error") || hasFormat(m)
+		},
+	}
+}
+
+var slogSink = sink{
+	destination: "slog", methods: "LogValue or Error",
+	redactedBy: func(m *types.MethodSet) bool { return hasLogValue(m) || hasStringMethod(m, "Error") },
+}
+
 // holdKey identifies a type visited at a given redaction visibility, so a recursive type ends.
 type holdKey struct {
 	named    *types.Named
@@ -19,23 +51,23 @@ type holdKey struct {
 // exposed returns the sensitive named type that formatting a value of type t would print, or nil
 // when nothing sensitive is printed: either no sensitive type is held, or the type that holds it
 // redacts itself.
-func (c *checker) exposed(t types.Type) *types.Named {
+func (c *checker) exposed(t types.Type, to sink) *types.Named {
 	t = types.Unalias(t)
-	if c.redacts(t) {
+	if c.redacts(t, to) {
 		return nil
 	}
 	if ptr, ok := t.(*types.Pointer); ok {
 		// fmt prints a pointer to a struct, array, slice or map as &{...}; only that top level is
 		// followed, because a pointer nested in a value prints as an address.
-		return c.holds(ptr.Elem(), true, map[holdKey]bool{})
+		return c.holds(ptr.Elem(), true, map[holdKey]bool{}, to)
 	}
-	return c.holds(t, true, map[holdKey]bool{})
+	return c.holds(t, true, map[holdKey]bool{}, to)
 }
 
 // holds finds a sensitive named type in t. honoured says whether fmt would call t's formatting
 // methods: it does not for a value reached through an unexported field, which is why a redacting
 // type kept in an unexported field still prints in full.
-func (c *checker) holds(t types.Type, honoured bool, seen map[holdKey]bool) *types.Named {
+func (c *checker) holds(t types.Type, honoured bool, seen map[holdKey]bool, to sink) *types.Named {
 	t = types.Unalias(t)
 	switch typ := t.(type) {
 	case *types.Named:
@@ -44,28 +76,28 @@ func (c *checker) holds(t types.Type, honoured bool, seen map[holdKey]bool) *typ
 			return nil
 		}
 		seen[key] = true
-		if honoured && c.redacts(typ) {
+		if honoured && c.redacts(typ, to) {
 			return nil
 		}
 		if c.sensitiveName(typ) {
 			return typ
 		}
-		return c.holds(typ.Underlying(), honoured, seen)
+		return c.holds(typ.Underlying(), honoured, seen, to)
 	case *types.Struct:
 		for field := range typ.Fields() {
-			if found := c.holds(field.Type(), honoured && field.Exported(), seen); found != nil {
+			if found := c.holds(field.Type(), honoured && to.nested && field.Exported(), seen, to); found != nil {
 				return found
 			}
 		}
 	case *types.Slice:
-		return c.holds(typ.Elem(), honoured, seen)
+		return c.holds(typ.Elem(), honoured && to.nested, seen, to)
 	case *types.Array:
-		return c.holds(typ.Elem(), honoured, seen)
+		return c.holds(typ.Elem(), honoured && to.nested, seen, to)
 	case *types.Map:
-		if found := c.holds(typ.Key(), honoured, seen); found != nil {
+		if found := c.holds(typ.Key(), honoured && to.nested, seen, to); found != nil {
 			return found
 		}
-		return c.holds(typ.Elem(), honoured, seen)
+		return c.holds(typ.Elem(), honoured && to.nested, seen, to)
 	}
 	return nil
 }
@@ -93,9 +125,9 @@ func qualified(named *types.Named) string {
 	return named.Obj().Pkg().Path() + "." + named.Obj().Name()
 }
 
-// redacts reports whether fmt or slog would use a method of t instead of printing its contents,
-// or the project declared the type redacting.
-func (c *checker) redacts(t types.Type) bool {
+// redacts reports whether the sink would use a method of t instead of printing its contents, or
+// the project declared the type redacting.
+func (c *checker) redacts(t types.Type, to sink) bool {
 	base := t
 	if ptr, ok := base.(*types.Pointer); ok {
 		base = ptr.Elem()
@@ -103,13 +135,7 @@ func (c *checker) redacts(t types.Type) bool {
 	if named, ok := types.Unalias(base).(*types.Named); ok && c.redacting[qualified(named)] {
 		return true
 	}
-	methods := types.NewMethodSet(t)
-	for _, name := range []string{"String", "GoString", "Error"} {
-		if hasStringMethod(methods, name) {
-			return true
-		}
-	}
-	return hasFormat(methods) || hasLogValue(methods)
+	return to.redactedBy(types.NewMethodSet(t))
 }
 
 func lookupSignature(methods *types.MethodSet, name string) *types.Signature {

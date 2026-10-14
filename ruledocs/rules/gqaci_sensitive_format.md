@@ -12,11 +12,21 @@ The sinks are `fmt` Print, Sprint, Fprint, Append and Errorf functions (operands
 `%v`, `%+v`, `%#v`, `%s` or `%w`, and every operand of a Print-style call), every `log` function
 and `*log.Logger` method, and every operand of a `log/slog` call that is passed as an `any`.
 
-A type is redacting, and nothing is flagged, when its method set has `String() string`,
-`GoString() string`, `Error() string`, `Format(fmt.State, rune)` or `LogValue() slog.Value`, or when
-it is listed in `-redacting`. An embedded type's method is promoted, so it redacts the outer type
-too. fmt does not call methods on a value it reaches through an unexported field, so a redacting
-type stored in an unexported field still prints in full and is flagged.
+Whether a type redacts depends on the sink, because each sink calls different methods:
+
+| Sink | Redacting method (in the method set of the value's type) |
+| --- | --- |
+| `fmt` and `log`, verbs `%v`, `%+v`, `%s`, `%w` and every Print-style operand | `String() string`, `Error() string` or `Format(fmt.State, rune)` |
+| `fmt` and `log`, verb `%#v` | `GoString() string` or `Format(fmt.State, rune)` |
+| `log/slog` | `LogValue() slog.Value` or `Error() string` |
+
+A type listed in `-redacting` redacts at every sink. An embedded type's method is promoted, so it
+redacts the outer type too. fmt does not call `LogValue`, and calls `GoString` only for `%#v`. slog
+never calls `String`: a JSON handler marshals the fields, so a type with only `String` still emits
+its password. slog also resolves only the top-level value, so a redacting type held in a field of
+another value still prints in full through slog. fmt calls the methods of a value it reaches through
+an exported field, but not through an unexported one, so a redacting type stored in an unexported
+field still prints in full and is flagged.
 
 ## Why
 
@@ -38,7 +48,10 @@ type Credentials struct {
 // String redacts the password: it is the method fmt and log use for %v and %s.
 func (c Credentials) String() string { return c.User + ":[redacted]" }
 
-// LogValue does the same for log/slog.
+// GoString does the same for %#v.
+func (c Credentials) GoString() string { return c.String() }
+
+// LogValue does the same for log/slog, which never calls String.
 func (c Credentials) LogValue() slog.Value { return slog.StringValue(c.String()) }
 ```
 
