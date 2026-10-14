@@ -82,9 +82,9 @@ linters:
     rules:
       # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"): G306 flags a
       # file written with permissions above 0600. Hazard: other users reading or altering it.
-      # It does not apply because this test installs an executable stub (0700, owner only) in
-      # a private t.TempDir(); a stub that cannot be executed would test nothing.
-      # Scope: tests/scripts/secret_scan_test.go only.
+      # It does not apply because the scripts tests install executable stubs (0700, owner only)
+      # in a private t.TempDir() through the one writeStub helper in this file; a stub that
+      # cannot be executed would test nothing. Scope: tests/scripts/secret_scan_test.go only.
       - path: tests/scripts/secret_scan_test\.go
         linters:
           - gosec

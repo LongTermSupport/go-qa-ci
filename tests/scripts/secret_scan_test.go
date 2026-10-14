@@ -21,6 +21,16 @@ fi
 exit "${STUB_EXIT:-0}"
 `
 
+// writeStub installs an executable stand-in tool named name in dir. It is the one place the
+// scripts tests write an executable file, which is why gosec G306 is configured away for this file
+// alone (qa/golangci-overlay.yml).
+func writeStub(t *testing.T, dir, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type secretRun struct {
 	out  string
 	code int
@@ -41,9 +51,7 @@ func runSecretScan(t *testing.T, repo string, withStub bool, stubExit string, ar
 	writeFile(t, logPath, "")
 	path := bin // an empty directory: no gitleaks anywhere on PATH
 	if withStub {
-		if writeErr := os.WriteFile(filepath.Join(bin, "gitleaks"), []byte(gitleaksStub), 0o700); writeErr != nil {
-			t.Fatal(writeErr)
-		}
+		writeStub(t, bin, "gitleaks", gitleaksStub)
 		path = bin + ":/usr/bin:/bin"
 	}
 	bash, err := exec.LookPath("bash")

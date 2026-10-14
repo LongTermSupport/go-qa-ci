@@ -1,9 +1,9 @@
 # fmt and the golangci detector
 
 Both tools run the `golangci-lint` binary, which must be on `PATH`; a missing binary fails the step
-(`golangci-lint not found on PATH`), it is never skipped. CI installs the pinned release with
-`.github/scripts/install-golangci-lint.sh`, which verifies the archive against the checksum file
-published with the release.
+(`golangci-lint not found on PATH`), it is never skipped. The pinned release is in
+`tools.lock`; `scripts/install-tools.sh golangci-lint` installs it after verifying the archive against
+the checksum file published with the release (CI uses the same script).
 
 ## `fmt`
 

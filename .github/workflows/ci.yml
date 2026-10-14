@@ -1,11 +1,13 @@
 name: CI
 
 # job go: formatting, vet, the race-enabled tests and golangci-lint over this module.
-# job self-gate: go-qa run --ci over go-qa's own source (every tool except summary and mutants), so the toolchain is held to its own
+# job self-gate: go-qa run --ci over go-qa's own source (every tool except mutants), so the toolchain is held to its own
 # standard (TOOLING-SPEC 8.2). It runs in CI mode: formatters rewrite, then the job fails when the
 # working tree changed. The golangci configuration it analyses with is the bundled baseline plus
 # qa/golangci-overlay.yml (tests/selfgate, run by job go, proves .golangci.yml is exactly that);
-# 8.2 is met only in part, see "Self-gate" in docs/golangci.md for the recorded gaps.
+# 8.2 is met only in part, see docs/CONFORMANCE.md for the recorded gaps.
+# job workflows: actionlint over the workflows and shellcheck over the shell scripts.
+# Every external tool is installed by scripts/install-tools.sh at the version tools.lock pins.
 on:
   push:
     branches: ["**"]
@@ -21,7 +23,6 @@ concurrency:
 
 env:
   GOTOOLCHAIN: local
-  GOLANGCI_LINT_VERSION: "2.14.0"
 
 jobs:
   go:
@@ -35,10 +36,11 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Install golangci-lint (checksum-verified)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: .github/scripts/install-golangci-lint.sh
+      # ast-grep: the bundled rule pack's tests run the real binary.
+      - name: Install golangci-lint and ast-grep (versions from tools.lock)
+        run: |
+          scripts/install-tools.sh golangci-lint ast-grep
+          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
@@ -48,7 +50,7 @@ jobs:
   self-gate:
     name: Self-gate (go-qa run --ci)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,16 +60,33 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Install golangci-lint (checksum-verified)
+      - name: Install the pinned tools (versions from tools.lock)
+        run: |
+          scripts/install-tools.sh
+          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+      - run: go install ./cmd/go-qa
+      - name: go-qa run --ci
+        run: go-qa run --ci
+
+  workflows:
+    name: Workflow and script lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint (checksum-verified)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: .github/scripts/install-golangci-lint.sh
-      - name: Install deadcode and govulncheck (pinned, verified by the Go checksum database)
+          ACTIONLINT_VERSION: "1.7.12"
         run: |
-          go install golang.org/x/tools/cmd/deadcode@v0.52.0
-          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
-      - run: go build -o "${RUNNER_TEMP}/bin/go-qa" ./cmd/go-qa
-      - name: go-qa run --ci
-        run: |
-          "${RUNNER_TEMP}/bin/go-qa" run --ci
+          mkdir -p "${RUNNER_TEMP}/actionlint"
+          cd "${RUNNER_TEMP}/actionlint"
+          gh release download "v${ACTIONLINT_VERSION}" -R rhysd/actionlint \
+            -p "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -p "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          sha256sum -c --ignore-missing "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          tar xzf "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" actionlint
+          echo "${PWD}" >> "${GITHUB_PATH}"
+      - run: actionlint
+      - run: shellcheck scripts/*.sh .githooks/* .github/scripts/*.sh

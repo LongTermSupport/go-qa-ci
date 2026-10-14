@@ -29,8 +29,9 @@ The executable is `ast-grep`, never `sg`: on Linux `sg` is another program. When
 `PATH` the step is skipped and says why (`ast-grep is not installed`), after the rules themselves
 have passed the checks in item 2; a rule with no id or no proof fails whether the binary is
 installed or not. A skip is not a pass: the summary shows it as skipped, and the scans did not run.
-This is a recorded gap (TOOLING-SPEC 9.2): until the toolchain install pins ast-grep, a machine
-without it cannot be told apart from a project with nothing to scan except by that skip line.
+This is a recorded gap (TOOLING-SPEC 9.2): ast-grep is pinned in `tools.lock` and installed by
+`scripts/install-tools.sh`, but a machine without it still cannot be told apart from a project
+with nothing to scan except by that skip line.
 
 With no `sgconfig.yml` and an empty or switched-off pack there is nothing to scan, and the step is
 skipped saying so.
@@ -62,7 +63,8 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
 - The tests that need the real binary (`tests/astgrep`: each rule fires on a violating Go snippet
   and stays quiet on a clean one, the project's rule tests pass, an ignore comment silences a rule,
   a project rule and a bundled rule are reported in one run) are skipped when it is not on `PATH`.
-  CI does not install ast-grep yet, so CI skips them; they run wherever the binary is installed (verified with ast-grep 0.50.0).
+  CI installs the pinned ast-grep (`tools.lock`) before `go test`, so CI runs them; elsewhere they
+  run wherever the binary is installed (verified with ast-grep 0.50.0).
   The detector's own logic is tested everywhere with a stand-in executable
   (`internal/astgreptest`).
 - A project rule's identifier does not yet resolve to a page through `go-qa rule-doc`: the defence

@@ -1,0 +1,89 @@
+# Defence Before Fix declaration (TOOLING-SPEC 9.1 and 9.2).
+#
+# The versions of the specifications this repository is graded against, and for each of the two
+# levels of 9.1 (the project, and the Toolchain it ships) every known gap. A level with a gap
+# claims nothing: a non-empty gap record is a statement of where the project stands. The clause-by-
+# clause evidence is docs/CONFORMANCE.md, and tests/conformance fails when the two disagree.
+
+[specs]
+method = "1.1.0"
+toolchain = "0.2.0"
+detector = "1.0.0"
+
+# Level 1: go-qa-ci followed as a project, with its own assembled Toolchain on its own source.
+[project]
+conforms = false
+
+[[project.gap]]
+clause = "4.1"
+summary = "golangci-lint is routed with 4.3 and 6.1 to 6.3 partial, staticcheck inside it cannot host a bespoke rule and its lint:ignore is detected rather than disabled, the go vet driver prints no analyzer name itself, and ast-grep, deadcode and govulncheck are not graded"
+record = "docs/golangci.md"
+
+[[project.gap]]
+clause = "4.2"
+summary = "golangci-lint linters, staticcheck checks, govulncheck advisories and deadcode do not resolve through rule-doc"
+record = "docs/defences.md"
+
+[[project.gap]]
+clause = "4.3"
+summary = "suppression routes not covered: ast-grep ignores outside Go, linter settings outside the closed table, a -c configuration, go:build ignore, unconditional t.Skip, the baseline's fieldalignment switch-off"
+record = "docs/suppression.md"
+
+[[project.gap]]
+clause = "4.4"
+summary = "five linters are printed as linter::code, composed by go-qa rather than as the detector prints them"
+record = "docs/enumeration.md"
+
+[[project.gap]]
+clause = "5.1"
+summary = "a golangci-lint linter's route prints every linter, linters that print linter::code are listed by linter name, and vuln advisories and deadcode have no identifier of their own"
+record = "docs/enumeration.md"
+
+[[project.gap]]
+clause = "7.1"
+summary = "the summary inherits the 5.1 gaps and says so in its preamble"
+record = "docs/enumeration.md"
+
+# Level 2: go-qa-ci as the Toolchain it ships, installed into a Consuming project with nothing else.
+[artefact]
+conforms = false
+
+[[artefact.gap]]
+clause = "4.1"
+summary = "the same detectors are routed in a Consuming project"
+record = "docs/golangci.md"
+
+[[artefact.gap]]
+clause = "4.2"
+summary = "as the project level"
+record = "docs/defences.md"
+
+[[artefact.gap]]
+clause = "4.3"
+summary = "as the project level"
+record = "docs/suppression.md"
+
+[[artefact.gap]]
+clause = "4.4"
+summary = "as the project level"
+record = "docs/enumeration.md"
+
+[[artefact.gap]]
+clause = "5.1"
+summary = "as the project level"
+record = "docs/enumeration.md"
+
+[[artefact.gap]]
+clause = "7.1"
+summary = "as the project level"
+record = "docs/enumeration.md"
+
+[[artefact.gap]]
+clause = "8.1"
+summary = "the documentation audit runs in the tests on every push, but no release process refuses to publish a tag when CI is red"
+record = "docs/CONFORMANCE.md"
+
+[[artefact.gap]]
+clause = "8.2"
+summary = "mutation testing is switched off on the toolchain's own source, and only the golangci-lint rules are proven active there by a test"
+record = "docs/golangci.md"

@@ -12,5 +12,6 @@ claude-sonnet = "medium"
 file = "AGENTS.md"
 
 [tools]
-# Mutation testing is off until gremlins is part of the pinned toolchain install.
+# Mutation testing is off: gremlins is pinned in tools.lock, but no mutation run of this
+# repository has been held to a threshold yet (docs/CONFORMANCE.md, 8.2).
 mutants = false

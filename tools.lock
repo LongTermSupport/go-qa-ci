@@ -1,0 +1,22 @@
+# Pinned versions of every external tool go-qa and this repository's CI use, installed by
+# scripts/install-tools.sh (TOOLING-SPEC 9.2 gap closed: the versions were not recorded anywhere).
+# One `name = "value"` per line under a section:
+#   [go]        built from source with `go install <package>@<version>`; the Go checksum database
+#               verifies the module.
+#   [release]   the publisher's linux/amd64 release archive; the value is the version.
+#   [checksums] sha256 of the archive of a [release] tool whose publisher ships no checksum file.
+#               A [release] tool with no entry here is verified against the checksum file published
+#               with its release.
+# The Go toolchain itself is pinned by go.mod.
+
+[go]
+deadcode = "golang.org/x/tools/cmd/deadcode@v0.52.0"
+govulncheck = "golang.org/x/vuln/cmd/govulncheck@v1.9.0"
+gremlins = "github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0"
+
+[release]
+golangci-lint = "2.14.0"
+ast-grep = "0.50.0"
+
+[checksums]
+ast-grep = "0fd3f489639abb8465a914b74b8779171577582318d8a940d00399f59dba81c5"

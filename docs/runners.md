@@ -51,7 +51,7 @@ passes, one below it fails. A test with a real gremlins run (skipped when gremli
   resolution order (see `docs/defences.md`).
 - `govulncheck` fetches the vulnerability database over the network, so `vuln` cannot run offline;
   an unreachable database is an error, never a pass.
-- The pinned versions of `govulncheck`, `deadcode` and `gremlins` are not recorded in a tool lock
-  yet. CI installs `govulncheck` and `deadcode` at fixed versions; `gremlins` is not installed in
-  CI, so the self-gate keeps `mutants` off.
+- `govulncheck`, `deadcode` and `gremlins` are pinned in `tools.lock` and installed by
+  `scripts/install-tools.sh`, which CI uses. The self-gate still keeps `mutants` off: no mutation
+  run of this repository has been held to a threshold.
 - The `licences` runner of the design brief is not built.
