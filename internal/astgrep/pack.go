@@ -22,8 +22,9 @@ const PackFile = "gqaci-pack.yml"
 //go:embed pack
 var packFiles embed.FS
 
-// Pack is the bundled rule pack: a few single-file syntactic rules where syntax provably suffices
-// and no enabled linter covers the same ground.
+// Pack is the bundled rule pack: the single-file syntactic rules embedded in the binary, where
+// syntax provably suffices and no enabled linter covers the same ground. It holds whatever the
+// embedded directory holds, possibly nothing (see Empty).
 type Pack struct {
 	rules []packRule
 }
