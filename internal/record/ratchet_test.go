@@ -1,6 +1,7 @@
 package record_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
@@ -35,6 +36,16 @@ func TestCeilingIsTheRatchetOrTheSize(t *testing.T) {
 
 func TestAnEmptyRecordNeedsNoRatchet(t *testing.T) {
 	if v := ratchetOf(t, record.Record{}, nil); len(v.Findings) != 0 || v.LowerTo != nil {
+		t.Errorf("got %+v", v)
+	}
+}
+
+func TestARatchetSignedWhenNoDecidersAreConfiguredSaysHowToConfigureThem(t *testing.T) {
+	policy := testPolicy()
+	policy.Deciders = nil
+	rec := signed(t, 1, today(t), "a.go")
+	v := record.ReviewRatchet(record.Input{Record: rec, Path: "qa/record.toml", Policy: policy, Today: today(t)}, nil)
+	if len(v.Findings) != 1 || !strings.Contains(v.Findings[0].Message, "deciders = [") || !strings.Contains(v.Findings[0].Message, "qa/go-qa.toml") {
 		t.Errorf("got %+v", v)
 	}
 }

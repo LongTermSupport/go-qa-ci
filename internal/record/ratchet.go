@@ -38,8 +38,8 @@ func ReviewRatchet(in Input, previous *Record) RatchetVerdict {
 			return RatchetVerdict{}
 		}
 		return RatchetVerdict{Findings: []finding.Finding{in.ratchetFinding(fmt.Sprintf(
-			"%d exception(s) but no [ratchet] table; add [ratchet] with high_water = %d, decided_by (a configured decider), decided_on and reason",
-			count, count))}}
+			"%d exception(s) but no [ratchet] table; add [ratchet] with high_water = %d, decided_by (a configured decider), decided_on and reason%s",
+			count, count, in.Policy.DecidersHint()))}}
 	}
 	problems := ratchetProblems(in, count, previous)
 	var verdict RatchetVerdict
@@ -56,7 +56,7 @@ func ratchetProblems(in Input, count int, previous *Record) []string {
 	ratchet := in.Record.Ratchet
 	var problems []string
 	if !in.Policy.IsDecider(ratchet.DecidedBy) {
-		problems = append(problems, fmt.Sprintf("decided_by `%s` is not one of the configured deciders", ratchet.DecidedBy))
+		problems = append(problems, fmt.Sprintf("decided_by `%s` is not one of the configured deciders%s", ratchet.DecidedBy, in.Policy.DecidersHint()))
 	}
 	if problem := JustificationProblem(ratchet.Reason); problem != "" {
 		problems = append(problems, "reason "+problem)
