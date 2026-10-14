@@ -34,12 +34,14 @@ pages exist ahead of them so that the release audit (below) never has a gap to e
 
 ## The docs detector (`docs` tool, `go-qa docs-check`)
 
-- `gqaci.docs.dangling`: a built-in identifier, a project stage name or a rule a stage prints has no
-  page, or a bundled page does not begin with `# <id>`, has no non-empty `## How to fix correctly`
+- `gqaci.docs.dangling`: a built-in identifier, a project stage name, a rule a stage prints or a
+  rule of the project's ast-grep rule directories (read from `sgconfig.yml`, so ast-grep need not
+  be installed; skipped when the `ast-grep` tool is off) has no page, or a bundled page does not begin with `# <id>`, has no non-empty `## How to fix correctly`
   section, or belongs to no built-in (TOOLING-SPEC 8.1: a Go test and this check, which the
   self-gate runs, fail the release).
 - `gqaci.docs.orphan`: a page in `docs_dir` documents no built-in identifier, no project stage or
-  rule it prints, and no rule in the project record. `README.md` is exempt.
+  rule it prints, no project ast-grep rule, no analyzer of a configured project vet driver and no
+  rule in the project record. `README.md` is exempt.
 
 ## Recorded gaps
 
@@ -49,11 +51,12 @@ These are gaps, not claims (TOOLING-SPEC 9.2):
   yet; analyzers do, through the driver's `help`. The `golangci` detector prints them (`errcheck`, `staticcheck::SA1019`) but
   `go-qa rule-doc` has no page for them; they join the resolution order through their own explain
   routes (TOOLING-SPEC 4.2). `docs/golangci.md` records the gap per clause.
-- The defence listing (`go-qa rules`, `docs/enumeration.md`) exists, but the detector does not yet take its
-  identifiers from it, so it treats only built-ins, project stages and their rules, and rules named in
-  the project record as identifiers the project can see. A page for any other project rule is reported
-  as an orphan, and a missing page for one is not reported as dangling, until the listing feeds the
-  detector.
+- The detector enumerates the identifiers of built-ins, project stages and their rules, project
+  ast-grep rules and, for a configured project vet driver, its analyzers (a page for one is
+  allowed, not required, because the driver's `help` documents it). It does not enumerate
+  golangci-lint linters, so a project page named for one is reported as an orphan. The bundled
+  `gqaci.ast.*` pack rules are neither enumerated nor given pages, so `go-qa rule-doc` reports
+  them dangling and `go-qa docs-check` does not.
 - Project pages are checked for existence and naming, not for the shape of their content.
 - Advisory identifiers (`GO-YYYY-NNNN`, from `vuln`) and `deadcode` have no page yet; see
   `docs/runners.md`.

@@ -88,7 +88,9 @@ and a red proof.
    linter off in a comment: a suppression is a record entry (see "Project record").
 
 Each identifier a defence prints resolves offline: `go-qa rule-doc <id>` prints the page for it,
-and `go-qa docs-check` fails when an identifier has none or a page documents nothing. Project pages
+and `go-qa docs-check` fails when a built-in, stage, stage rule or project ast-grep rule has no page,
+or a page documents none of those, an analyzer of the project's own vet driver or a project record
+rule. Golangci-lint linters and the bundled `gqaci.ast.*` rules are not enumerated by it (a recorded gap, 4.2). Project pages
 live in `docs_dir` (default `docs/defences`, one `<identifier>.md` each) and must state the correct
 construction, not only the prohibition. See [docs/defences.md](docs/defences.md).
 

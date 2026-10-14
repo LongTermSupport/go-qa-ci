@@ -39,3 +39,66 @@ func TestRunMalformedRecordIsAnError(t *testing.T) {
 		t.Fatal("a record that cannot be read must not be treated as empty")
 	}
 }
+
+const sgRule = "id: no-println\nlanguage: go\nseverity: error\nmessage: no println\nrule:\n  pattern: println($$$A)\n"
+
+func writeSgProject(t *testing.T, root string) {
+	t.Helper()
+	write(t, root, "sgconfig.yml", "ruleDirs:\n  - rules\n")
+	write(t, root, "rules/no-println.yml", sgRule)
+}
+
+func docsFindings(t *testing.T, root string, rule string) []string {
+	t.Helper()
+	findings, err := docs.Run(t.Context(), root, config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, f := range findings {
+		if f.Rule == rule {
+			paths = append(paths, f.Path)
+		}
+	}
+	return paths
+}
+
+func TestRunReportsAProjectAstGrepRuleWithoutAPageAsDangling(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeSgProject(t, root)
+	got := docsFindings(t, root, finding.DocsDangling)
+	if !slices.Equal(got, []string{docsDir + "/no-println.md"}) {
+		t.Errorf("dangling = %v", got)
+	}
+}
+
+func TestRunAcceptsTheProjectAstGrepRulePage(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeSgProject(t, root)
+	write(t, root, docsDir+"/no-println.md", page("no-println"))
+	if got := docsFindings(t, root, finding.DocsDangling); len(got) > 0 {
+		t.Errorf("dangling = %v", got)
+	}
+	if got := docsFindings(t, root, finding.DocsOrphan); len(got) > 0 {
+		t.Errorf("orphan = %v", got)
+	}
+}
+
+func TestRunIgnoresProjectAstGrepRulesWhenTheToolIsOff(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeSgProject(t, root)
+	cfg := config.Default()
+	cfg.Tools.AstGrep = false
+	findings, err := docs.Run(t.Context(), root, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range findings {
+		if f.Rule == finding.DocsDangling && f.Path == docsDir+"/no-println.md" {
+			t.Errorf("a disabled tool's rule was judged: %v", f)
+		}
+	}
+}

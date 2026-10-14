@@ -81,3 +81,35 @@ func TestDocsCheckRejectsArguments(t *testing.T) {
 		t.Errorf("got %+v", r)
 	}
 }
+
+const projectRuleYAML = "id: no-println\nlanguage: go\nseverity: error\nmessage: no println\nrule:\n  pattern: println($$$A)\n"
+
+func projectRuleModule(t *testing.T) string {
+	t.Helper()
+	root := module(t, "")
+	writeFile(t, root, "sgconfig.yml", "ruleDirs:\n  - rules\n")
+	writeFile(t, root, "rules/no-println.yml", projectRuleYAML)
+	return root
+}
+
+func TestDocsCheckReportsAProjectAstGrepRuleWithoutAPageAsDangling(t *testing.T) {
+	root := projectRuleModule(t)
+	check := exec("--root", root, "docs-check")
+	if check.code != 1 || !strings.Contains(check.err, "gqaci.docs.dangling") || !strings.Contains(check.err, "no-println") {
+		t.Errorf("docs-check: %+v", check)
+	}
+	if doc := exec("--root", root, "rule-doc", "no-println"); doc.code != 1 {
+		t.Errorf("rule-doc and docs-check must agree that the rule is dangling: %+v", doc)
+	}
+}
+
+func TestDocsCheckAcceptsTheProjectAstGrepRulePageRuleDocNames(t *testing.T) {
+	root := projectRuleModule(t)
+	writeFile(t, root, "docs/defences/no-println.md", "# no-println\n\n## How to fix correctly\n\nUse the logger.\n")
+	if check := exec("--root", root, "docs-check"); check.code != 0 {
+		t.Errorf("docs-check: %+v", check)
+	}
+	if doc := exec("--root", root, "rule-doc", "no-println"); doc.code != 0 || !strings.Contains(doc.out, "Use the logger.") {
+		t.Errorf("rule-doc: %+v", doc)
+	}
+}

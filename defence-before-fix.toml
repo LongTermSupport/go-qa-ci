@@ -21,7 +21,7 @@ record = "docs/golangci.md"
 
 [[project.gap]]
 clause = "4.2"
-summary = "golangci-lint linters, staticcheck checks, govulncheck advisories and deadcode do not resolve through rule-doc"
+summary = "golangci-lint linters, staticcheck checks, govulncheck advisories and deadcode do not resolve through rule-doc, and the docs detector does not enumerate golangci-lint linters (a project page named for one is an orphan), and the bundled gqaci.ast.* rules have no pages and are not checked"
 record = "docs/defences.md"
 
 [[project.gap]]
