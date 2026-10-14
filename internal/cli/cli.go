@@ -26,7 +26,7 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] [--changed [--base REF]] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
 
 // ExecutorFactory builds the executor for one run from its context.
 type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
@@ -72,7 +72,7 @@ func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactor
 			return code
 		}
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
-			return runPipeline(rootPath, cfg, opts, newExecutor, stdout, stderr)
+			return runPipeline(rootPath, *configFile, cfg, opts, newExecutor, stdout, stderr)
 		})
 	case "record":
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {

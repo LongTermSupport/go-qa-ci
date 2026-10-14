@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/defences"
@@ -166,6 +167,8 @@ type Context struct {
 	Fix bool
 	// Today is the date deadlines are measured against.
 	Today date.Date
+	// Diff is the plan of a diff-mode run (`run --changed`); nil for a full run.
+	Diff *changed.Plan
 }
 
 // Pending is the executor for a step no engine is built for. It fails every step, saying

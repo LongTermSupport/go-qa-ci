@@ -44,12 +44,48 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 Options: `-t <tool or stage>` (repeatable), `-p <path>` (repeatable; a file or a directory under
 the root; one file is enough), `--ci` (also implied by a `CI` variable that is set and not `false`
 or `0`: autofix, then fail if the working tree changed), `--no-fix` (only check formatting),
-`--fail-fast` (stop at the first failure of any kind). An unknown `-t` name lists the known ones.
+`--fail-fast` (stop at the first failure of any kind), `--changed [--base <ref>]` (diff mode, see
+below). An unknown `-t` name lists the known ones.
 Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error. A required
 program that is not on `PATH` is an error, never a skipped check.
 
 Global flags: `--root DIR` (default: the directory of the active `go.work`, else of the enclosing
 `go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root).
+
+### Diff mode
+
+`go-qa run --changed [--base <ref>]` is for fast local iteration. The full run stays the gate:
+run it before every push, and in CI. `--changed` cannot be combined with `-p`, and `--base` needs
+`--changed`.
+
+The changed set is the files changed against `HEAD` plus the untracked files that are not
+ignored; with `--base <ref>` it is the files changed since the merge base of `<ref>` and `HEAD`,
+plus the working tree (so a committed change on a branch is covered).
+
+| Defences                                                                  | In diff mode                                                                                                                             |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| per-package engines: `golangci`, `analyzers`, `test`, `coverage`          | run on the packages containing a changed `.go` file and on the packages that import them, directly or not, within the module (`go list`) |
+| `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
+| file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
+| repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
+| `vuln`, `mod`                                                             | skipped: they judge `go.mod` and `go.sum`, and a change to either widens the run                                                         |
+
+A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, anything under
+`qa/`, the project record or the configuration file widens the run to everything, and the summary
+says why. So does a changed `.go` file whose package no longer exists. With no changed files the
+run says so, skips what is scoped, runs the repo-wide defences and exits 0 if they pass. Because
+the scope is narrower, the checks that need a whole-project view (a record exception that
+licensed nothing is stale) do not speak in a narrowed run. The run summary opens with the mode
+and the scope:
+
+```text
+go-qa summary:
+mode: changed (files changed against HEAD, plus untracked files that are not ignored)
+scope: 1 changed file; packages: ./leaf, ./mid
+```
+
+Diff mode makes no claim of conformance on its own: it narrows the work, and a green narrowed run
+says nothing about the packages it did not run.
 
 ### Further modules
 

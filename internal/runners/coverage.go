@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -37,21 +38,23 @@ type Coverage struct {
 }
 
 // MeasureCoverage runs the module's tests in dir counting statements across every package
-// (atomic mode, so it is correct under the race detector too) and reads the total back.
-func MeasureCoverage(ctx context.Context, dir string) (Coverage, error) {
+// (atomic mode, so it is correct under the race detector too) and reads the total back. Given
+// package patterns, it tests and counts only those packages.
+func MeasureCoverage(ctx context.Context, dir string, packages ...string) (Coverage, error) {
 	scratch, err := os.MkdirTemp("", "go-qa-coverage-")
 	if err != nil {
 		return Coverage{}, fmt.Errorf("creating a coverage directory: %w", err)
 	}
-	cov, measureErr := measure(ctx, dir, filepath.Join(scratch, profileName))
+	cov, measureErr := measure(ctx, dir, filepath.Join(scratch, profileName), orAll(packages))
 	if removeErr := os.RemoveAll(scratch); removeErr != nil && measureErr == nil {
 		measureErr = fmt.Errorf("removing %s: %w", scratch, removeErr)
 	}
 	return cov, measureErr
 }
 
-func measure(ctx context.Context, dir, profile string) (Coverage, error) {
-	tests, err := Capture(ctx, dir, goBinary, "test", "-covermode=atomic", "-coverpkg=./...", "-coverprofile="+profile, "./...")
+func measure(ctx context.Context, dir, profile string, packages []string) (Coverage, error) {
+	args := slices.Concat([]string{"test", "-covermode=atomic", "-coverpkg=" + strings.Join(packages, ","), "-coverprofile=" + profile}, packages)
+	tests, err := Capture(ctx, dir, goBinary, args...)
 	if err != nil {
 		return Coverage{}, err
 	}

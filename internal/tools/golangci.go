@@ -144,7 +144,11 @@ func (e Executor) runGolangci() pipeline.Outcome {
 	matcher := rec.Matcher()
 	var reported []finding.Finding
 	err = e.forEachModule(func(module, dir, configPath string) error {
-		found, lintErr := runner.Lint(context.Background(), dir, configPath)
+		packages, run := e.packagesOf(module)
+		if !run {
+			return nil
+		}
+		found, lintErr := runner.Lint(context.Background(), dir, configPath, packages...)
 		if lintErr != nil {
 			return fmt.Errorf("lint in %s: %w", displayModule(module), lintErr)
 		}

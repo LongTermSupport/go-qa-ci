@@ -75,8 +75,8 @@ func Config(root string) (path string, cleanup func(), err error) {
 }
 
 // Lint runs every enabled linter over the module in dir and returns the findings, with paths
-// relative to dir.
-func (r Runner) Lint(ctx context.Context, dir, configPath string) ([]finding.Finding, error) {
+// relative to dir. Given package patterns it lints only those packages.
+func (r Runner) Lint(ctx context.Context, dir, configPath string, packages ...string) ([]finding.Finding, error) {
 	// Parallel runs are allowed: without the flag a second golangci-lint (an editor, another
 	// go-qa run) makes this one wait for a global lock and then fail with exit 3.
 	args := []string{"run", "--allow-parallel-runners", "--show-stats=false", "--output.json.path=stdout", "--output.text.path=", "--path-mode=abs"}
@@ -84,7 +84,10 @@ func (r Runner) Lint(ctx context.Context, dir, configPath string) ([]finding.Fin
 	// de-duplication golangci-lint applies by default would hide findings before go-qa sees them.
 	args = append(args, "--max-issues-per-linter=0", "--max-same-issues=0", "--uniq-by-line=false")
 	args = append(args, configArgs(configPath)...)
-	args = append(args, allPackages)
+	if len(packages) == 0 {
+		packages = []string{allPackages}
+	}
+	args = append(args, packages...)
 	stdout, stderr, code, err := r.run(ctx, dir, args)
 	if err != nil {
 		return nil, err

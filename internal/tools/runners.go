@@ -84,7 +84,7 @@ func (e Executor) runVuln() pipeline.Outcome {
 	if err != nil {
 		return e.fail("%v", err)
 	}
-	if len(e.Ctx.Scope) == 0 {
+	if e.wholeProject() {
 		var owned []string
 		for _, exception := range rec.Exceptions {
 			if strings.HasPrefix(strings.TrimSpace(exception.Rule), vulnIDPrefix) {
@@ -119,7 +119,7 @@ func (e Executor) runDeadcode() pipeline.Outcome {
 	if !applied {
 		return pipeline.Skipped("no main package: deadcode starts from main functions, and the unused linter covers libraries")
 	}
-	if len(e.Ctx.Scope) == 0 {
+	if e.wholeProject() {
 		reported = append(reported, matcher.StaleFindingsOf([]string{runners.DeadcodeRule}, e.Ctx.Config.Record.Path)...)
 	}
 	return e.reportAll(reported)
@@ -148,7 +148,11 @@ func (e Executor) runMod() pipeline.Outcome {
 func (e Executor) runTest() pipeline.Outcome {
 	failed := false
 	err := e.eachModuleInScope(func(module, dir string) error {
-		output, passed, err := runners.Test(context.Background(), dir)
+		packages, run := e.packagesOf(module)
+		if !run {
+			return nil
+		}
+		output, passed, err := runners.Test(context.Background(), dir, packages...)
 		if err != nil {
 			return fmt.Errorf("test in %s: %w", displayModule(module), err)
 		}
@@ -169,7 +173,11 @@ func (e Executor) runCoverage() pipeline.Outcome {
 	threshold := e.Ctx.Config.Coverage.FailUnderStatements
 	failed := false
 	err := e.eachModuleInScope(func(module, dir string) error {
-		message, err := coverageProblem(dir, threshold)
+		packages, run := e.packagesOf(module)
+		if !run {
+			return nil
+		}
+		message, err := coverageProblem(dir, threshold, packages)
 		if err != nil {
 			return fmt.Errorf("coverage in %s: %w", displayModule(module), err)
 		}
@@ -187,8 +195,8 @@ func (e Executor) runCoverage() pipeline.Outcome {
 
 // coverageProblem measures the module and describes how it misses the threshold; it is empty when
 // the threshold is met. Failing tests are a problem of the coverage gate too: nothing was measured.
-func coverageProblem(dir string, threshold int) (string, error) {
-	cov, err := runners.MeasureCoverage(context.Background(), dir)
+func coverageProblem(dir string, threshold int, packages []string) (string, error) {
+	cov, err := runners.MeasureCoverage(context.Background(), dir, packages...)
 	var testsFailed *runners.TestsFailedError
 	if errors.As(err, &testsFailed) {
 		return strings.TrimSpace(testsFailed.Error()), nil

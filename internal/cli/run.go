@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"cmp"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
@@ -36,6 +39,8 @@ type runOptions struct {
 	ci       bool
 	noFix    bool
 	failFast bool
+	changed  bool
+	base     string
 }
 
 // parseRun parses the run flags; when ok is false the caller returns code.
@@ -47,6 +52,11 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 	flags.BoolVar(&opts.ci, "ci", false, "CI mode: autofix, then fail if the tree changed (implied by CI)")
 	flags.BoolVar(&opts.noFix, "no-fix", false, "check formatting without modifying files")
 	flags.BoolVar(&opts.failFast, "fail-fast", false, "stop at the first failure")
+	flags.BoolVar(&opts.changed, "changed", false, "diff mode, for fast local iteration (the full run stays the gate before a push): "+
+		"per-package engines run on the changed packages and their importers, file-scoped detectors on the changed files, "+
+		"the repo-wide defences always; changed = files changed against HEAD plus untracked files that are not ignored; "+
+		"a change to go.mod, go.sum, the golangci configuration, qa/ or the tool lock widens the run to everything")
+	flags.StringVar(&opts.base, "base", "", "with --changed: compare with the merge base of this ref and HEAD (plus the working tree) instead of HEAD")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return opts, ExitOK, false
@@ -56,6 +66,12 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 	}
 	if flags.NArg() > 0 {
 		return opts, emit(stderr, ExitUsage, "go-qa run: unexpected argument %q", flags.Arg(0)), false
+	}
+	switch {
+	case opts.base != "" && !opts.changed:
+		return opts, emit(stderr, ExitUsage, "go-qa run: --base needs --changed"), false
+	case opts.changed && len(opts.paths) > 0:
+		return opts, emit(stderr, ExitUsage, "go-qa run: --changed chooses the scope itself; it cannot be combined with -p"), false
 	}
 	return opts, ExitOK, true
 }
@@ -67,7 +83,7 @@ func ciEnabled() bool {
 	return v != "" && v != "false" && v != "0"
 }
 
-func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, stdout, stderr io.Writer) int {
+func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, stdout, stderr io.Writer) int {
 	steps, err := tools.Select(opts.tools, cfg)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
@@ -80,6 +96,19 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 		}
 		scope = append(scope, rel)
 	}
+	var diff *changed.Plan
+	if opts.changed {
+		var err error
+		diff, err = changed.Compute(context.Background(), changed.Options{
+			Root:    rootPath,
+			Base:    opts.base,
+			Modules: append([]string{""}, cfg.Modules...),
+			Widen:   []string{cfg.Record.Path, cmp.Or(configFile, config.DefaultPath)},
+		})
+		if err != nil {
+			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)
+		}
+	}
 	ctx := tools.Context{
 		Root:   rootPath,
 		Config: cfg,
@@ -87,9 +116,10 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 		CI:     opts.ci || ciEnabled(),
 		Fix:    !opts.noFix,
 		Today:  date.Today(),
+		Diff:   diff,
 	}
 	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
-	if _, err := io.WriteString(stdout, renderRunSummary(report, scope)); err != nil {
+	if _, err := io.WriteString(stdout, renderRunSummary(report, scope, diff)); err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
 	if !report.Passed {
@@ -99,9 +129,12 @@ func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecuto
 }
 
 // renderRunSummary renders the run summary table, the stop notice and, on failure, the DBF pointer.
-func renderRunSummary(report pipeline.Report, scope []string) string {
+func renderRunSummary(report pipeline.Report, scope []string, diff *changed.Plan) string {
 	var out strings.Builder
 	out.WriteString("\ngo-qa summary:\n")
+	if diff != nil {
+		out.WriteString(diff.Describe())
+	}
 	if len(scope) > 0 {
 		fmt.Fprintf(&out, "scope: %s\n", strings.Join(scope, ", "))
 	}

@@ -35,7 +35,11 @@ func (e Executor) runAnalyzers() pipeline.Outcome {
 	matcher := rec.Matcher()
 	var reported []finding.Finding
 	for _, module := range e.modules() {
-		found, vetErr := tool.Vet(ctx, filepath.Join(e.Ctx.Root, filepath.FromSlash(module)))
+		packages, run := e.packagesOf(module)
+		if !run {
+			continue
+		}
+		found, vetErr := tool.Vet(ctx, filepath.Join(e.Ctx.Root, filepath.FromSlash(module)), packages...)
 		if vetErr != nil {
 			return e.fail("analyzers in %s: %v", displayModule(module), vetErr)
 		}
@@ -50,7 +54,7 @@ func (e Executor) runAnalyzers() pipeline.Outcome {
 			reported = append(reported, f)
 		}
 	}
-	if len(e.Ctx.Scope) == 0 {
+	if e.wholeProject() {
 		names := make([]string, len(registered))
 		for i, analyzer := range registered {
 			names[i] = analyzer.Name

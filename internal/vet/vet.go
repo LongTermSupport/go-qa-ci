@@ -156,14 +156,18 @@ func (t Tool) Help(ctx context.Context, name string) (string, error) {
 }
 
 // Vet runs the tool over every package of the module in dir and returns the findings, with paths
-// relative to dir. Code that does not compile is an error: nothing was analysed.
-func (t Tool) Vet(ctx context.Context, dir string) ([]finding.Finding, error) {
+// relative to dir. Code that does not compile is an error: nothing was analysed. Given package
+// patterns it vets only those packages.
+func (t Tool) Vet(ctx context.Context, dir string, packages ...string) ([]finding.Finding, error) {
 	goBinary, err := exec.LookPath("go")
 	if err != nil {
 		return nil, errNoGo
 	}
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, goBinary, "vet", "-vettool="+t.Path, "-json", "./...")
+	if len(packages) == 0 {
+		packages = []string{"./..."}
+	}
+	cmd := exec.CommandContext(ctx, goBinary, append([]string{"vet", "-vettool=" + t.Path, "-json"}, packages...)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), t.Env...)
 	cmd.Stdout = &stdout

@@ -22,8 +22,18 @@ type Executor struct {
 	Pack *astgrep.Pack
 }
 
-// Run executes one step.
+// Run executes one step; in a narrowed diff-mode run the step first narrows to what changed.
 func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
+	if e.Ctx.Diff.Narrow() {
+		if outcome, handled := e.runNarrowed(step); handled {
+			return outcome
+		}
+	}
+	return e.run(step)
+}
+
+// run dispatches a step to its engine.
+func (e Executor) run(step pipeline.Step) pipeline.Outcome {
 	switch step.Name {
 	case "fmt":
 		return e.runFmt()
