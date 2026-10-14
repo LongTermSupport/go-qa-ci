@@ -3,7 +3,8 @@
 Both tools run the `golangci-lint` binary, which must be on `PATH`; a missing binary fails the step
 (`golangci-lint not found on PATH`), it is never skipped. The pinned release is in
 `tools.lock`; `scripts/install-tools.sh golangci-lint` installs it after verifying the archive against
-the checksum file published with the release (CI uses the same script).
+the sha256 pinned beside it in `tools.lock` (CI uses the same script). Tests that need the binary fail
+when it is missing, like those of every other pinned tool (`GQACI_TEST_WITHOUT_TOOLS`, docs/astgrep.md).
 
 ## `fmt`
 

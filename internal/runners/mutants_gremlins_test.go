@@ -6,6 +6,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/runners"
+	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
 
 // partlyKilled has two covered operators; its test pins only Sum and merely runs Difference, so
@@ -17,11 +18,10 @@ var partlyKilled = map[string]string{
 }
 
 // TestMutantsThresholdFailsARealGremlinsRun is the only test that can show the threshold reaches
-// gremlins: the fakes exit with whatever code they are told. It needs gremlins on PATH.
+// gremlins: the fakes exit with whatever code they are told. It needs gremlins installed, and fails without it (internal/tooltest).
 func TestMutantsThresholdFailsARealGremlinsRun(t *testing.T) {
-	if _, err := exec.LookPath("gremlins"); err != nil {
-		t.Skipf("gremlins is not installed: %v", err)
-	}
+	_, err := exec.LookPath("gremlins")
+	tooltest.Require(t, "gremlins", err)
 	dir := module(t, partlyKilled)
 	for _, tt := range []struct {
 		threshold int

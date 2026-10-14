@@ -1,11 +1,13 @@
 package selfgate_test
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
@@ -14,10 +16,21 @@ import (
 // suppression, analyzers and deadcode detectors, and the vuln, mod, test and coverage runners.
 var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers", "deadcode", "vuln", "mod", "test", "coverage"}
 
+// selfGateToolsFor is the set of tools the self-gate must run: the fixed set, plus ast-grep as soon
+// as there is a rule for it to run, a bundled one or a project's own. Until then the step is
+// skipped saying so, and a skipped step proves nothing; from then on a switched-off or missing
+// ast-grep must fail the build, not pass quietly.
+func selfGateToolsFor(packEmpty, hasProjectRules bool) []string {
+	if packEmpty && !hasProjectRules {
+		return selfGateTools
+	}
+	return append(slices.Clone(selfGateTools), "ast-grep")
+}
+
 // disabledSelfGateTools names the proven tools that a plain `go-qa run` would not execute.
-func disabledSelfGateTools(cfg config.Tools) []string {
+func disabledSelfGateTools(cfg config.Tools, required []string) []string {
 	var off []string
-	for _, name := range selfGateTools {
+	for _, name := range required {
 		tool, ok := tools.FromName(name)
 		if !ok {
 			off = append(off, name+" (not in the catalogue)")
@@ -43,8 +56,40 @@ func loadOwnConfig(t *testing.T) config.Config {
 // any proven tool off in qa/go-qa.toml must fail the build.
 func TestSelfGateRunsTheFormatterAndGolangci(t *testing.T) {
 	t.Parallel()
-	if off := disabledSelfGateTools(loadOwnConfig(t).Tools); len(off) != 0 {
+	cfg := loadOwnConfig(t)
+	pack, err := astgrep.Bundled()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, hasSgconfig := os.Stat(filepath.Join("..", "..", "sgconfig.yml"))
+	required := selfGateToolsFor(pack.Empty() || !cfg.AstGrep.Bundled, hasSgconfig == nil)
+	if off := disabledSelfGateTools(cfg.Tools, required); len(off) != 0 {
 		t.Fatalf("qa/go-qa.toml switches off %v; the self-gate would not run them (TOOLING-SPEC 8.2)", off)
+	}
+}
+
+func TestSelfGateMustRunAstGrepOnceThereIsARuleForItToRun(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		packEmpty, project, want bool
+	}{
+		"nothing to run":     {true, false, false},
+		"the pack has rules": {false, true, true},
+		"a project rule":     {true, true, true},
+		"the pack alone":     {false, false, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := slices.Contains(selfGateToolsFor(tc.packEmpty, tc.project), "ast-grep")
+			if got != tc.want {
+				t.Errorf("ast-grep required = %v, want %v", got, tc.want)
+			}
+		})
+	}
+	cfg := config.Default().Tools
+	cfg.AstGrep = false
+	if off := disabledSelfGateTools(cfg, selfGateToolsFor(false, false)); !slices.Contains(off, "ast-grep") {
+		t.Errorf("a switched-off ast-grep went unnoticed once the pack has rules: %v", off)
 	}
 }
 
@@ -72,7 +117,7 @@ func TestSelfGateToolCheckDetectsASwitchedOffTool(t *testing.T) {
 		case "coverage":
 			cfg.Coverage = false
 		}
-		if off := disabledSelfGateTools(cfg); !slices.Equal(off, []string{name}) {
+		if off := disabledSelfGateTools(cfg, selfGateTools); !slices.Equal(off, []string{name}) {
 			t.Errorf("switching %s off reported %v", name, off)
 		}
 	}

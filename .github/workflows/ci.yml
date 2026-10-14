@@ -36,10 +36,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      # ast-grep: the bundled rule pack's tests run the real binary.
-      - name: Install golangci-lint and ast-grep (versions from tools.lock)
+      # ast-grep and gremlins: their tests run the real binary, and a test that cannot run fails.
+      - name: Install golangci-lint, ast-grep and gremlins (versions from tools.lock)
         run: |
-          scripts/install-tools.sh golangci-lint ast-grep
+          scripts/install-tools.sh golangci-lint ast-grep gremlins
           echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - name: gofmt
         run: test -z "$(gofmt -l .)"

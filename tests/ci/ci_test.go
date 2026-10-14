@@ -86,8 +86,8 @@ func TestGoJobRunsFormatVetTestAndLint(t *testing.T) {
 
 func TestGoJobInstallsItsToolsFromTheLock(t *testing.T) {
 	w, _ := readWorkflow(t)
-	if !jobNamed(t, w, "go").runs("scripts/install-tools.sh", "golangci-lint", "ast-grep") {
-		t.Error("job go must install golangci-lint and ast-grep (whose tests run the real binary) with scripts/install-tools.sh")
+	if !jobNamed(t, w, "go").runs("scripts/install-tools.sh", "golangci-lint", "ast-grep", "gremlins") {
+		t.Error("job go must install golangci-lint, ast-grep and gremlins (whose tests run the real binary and fail without it) with scripts/install-tools.sh")
 	}
 }
 
