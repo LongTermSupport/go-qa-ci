@@ -67,3 +67,22 @@ func TestWithTheMarkerTheBinaryIsAGoVetTool(t *testing.T) {
 		t.Errorf("go vet with go-qa as the tool: %v\n%s", err, stderr)
 	}
 }
+
+func TestTheBundledSensitiveFormatAnalyzerRunsAsPartOfTheVetTool(t *testing.T) {
+	binary := buildGoQA(t)
+	marker := []string{vet.EnvVar + "=1"}
+	module := t.TempDir()
+	source := "package m\n\nimport \"fmt\"\n\ntype Credentials struct{ Password string }\n\nfunc show(c Credentials) { fmt.Printf(\"%v\", c) }\n"
+	for name, text := range map[string]string{"go.mod": "module example.com/m\n\ngo 1.26\n", "m.go": source} {
+		if err := os.WriteFile(filepath.Join(module, name), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stdout, stderr, err := runBinary(t, "go", module, marker, "vet", "-vettool="+binary, "-json", "./...")
+	if err != nil {
+		t.Fatalf("go vet: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(stdout+stderr, "gqaci_sensitive_format") || !strings.Contains(stdout+stderr, "m.Credentials exposes sensitive type m.Credentials") {
+		t.Errorf("the bundled analyzer reported nothing:\n%s%s", stdout, stderr)
+	}
+}

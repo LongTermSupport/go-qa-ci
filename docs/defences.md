@@ -25,7 +25,8 @@ act on, what to write instead. The bundled pages additionally carry "What it fla
 ## The built-in identifiers
 
 `gqaci.record.{invalid,stale,budget,ratchet,expired}`, `gqaci.suppression.{unrecorded,bare}`,
-`gqaci.summary.stale`, `gqaci.docs.{dangling,orphan}` and `gqaci.rules.{unnamed,untested}`. The
+`gqaci.summary.stale`, `gqaci.docs.{dangling,orphan}`, `gqaci.rules.{unnamed,untested}` and the
+bundled analyzer `gqaci_sensitive_format`. The
 list lives in `internal/builtin`; some are raised by detectors that are not built yet, and their
 pages exist ahead of them so that the release audit (below) never has a gap to excuse.
 

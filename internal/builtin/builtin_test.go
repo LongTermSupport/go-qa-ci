@@ -12,8 +12,8 @@ func TestEveryBuiltinIsNamespacedUniqueAndDescribed(t *testing.T) {
 	t.Parallel()
 	seen := map[string]bool{}
 	for _, id := range builtin.All() {
-		if !strings.HasPrefix(id, "gqaci.") {
-			t.Errorf("%q is outside the gqaci. namespace", id)
+		if !strings.HasPrefix(id, "gqaci.") && !strings.HasPrefix(id, "gqaci_") {
+			t.Errorf("%q is outside the gqaci namespace", id)
 		}
 		if seen[id] {
 			t.Errorf("%q is listed twice", id)

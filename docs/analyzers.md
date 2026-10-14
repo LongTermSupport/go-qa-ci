@@ -22,7 +22,7 @@ The tool is chosen by `[analyzers] driver` in `qa/go-qa.toml`.
 
 | `driver`                 | The vet tool                                                                                                                     |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| unset (default)          | the `go-qa` binary itself, started with `GQACI_VETTOOL=1` in its environment; it then registers the bundled analyzers (none yet) |
+| unset (default)          | the `go-qa` binary itself, started with `GQACI_VETTOOL=1` in its environment; it then registers the bundled analyzers (below) |
 | `"./internal/qa/driver"` | the project's own package, built with `go build` into a temporary file for the run and deleted afterwards                        |
 
 A project driver is a few lines in a `main` package of the project's module, calling the public
@@ -41,7 +41,8 @@ func main() { driver.Main(rules.NoPanic, rules.NoGlobals) }
 ```
 
 `driver.Main` wraps `unitchecker.Main` and never returns. The driver lists only the analyzers it is
-given; the project keeps the bundled ones by passing them too once any exist.
+given; the project keeps the bundled ones by passing them too (`sensitiveformat.Analyzer`, or
+`sensitiveformat.New(sensitiveformat.Config{...})` to configure it).
 
 Name analyzers with identifier characters only (`project_nopanic`), because the analyzer name is the
 identifier printed with every finding and the key of the record entry.
@@ -59,6 +60,16 @@ A findings exception matches on the analyzer name (`rule`) and a path glob. On a
 project, a `covers = "findings"` entry whose rule is a registered analyzer and that licensed nothing
 fails as `gqaci.record.stale`; entries for other detectors' rules are left to those detectors, and a
 run limited with `-p` cannot judge staleness.
+
+## Bundled analyzers
+
+| Identifier               | Blocks                                                                                         | Page                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `gqaci_sensitive_format` | a value holding a sensitive-named type printed by fmt, log or slog without a redacting method | `ruledocs/rules/gqaci_sensitive_format.md` |
+
+The analyzer is Blocking (it has no advisory mode) and its only exception is a project-record entry
+with `covers = "findings"`. Its configuration is the `-patterns` and `-redacting` flags (defaults in
+`sensitiveformat.DefaultConfig`).
 
 ## Listing and documentation
 
@@ -93,8 +104,9 @@ tested this way, and the `Serve` hook that lets a test binary act as the vet too
 
 These are gaps, not claims:
 
-- No analyzers are bundled yet, so the default tool registers none and the `analyzers` tool passes
-  an ordinary project vacuously; the bundled set is a later milestone.
+- One analyzer is bundled so far (`gqaci_sensitive_format`); the rest of the bundled set is a later
+  milestone. The bundled analyzer is configured through its flags or `sensitiveformat.New` in a
+  project driver; `qa/go-qa.toml` has no key for it yet.
 - `go-qa rules` lists only analyzers; the complete listing is a later milestone.
 - The docs detector does not know the registered analyzers, so a project page for an analyzer in
   `docs_dir` is reported as an orphan unless a record entry names the analyzer, and a missing page for

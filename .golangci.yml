@@ -44,8 +44,11 @@ linters:
         main:
           allow:
             - $gostd
-            # depguard's $gostd omits the go/* syntax packages the suppression scanner parses with.
+            # depguard's $gostd omits the go/* packages the suppression scanner and the bundled
+            # type-aware analyzers parse and type-check with.
             - go/ast
+            - go/constant
+            - go/types
             - go/parser
             - go/token
             - github.com/LongTermSupport/go-qa-ci

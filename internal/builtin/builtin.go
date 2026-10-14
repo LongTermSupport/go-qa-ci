@@ -28,6 +28,9 @@ const (
 	DocsDangling = "gqaci.docs.dangling"
 	// DocsOrphan marks a project page that documents no identifier the project can see.
 	DocsOrphan = "gqaci.docs.orphan"
+	// SensitiveFormat marks a value holding a sensitive-named type printed without redaction. It is
+	// the one built-in whose identifier is an analyzer name, which is why it uses an underscore.
+	SensitiveFormat = "gqaci_sensitive_format"
 	// RulesUnnamed marks a project ast-grep rule that has no id.
 	RulesUnnamed = "gqaci.rules.unnamed"
 	// RulesUntested marks a project ast-grep rule without valid and invalid test cases.
@@ -45,6 +48,7 @@ var descriptions = map[string]string{
 	SummaryStale:          "the generated agent summary is current",
 	DocsDangling:          "every listed identifier resolves to documentation",
 	DocsOrphan:            "every project documentation page belongs to an identifier the project can see",
+	SensitiveFormat:       "no sensitive value is printed without redaction",
 	RulesUnnamed:          "every project ast-grep rule has an id",
 	RulesUntested:         "every project ast-grep rule has valid and invalid test cases",
 }
