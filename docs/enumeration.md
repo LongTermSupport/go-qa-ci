@@ -83,3 +83,7 @@ use the one pinned version; a different version can render a stale region.
   named, and prints nothing of a wrapped tool's individual codes; `go-qa rule-doc` is the route only
   where it resolves (bundled and project pages, stages, analyzers). A defence nothing documents has
   an empty `doc` and the summary says so; the `docs` detector does not yet report it as dangling.
+- 5.1 identifier partial: for the linters that print `linter::code` (`gocritic`, `gosec`, `govet`,
+  `revive`, `staticcheck`) the listing carries the linter name only, not the codes a failure prints
+  (`staticcheck::SA1019`), because `golangci-lint linters --json` does not enumerate checks. The
+  summary says so in its preamble. Every other defence lists the identifier it prints.

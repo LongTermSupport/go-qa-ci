@@ -1,6 +1,6 @@
 <!-- BEGIN go-qa-ci generated defences: run `go-qa summary` to refresh; do not edit -->
 
-Active defences. Failures print these ids unaltered; each entry ends with the command that prints its full documentation. Exceptions only via the project record, with a justification.
+Active defences. Failures print these ids as listed, except for the code-prefixed golangci linters (gocritic, gosec, govet, revive, staticcheck): a failure prints linter::code (for example staticcheck::SA1019) while the list shows the linter name only. Each entry ends with the command that prints its full documentation. Exceptions only via the project record, with a justification.
 
 - `gqaci.docs.dangling` (builtin, error): every listed identifier resolves to documentation. Fix: Add the page. For a project rule, create `<docs_dir>/<identifier>.md` (`docs/defences` by default) whose first line is `# <identifier>` and which has a `## How to fix correctly` section stating, specifically enough to act on, what to write instead. For a bundled page, correct the first line or add the section in `ruledocs/rules/`. Docs: `go-qa rule-doc gqaci.docs.dangling`
 - `gqaci.docs.orphan` (builtin, error): every project documentation page belongs to an identifier the project can see. Fix: Delete the page if its defence is gone. If the defence was renamed, rename the page to the identifier it now prints. If the defence should still run, restore it so that it is listed again. Docs: `go-qa rule-doc gqaci.docs.orphan`

@@ -65,3 +65,16 @@ func TestParseWithoutIssues(t *testing.T) {
 		}
 	}
 }
+
+func TestCodePrefixedLintersAreSortedAndNameTheFiveWrappers(t *testing.T) {
+	got := golangci.CodePrefixedLinters()
+	want := []string{"gocritic", "gosec", "govet", "revive", "staticcheck"}
+	if len(got) != len(want) {
+		t.Fatalf("code-prefixed linters = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("code-prefixed linters = %v, want %v", got, want)
+		}
+	}
+}

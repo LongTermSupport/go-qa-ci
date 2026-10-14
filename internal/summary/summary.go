@@ -14,6 +14,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/defences"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/golangci"
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
@@ -32,8 +33,11 @@ const (
 func Render(l defences.Listing) string {
 	var out strings.Builder
 	out.WriteString(Begin)
-	out.WriteString("\n\nActive defences. Failures print these ids unaltered; each entry ends with the command that prints its full ")
-	out.WriteString("documentation. Exceptions only via the project record, with a justification.\n\n")
+	out.WriteString("\n\nActive defences. Failures print these ids as listed, except for the code-prefixed golangci linters (")
+	out.WriteString(strings.Join(golangci.CodePrefixedLinters(), ", "))
+	out.WriteString("): a failure prints linter::code (for example staticcheck::SA1019) while the list shows the linter name only. ")
+	out.WriteString("Each entry ends with the command that prints its full documentation. ")
+	out.WriteString("Exceptions only via the project record, with a justification.\n\n")
 	for _, d := range l.Defences {
 		said := ""
 		if d.Description != "" {

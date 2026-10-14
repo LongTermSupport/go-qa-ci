@@ -169,3 +169,15 @@ func readFile(t *testing.T, root, rel string) string {
 	}
 	return string(data)
 }
+
+func TestRenderDoesNotClaimListedIdsArePrintedWhereTheyAreNot(t *testing.T) {
+	region := summary.Render(sample())
+	if strings.Contains(region, "unaltered") {
+		t.Errorf("region claims the ids are printed unaltered:\n%s", region)
+	}
+	for _, want := range []string{"linter::code", "staticcheck::SA1019", "gocritic, gosec, govet, revive, staticcheck", "linter name only"} {
+		if !strings.Contains(region, want) {
+			t.Errorf("region lacks %q:\n%s", want, region)
+		}
+	}
+}

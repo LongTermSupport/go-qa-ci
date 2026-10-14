@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
@@ -20,6 +21,17 @@ var codePrefixed = map[string]bool{
 	"govet":       true,
 	"gocritic":    true,
 	"revive":      true,
+}
+
+// CodePrefixedLinters are the names of those linters, sorted: the listing shows each by name only,
+// while a failure prints linter::code.
+func CodePrefixedLinters() []string {
+	names := make([]string, 0, len(codePrefixed))
+	for name := range codePrefixed {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
 }
 
 var codePrefix = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9_-]*): `)
