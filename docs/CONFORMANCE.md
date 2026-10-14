@@ -38,7 +38,7 @@ go-qa-ci followed as a project: its own source gated by its own assembled Toolch
 
 go-qa-ci as the Toolchain it ships: graded as installed into a Consuming project with nothing else
 built around it (the binary, the bundled configuration, the bundled `gqaci.*` pages, the bundled
-`gqaci_sensitive_format` analyzer and ast-grep pack), against sections 4 to 8. The consumer installs
+bundled analyzers and ast-grep pack), against sections 4 to 8. The consumer installs
 the pinned external tools with `scripts/install-tools.sh` from a checkout of the same tag.
 
 | Clause | Requirement                                                                                | Status  | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
