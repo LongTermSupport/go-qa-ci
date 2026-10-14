@@ -130,7 +130,7 @@ func TestMutantsDiffRunsGremlinsAgainstTheBase(t *testing.T) {
 		t.Fatalf("got %+v, %q", out, stderr)
 	}
 	calls := faketool.Calls(t, log)
-	if len(calls) != 1 || !strings.HasSuffix(calls[0], "\tunleash --threshold-efficacy 100 --diff origin/main") {
+	if len(calls) != 1 || !strings.Contains(calls[0], "\tunleash --config ") || !strings.HasSuffix(calls[0], "/gremlins.yaml --diff origin/main") {
 		t.Errorf("calls: %q", calls)
 	}
 }
