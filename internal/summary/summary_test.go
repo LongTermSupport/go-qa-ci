@@ -15,8 +15,8 @@ import (
 func sample() defences.Listing {
 	return defences.Listing{
 		Defences: []defences.Defence{
-			{ID: "errcheck", Engine: defences.EngineGolangci, Level: "error", Description: "Finds unchecked errors."},
-			{ID: "shellcheck", Engine: defences.EngineStage, Level: "error", Description: "Lint shell", Fix: "Quote expansions"},
+			{ID: "errcheck", Engine: defences.EngineGolangci, Level: "error", Description: "Finds unchecked errors.", Doc: "golangci-lint help linters"},
+			{ID: "shellcheck", Engine: defences.EngineStage, Level: "error", Description: "Lint shell", Fix: "Quote expansions", Doc: "go-qa rule-doc shellcheck"},
 		},
 		Stages:  []defences.Step{{Name: "fmt", Phase: "format", Enabled: true}, {Name: "docs", Phase: "detectors"}},
 		Runners: []defences.Step{{Name: "test", Phase: "runners", Enabled: true}},
@@ -33,8 +33,8 @@ func TestRenderIsDelimitedAndNamesEveryDefenceWithItsPage(t *testing.T) {
 		t.Fatalf("region is not delimited:\n%s", region)
 	}
 	for _, want := range []string{
-		"- `errcheck` (golangci, error): Finds unchecked errors. `go-qa rule-doc errcheck`",
-		"- `shellcheck` (stage, error): Lint shell. Fix: Quote expansions `go-qa rule-doc shellcheck`",
+		"- `errcheck` (golangci, error): Finds unchecked errors. Docs: `golangci-lint help linters`",
+		"- `shellcheck` (stage, error): Lint shell. Fix: Quote expansions Docs: `go-qa rule-doc shellcheck`",
 		"fmt, test",
 		"- `errcheck` at `a.go` (review by 2030-01-01, added by example-model)",
 		"exceptions: 1 of 10",
@@ -42,6 +42,9 @@ func TestRenderIsDelimitedAndNamesEveryDefenceWithItsPage(t *testing.T) {
 		if !strings.Contains(region, want) {
 			t.Errorf("region lacks %q:\n%s", want, region)
 		}
+	}
+	if strings.Contains(region, "go-qa rule-doc errcheck") {
+		t.Errorf("a golangci linter is routed through a rule-doc that does not resolve it:\n%s", region)
 	}
 	if strings.Contains(region, "docs,") || strings.Contains(region, ", docs") {
 		t.Errorf("a disabled step is listed as running:\n%s", region)

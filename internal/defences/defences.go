@@ -69,6 +69,9 @@ type Defence struct {
 	Description string `json:"description"`
 	// Fix is the first paragraph of the page's fix section, or the stage's own fix text.
 	Fix string `json:"fix,omitempty"`
+	// Doc is the command that prints the defence's full documentation (TOOLING-SPEC 5.1); empty
+	// when nothing documents it yet, which the docs detector reports as a dangling identifier.
+	Doc string `json:"doc,omitempty"`
 	// Stage names the project stage that reports the rule; empty otherwise.
 	Stage string `json:"stage,omitempty"`
 }
@@ -285,21 +288,32 @@ func stageRules(ctx context.Context, in Input) ([]Defence, error) {
 	return out, nil
 }
 
-// quoteFixes fills the fix text of the defences that do not carry their own from the first
+// golangciDocRoute prints every linter's documentation; golangci-lint has no per-linter explain.
+const golangciDocRoute = "golangci-lint help linters"
+
+// ruleDocRoute is the route of an identifier `go-qa rule-doc` resolves.
+func ruleDocRoute(id string) string { return "go-qa rule-doc " + id }
+
+// quoteFixes fills the documentation route of every defence and the fix text of the defences that do not carry their own from the first
 // paragraph of the section the configuration names in the identifier's page. An identifier
 // without a page keeps an empty fix; resolving it is the docs detector's business.
 func quoteFixes(ctx context.Context, in Input, found []Defence) error {
 	resolver := docs.ForConfig(in.Root, in.Config)
 	for i, d := range found {
-		if d.Fix != "" {
-			continue
-		}
 		doc, ok, err := resolver.Resolve(ctx, d.ID)
 		if err != nil {
 			return fmt.Errorf("finding the page of %s: %w", d.ID, err)
 		}
-		if ok {
-			found[i].Fix = docs.Fix(doc.Text, in.Config.Summary.FixHeadings)
+		switch {
+		case ok:
+			found[i].Doc = ruleDocRoute(d.ID)
+			if d.Fix == "" {
+				found[i].Fix = docs.Fix(doc.Text, in.Config.Summary.FixHeadings)
+			}
+		case d.Engine == EngineAnalyzer:
+			found[i].Doc = ruleDocRoute(d.ID)
+		case d.Engine == EngineGolangci:
+			found[i].Doc = golangciDocRoute
 		}
 	}
 	return nil

@@ -32,8 +32,8 @@ const (
 func Render(l defences.Listing) string {
 	var out strings.Builder
 	out.WriteString(Begin)
-	out.WriteString("\n\nActive defences. Failures print these ids unaltered; resolve any id offline with ")
-	out.WriteString("`go-qa rule-doc <id>`. Exceptions only via the project record, with a justification.\n\n")
+	out.WriteString("\n\nActive defences. Failures print these ids unaltered; each entry ends with the command that prints its full ")
+	out.WriteString("documentation. Exceptions only via the project record, with a justification.\n\n")
 	for _, d := range l.Defences {
 		said := ""
 		if d.Description != "" {
@@ -42,7 +42,11 @@ func Render(l defences.Listing) string {
 		if d.Fix != "" {
 			said += " Fix: " + d.Fix
 		}
-		fmt.Fprintf(&out, "- `%s` (%s, %s):%s `go-qa rule-doc %s`\n", d.ID, d.Engine, d.Level, said, d.ID)
+		route := " No documentation route yet."
+		if d.Doc != "" {
+			route = " Docs: `" + d.Doc + "`"
+		}
+		fmt.Fprintf(&out, "- `%s` (%s, %s):%s%s\n", d.ID, d.Engine, d.Level, said, route)
 	}
 	fmt.Fprintf(&out, "\nGate steps, in order (`go-qa tools`): %s.\n", strings.Join(enabledNames(l), ", "))
 	out.WriteString("\nProject-record exceptions (prefer fixing the code; an exception names its hazard and scope):\n\n")

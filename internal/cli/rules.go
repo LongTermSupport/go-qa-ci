@@ -53,7 +53,11 @@ func renderRules(l defences.Listing) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "%d defences\n", len(l.Defences))
 	for _, d := range l.Defences {
-		fmt.Fprintf(&out, "  %-9s %-9s %-6s %s  %s\n", d.Engine, d.Origin, d.Level, d.ID, d.Description)
+		route := d.Doc
+		if route == "" {
+			route = "(no documentation route)"
+		}
+		fmt.Fprintf(&out, "  %-9s %-9s %-6s %s  %s  [%s]\n", d.Engine, d.Origin, d.Level, d.ID, d.Description, route)
 	}
 	for _, group := range []struct {
 		title string

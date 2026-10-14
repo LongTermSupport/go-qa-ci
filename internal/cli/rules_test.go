@@ -14,6 +14,7 @@ type listedDefence struct {
 	Origin      string `json:"origin"`
 	Level       string `json:"level"`
 	Description string `json:"description"`
+	Doc         string `json:"doc"`
 }
 
 // rulesJSON is the shape `rules --json` documents.
@@ -66,6 +67,28 @@ func TestRulesJSONIsMachineReadable(t *testing.T) {
 	for _, d := range value.Defences {
 		if d.Description == "" || d.Level == "" || d.Origin == "" {
 			t.Errorf("%s is listed without a description, level or origin: %+v", d.ID, d)
+		}
+	}
+}
+
+// TestEveryListedDocumentationRouteResolves holds TOOLING-SPEC 5.1: each defence carries a route
+// to its full documentation, and a go-qa route is run and must print a page.
+func TestEveryListedDocumentationRouteResolves(t *testing.T) {
+	root := module(t, "")
+	value := decodeRules(t, exec("--root", root, "rules", "--json"))
+	const prefix = "go-qa rule-doc "
+	for _, d := range value.Defences {
+		switch {
+		case d.Doc == "golangci-lint help linters" && d.Engine == "golangci":
+		case strings.HasPrefix(d.Doc, prefix):
+			if id := strings.TrimPrefix(d.Doc, prefix); id != d.ID {
+				t.Errorf("%s routes to %q", d.ID, d.Doc)
+			}
+			if r := exec("--root", root, "rule-doc", d.ID); r.code != 0 {
+				t.Errorf("%s: route %q exits %d: %s", d.ID, d.Doc, r.code, r.err)
+			}
+		default:
+			t.Errorf("%s (%s) has no working documentation route: %q", d.ID, d.Engine, d.Doc)
 		}
 	}
 }

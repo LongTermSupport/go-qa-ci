@@ -78,3 +78,8 @@ use the one pinned version; a different version can render a stale region.
 - `fix` is quoted only from pages the resolver knows (project, stage, bundled and `[[resolver]]`
   pages); a golangci-lint linter has none yet (`docs/golangci.md`), so it lists with no fix.
 - There is no per-defence `summarised` switch: the summary lists every active defence.
+- 5.1 route partial: every defence in `rules` and the summary carries a `doc` route. A golangci-lint
+  linter's route is `golangci-lint help linters`, which prints every linter rather than the one
+  named, and prints nothing of a wrapped tool's individual codes; `go-qa rule-doc` is the route only
+  where it resolves (bundled and project pages, stages, analyzers). A defence nothing documents has
+  an empty `doc` and the summary says so; the `docs` detector does not yet report it as dangling.
