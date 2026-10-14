@@ -139,9 +139,10 @@ func TestNoPinnedToolIsInstalledOutsideTheLock(t *testing.T) {
 	}
 }
 
-// patchedToolchain is the first Go release carrying every standard library advisory fix that
+// patchedGoDirective is the first Go release carrying every standard library advisory fix that
 // govulncheck reports against this module's own code; a lower toolchain turns the vuln runner red.
-const patchedToolchain = "go1.26.9"
+// The go directive, not a toolchain line, is what actions/setup-go reads from go.mod.
+const patchedGoDirective = "go 1.26.9"
 
 func TestEverySetupGoStepReadsTheToolchainFromGoMod(t *testing.T) {
 	w, _ := readWorkflow(t)
@@ -162,15 +163,15 @@ func TestEverySetupGoStepReadsTheToolchainFromGoMod(t *testing.T) {
 	}
 }
 
-func TestGoModPinsThePatchedToolchain(t *testing.T) {
+func TestGoModRequiresThePatchedGo(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for line := range strings.SplitSeq(string(data), "\n") {
-		if line == "toolchain "+patchedToolchain {
+		if line == patchedGoDirective {
 			return
 		}
 	}
-	t.Errorf("go.mod must contain %q so CI and consumers build with the patched standard library", "toolchain "+patchedToolchain)
+	t.Errorf("go.mod must contain %q so CI and consumers build with the patched standard library", patchedGoDirective)
 }
