@@ -19,6 +19,10 @@ const (
 	RecordRatchet = builtin.RecordRatchet
 	// RecordExpired marks a record exception past its review date.
 	RecordExpired = builtin.RecordExpired
+	// SuppressionUnrecorded marks a suppression with no exception in the project record.
+	SuppressionUnrecorded = builtin.SuppressionUnrecorded
+	// SuppressionBare marks a suppression that names no rule or gives no reason.
+	SuppressionBare = builtin.SuppressionBare
 	// DocsDangling marks an identifier that resolves to no documentation.
 	DocsDangling = builtin.DocsDangling
 	// DocsOrphan marks a project page that documents no identifier the project can see.

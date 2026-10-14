@@ -2,8 +2,10 @@
 
 ## What it flags
 
-A suppression that names no rule, such as a `//nolint` with no linter list. It silences every
-finding on its line, including ones that do not exist yet.
+A suppression that names no rule, such as a nolint directive with no linter list, a gosec marker
+with no code or an ast-grep ignore with no rule id; or one that gives no reason, such as a nolint
+directive naming a linter but no `// reason`. It silences every finding on its line, including ones
+that do not exist yet.
 
 ## Why
 

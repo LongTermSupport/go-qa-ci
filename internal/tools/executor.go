@@ -25,6 +25,8 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 		return e.runFmt()
 	case "record":
 		return e.runRecord()
+	case "suppression":
+		return e.runSuppression()
 	case "docs":
 		return e.runDocs()
 	case "golangci":

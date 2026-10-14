@@ -48,9 +48,19 @@ func (m *Matcher) find(covers Covers, rule, path string) (int, bool) {
 // Stale reports every exception nothing matched, as gqaci.record.stale findings. It is only
 // meaningful after every detector that applies the record has run against the same matcher.
 func (m *Matcher) Stale(recordPath string) []finding.Finding {
+	return m.stale(recordPath, func(Exception) bool { return true })
+}
+
+// StaleCovering is Stale limited to the exceptions that cover one kind of thing. A detector that
+// alone applies that kind (the suppression guard for suppressions) can judge it without the others.
+func (m *Matcher) StaleCovering(covers Covers, recordPath string) []finding.Finding {
+	return m.stale(recordPath, func(e Exception) bool { return e.EffectiveCovers() == covers })
+}
+
+func (m *Matcher) stale(recordPath string, wanted func(Exception) bool) []finding.Finding {
 	var findings []finding.Finding
 	for i, e := range m.record.Exceptions {
-		if m.used[i] {
+		if m.used[i] || !wanted(e) {
 			continue
 		}
 		findings = append(findings, finding.Finding{

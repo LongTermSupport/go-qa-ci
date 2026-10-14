@@ -1,7 +1,14 @@
 # The self-gate (go-qa run --ci) runs the tools that are built. A tool below is switched on by the
 # milestone that builds it; until then it would fail as "not implemented yet", never pass.
+[record]
+# Placeholder identity: replace it with the repository owner before the first public release.
+deciders = ["example-owner"]
+
+[record.trust.models]
+# Entries written by this model family are medium trust: 30-day review, at most three entries.
+claude-sonnet = "medium"
+
 [tools]
-suppression = false
 summary = false
 ast_grep = false
 analyzers = false

@@ -56,3 +56,23 @@ func TestStaleReportsEntriesNothingUsed(t *testing.T) {
 		t.Errorf("got %v", stale)
 	}
 }
+
+func TestStaleCoveringJudgesOnlyTheExceptionsOfOneKind(t *testing.T) {
+	findings := entry("errcheck", "src/a.go", good)
+	findings.Covers = record.CoversFindings
+	rec := record.Record{Exceptions: []record.Exception{entry("gosec", "src/b.go", good), findings}}
+	m := rec.Matcher()
+	stale := m.StaleCovering(record.CoversSuppressions, "qa/record.toml")
+	if len(stale) != 1 || !strings.Contains(stale[0].Message, "gosec") {
+		t.Fatalf("suppression kind: %v", stale)
+	}
+	if stale := m.StaleCovering(record.CoversFindings, "qa/record.toml"); len(stale) != 1 || !strings.Contains(stale[0].Message, "errcheck") {
+		t.Errorf("findings kind: %v", stale)
+	}
+	if _, ok := m.Suppression("gosec", "src/b.go"); !ok {
+		t.Fatal("entry not matched")
+	}
+	if stale := m.StaleCovering(record.CoversSuppressions, "qa/record.toml"); len(stale) != 0 {
+		t.Errorf("a used entry was reported: %v", stale)
+	}
+}

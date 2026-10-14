@@ -3,7 +3,7 @@
 A Defence Before Fix (DBF) Toolchain for Go modules. Work in progress: no conformance to the DBF
 Tooling Specification is claimed. No declaration exists yet; one is added when the Toolchain has
 something to declare. Known gaps are recorded as they are found (TOOLING-SPEC 9.2), currently in
-`docs/golangci.md` and `docs/defences.md`.
+`docs/golangci.md`, `docs/defences.md` and `docs/suppression.md`.
 
 ## Status
 
@@ -12,7 +12,9 @@ The command skeleton, the configuration loader and the tool catalogue exist (`go
 validates (`go-qa record`, the `record` tool; see `docs/record.md`). Identifiers resolve offline
 to bundled or project pages (`go-qa rule-doc`, `go-qa docs-check`, the `docs` tool; see
 `docs/defences.md`). Formatting (`fmt`) and the aggregated linters (`golangci`) run through
-golangci-lint, which must be installed (see `docs/golangci.md`). Every other tool engine is not
+golangci-lint, which must be installed (see `docs/golangci.md`). The `suppression` tool fails every
+route that silences a defence without an entry in the project record (see `docs/suppression.md`).
+Every other tool engine is not
 built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
 to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 

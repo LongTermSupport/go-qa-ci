@@ -60,9 +60,11 @@ listing (TOOLING-SPEC 6.3), where a vacuous one is read next to its neighbours.
 An exception that licenses nothing any defence reports is stale. The record package exposes a
 matcher that detectors use to apply the record; it remembers which exceptions were used, and
 reports the rest as `gqaci.record.stale`. The `record` tool does not judge staleness by itself,
-because that needs every detector that applies the record to have run first. Until those detectors
-exist (suppression guard, golangci, analyzers) no run reports `gqaci.record.stale`; this is a
-recorded gap, not a claim.
+because that needs every detector that applies the record to have run first. The `suppression` tool
+is the only one that applies `covers = "suppressions"` exceptions, so on a run over the whole project
+it reports the unused ones as `gqaci.record.stale` (docs/suppression.md). Exceptions with
+`covers = "findings"` are applied by the golangci detector and, later, the analyzers; no run
+reports them stale yet, which is a recorded gap, not a claim.
 
 ## Anti-bloat controls (TOOLING-SPEC 6.4)
 
@@ -127,15 +129,22 @@ and notes it locally. Set `history_base` to a ref that exists, and fetch enough 
 ## Configuration exceptions
 
 Some findings are configured away in `.golangci.yml` rather than suppressed at the site. Each is
-a project-level exception that the suppression detector (M6) must require to be recorded in
-`qa/record.toml`, with a justification, so that the configuration cannot widen unnoticed.
+a project-level exception that the suppression detector requires to be recorded in
+`qa/record.toml`, with a justification, so that the configuration cannot widen unnoticed. The
+recorded rule is the one the detector prints (docs/suppression.md), and the record entry's path is
+the configuration file.
 
 | Detector rule | Scope                                    | Hazard                                                                         | Why it does not apply                                                                                                   |
 | ------------- | ---------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | gosec `G204`  | whole module                             | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
 | gosec `G306`  | `tests/scripts/secret_scan_test.go` only | a file written more permissive than 0600 can be read or altered by other users | the file is a test stub that must be executable (0700, owner only), written into a private per-test temporary directory |
+| govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
 
+The entries are `golangci.yml::gosec.excludes::G204`, `golangci.yml::exclusions.rules::gosec/G306`
+and `golangci.yml::govet.disable::fieldalignment`, all against `.golangci.yml`. Their review dates
+are the owner's to re-decide; a lapsed one fails `gqaci.record.expired`. The `example-owner`
+decider in `qa/go-qa.toml` is a placeholder to replace before the first public release.
 ## Not yet built
 
-`record prune` takes explicit numbers. Finding the stale exceptions itself needs the suppression
-guard and the detectors that apply the record, which are separate work.
+`record prune` takes explicit numbers; it does not yet find the stale exceptions itself. The
+`suppression` tool reports the stale suppression exceptions, and `record prune` removes them.

@@ -40,8 +40,9 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
   sees only some files loses the type information of the rest. Findings in files outside every `-p`
   entry are dropped.
 - Record: an exception with `covers = "findings"` whose rule and path match a finding licenses it.
-  An exception that covers suppressions never licenses a finding. Staleness of unused exceptions is
-  not judged here (it needs every detector that applies the record; M6 owns it).
+  An exception that covers suppressions never licenses a finding. Staleness of unused
+  `covers = "findings"` exceptions is not judged here (it needs every detector that applies the
+  record); the `suppression` tool judges the suppression ones.
 - Configuration: a project `.golangci.{yml,yaml,toml,json}` is used as it is. Without one, the
   strict baseline `configs/golangci.yml` is used.
 
@@ -57,8 +58,9 @@ its allow-list is specific to a project; this repository adds its own in the ove
 ## Configuration exceptions
 
 This repository's overlay configures away `gosec G204` (module-wide) and `gosec G306` (one test
-file). Each is listed in `docs/record.md` as a configuration exception that the suppression
-detector (M6) must require to be recorded.
+file). Each is listed in `docs/record.md` as a configuration exception, and the suppression
+detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
+disabling of the `govet` `fieldalignment` analyzer.
 
 ## Self-gate (TOOLING-SPEC 8.2)
 
@@ -102,7 +104,8 @@ clauses of DETECTOR-SPEC, and the gaps stand:
 - 4.4: there is no rule over the rules in golangci-lint; the identifier discipline for third-party
   linters is not enforced by go-qa yet.
 - 6.4 not verified: no release gate over third-party documentation.
-- staticcheck 4.1 and 7.1 (fixed catalogue; `//lint:ignore` cannot be disabled): the inline route is
-  not detected until the suppression detector (M6) exists. `nolintlint` covers `//nolint` only.
+- staticcheck 7.1 (`//lint:ignore` cannot be disabled): the inline route is detected, not disabled.
+  The `suppression` tool fails every `//lint:ignore`, `//lint:file-ignore` and `staticcheck.conf`
+  removal that the record does not license; `nolintlint` covers `//nolint` only.
 - Bespoke rules (DETECTOR-SPEC 4.1) are served by the `analyzers` tool and the `ast-grep` tool, which
   are not built yet; nothing here adds a custom golangci-lint build.
