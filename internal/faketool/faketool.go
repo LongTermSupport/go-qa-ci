@@ -84,20 +84,21 @@ func Calls(t *testing.T, logPath string) []string {
 }
 
 // Main is called first by a package's TestMain: when the test binary was started as an installed
-// fake it never returns, otherwise it returns and the tests run.
-func Main() {
+// fake it returns the exit status the fake must end with and true, and TestMain exits with it;
+// otherwise it returns false and the tests run.
+func Main() (code int, served bool) {
 	name := filepath.Base(os.Args[0])
 	encoded, ok := os.LookupEnv(envName(name))
 	if !ok {
-		return
+		return 0, false
 	}
 	code, err := act(encoded)
 	if err != nil {
 		// The stderr write is best effort: the exit code already says the fake could not behave.
 		_, _ = fmt.Fprintf(os.Stderr, "faketool %s: %v\n", name, err)
-		os.Exit(failureCode)
+		return failureCode, true
 	}
-	os.Exit(code)
+	return code, true
 }
 
 // act records the invocation, prints the canned output and returns the canned exit code.

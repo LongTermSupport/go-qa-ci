@@ -107,7 +107,7 @@ func TestCollectCoversEveryBuiltinOwnedByAnEnabledTool(t *testing.T) {
 	cfg := config.Default()
 	listing := collect(t, module(t, map[string]string{"p.go": "package p\n"}), cfg, allSteps(cfg))
 	for _, id := range builtin.All() {
-		if id == builtin.SensitiveFormat {
+		if builtin.IsAnalyzer(id) {
 			continue // an analyzer: listed with the analyzers of the vet tool
 		}
 		if _, found := find(listing, id); !found {

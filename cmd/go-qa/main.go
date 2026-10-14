@@ -7,7 +7,6 @@ package main
 import (
 	"os"
 
-	"github.com/LongTermSupport/go-qa-ci/analyzers/sensitiveformat"
 	"github.com/LongTermSupport/go-qa-ci/driver"
 	"github.com/LongTermSupport/go-qa-ci/internal/cli"
 	"github.com/LongTermSupport/go-qa-ci/internal/vet"
@@ -15,7 +14,7 @@ import (
 
 func main() {
 	if vet.IsVettool() {
-		driver.Main(sensitiveformat.Analyzer)
+		driver.Main()
 	}
 	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
 }

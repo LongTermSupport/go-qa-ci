@@ -17,8 +17,12 @@ import (
 // analyzers detector reaches the bundled analyzers in production.
 func TestMain(m *testing.M) {
 	vettest.Serve()
-	astgreptest.Serve()
-	faketool.Main()
+	if code, served := astgreptest.Serve(); served {
+		os.Exit(code)
+	}
+	if code, served := faketool.Main(); served {
+		os.Exit(code)
+	}
 	os.Exit(m.Run())
 }
 

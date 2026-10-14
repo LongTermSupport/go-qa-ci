@@ -9,6 +9,8 @@ import (
 
 // TestMain lets this test binary stand in for the ast-grep executable (see astgreptest.Install).
 func TestMain(m *testing.M) {
-	astgreptest.Serve()
+	if code, served := astgreptest.Serve(); served {
+		os.Exit(code)
+	}
 	os.Exit(m.Run())
 }

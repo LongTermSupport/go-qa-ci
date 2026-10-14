@@ -4,7 +4,10 @@
 // across refactors. Each one has a bundled page in package ruledocs.
 package builtin
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // Identifiers of the built-in defences.
 const (
@@ -31,6 +34,22 @@ const (
 	// SensitiveFormat marks a value holding a sensitive-named type printed without redaction. It is
 	// the one built-in whose identifier is an analyzer name, which is why it uses an underscore.
 	SensitiveFormat = "gqaci_sensitive_format"
+	// DeferInLoop marks a defer statement inside a loop body.
+	DeferInLoop = "gqaci_defer_in_loop"
+	// ExecContext marks os/exec.Command used where a context is in scope.
+	ExecContext = "gqaci_exec_context"
+	// ExitOutsideMain marks a process exit outside the entry point of the program.
+	ExitOutsideMain = "gqaci_exit_outside_main"
+	// InitSideEffects marks an init function that does input or output or changes the process.
+	InitSideEffects = "gqaci_init_side_effects"
+	// MapRangeOrder marks output whose order is decided by map iteration.
+	MapRangeOrder = "gqaci_map_range_order"
+	// ShellExec marks a shell started with -c.
+	ShellExec = "gqaci_shell_exec"
+	// TestClock marks the wall clock read in a test file.
+	TestClock = "gqaci_test_clock"
+	// UnconditionalSkip marks a test that skips itself unconditionally.
+	UnconditionalSkip = "gqaci_unconditional_skip"
 	// RulesUnnamed marks a project ast-grep rule that has no id.
 	RulesUnnamed = "gqaci.rules.unnamed"
 	// RulesUntested marks a project ast-grep rule without valid and invalid test cases.
@@ -49,6 +68,14 @@ var descriptions = map[string]string{
 	DocsDangling:          "every listed identifier resolves to documentation",
 	DocsOrphan:            "every project documentation page belongs to an identifier the project can see",
 	SensitiveFormat:       "no sensitive value is printed without redaction",
+	DeferInLoop:           "no defer sits inside a loop body",
+	ExecContext:           "no exec.Command is used where a context is in scope",
+	ExitOutsideMain:       "the process ends only from main",
+	InitSideEffects:       "no init function does input or output or changes the process",
+	MapRangeOrder:         "no output order is decided by map iteration",
+	ShellExec:             "no shell is started with -c",
+	TestClock:             "no test reads the wall clock",
+	UnconditionalSkip:     "no test skips itself unconditionally",
 	RulesUnnamed:          "every project ast-grep rule has an id",
 	RulesUntested:         "every project ast-grep rule has valid and invalid test cases",
 }
@@ -61,6 +88,25 @@ func All() []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// analyzers are the identifiers that are analyzer names: they are listed with the analyzers of the
+// vet tool, where each is active only when that tool carries it, not with the built-ins of a tool.
+var analyzers = []string{
+	DeferInLoop, ExecContext, ExitOutsideMain, InitSideEffects, MapRangeOrder,
+	SensitiveFormat, ShellExec, TestClock, UnconditionalSkip,
+}
+
+// Analyzers returns the identifiers of the bundled analyzers, sorted.
+func Analyzers() []string {
+	out := append([]string(nil), analyzers...)
+	sort.Strings(out)
+	return out
+}
+
+// IsAnalyzer says whether the identifier is a bundled analyzer.
+func IsAnalyzer(id string) bool {
+	return slices.Contains(analyzers, id)
 }
 
 // Describe says in one line what a built-in identifier guards; it is empty for an unknown one.

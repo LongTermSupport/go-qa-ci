@@ -66,13 +66,33 @@ run limited with `-p` cannot judge staleness.
 
 ## Bundled analyzers
 
-| Identifier               | Blocks                                                                                        | Page                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `gqaci_sensitive_format` | a value holding a sensitive-named type printed by fmt, log or slog without a redacting method | `ruledocs/rules/gqaci_sensitive_format.md` |
+There are 9 bundled analyzers. Each is registered by `analyzers/pack` (the one list the vet tool, the
+driver and the tests read), is type-based (it resolves `go/types` objects, so an import alias, a
+method value or a function stored in a variable does not escape it, and a reference counts as well as
+a call), has a page under `ruledocs/rules/`, and is proven with `analysistest` fixtures that fail
+without the rule.
 
-The analyzer is Blocking (it has no advisory mode) and its only exception is a project-record entry
-with `covers = "findings"`. Its configuration is the `-patterns` and `-redacting` flags (defaults in
-`sensitiveformat.DefaultConfig`).
+| Identifier                 | Blocks                                                                                                                   | Page                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `gqaci_defer_in_loop`      | a `defer` inside a loop body, which runs at function exit and piles up one call per iteration                            | `ruledocs/rules/gqaci_defer_in_loop.md`      |
+| `gqaci_exec_context`       | `exec.Command` where a context (or a `*testing.T`) is in scope, so cancellation cannot stop the child                    | `ruledocs/rules/gqaci_exec_context.md`       |
+| `gqaci_exit_outside_main`  | `os.Exit`, `syscall.Exit` and `log.Fatal*` outside `main` of package `main` (and `TestMain`)                              | `ruledocs/rules/gqaci_exit_outside_main.md`  |
+| `gqaci_init_side_effects`  | an `init` function that does input or output, runs a program, starts a goroutine or changes the process                  | `ruledocs/rules/gqaci_init_side_effects.md`  |
+| `gqaci_map_range_order`    | output, or a returned slice, whose order is decided by ranging over a map                                                | `ruledocs/rules/gqaci_map_range_order.md`    |
+| `gqaci_sensitive_format`   | a value holding a sensitive-named type printed by fmt, log or slog without a redacting method                            | `ruledocs/rules/gqaci_sensitive_format.md`   |
+| `gqaci_shell_exec`         | a shell started with `-c` by constant argument analysis, the evasion that hides a command from argument-based checks     | `ruledocs/rules/gqaci_shell_exec.md`         |
+| `gqaci_test_clock`         | `time.Now`, `time.Since` and `time.Until` in a `_test.go` file                                                           | `ruledocs/rules/gqaci_test_clock.md`         |
+| `gqaci_unconditional_skip` | a `t.Skip`, `t.Skipf` or `t.SkipNow` at the top level of a test body, so the test never runs                             | `ruledocs/rules/gqaci_unconditional_skip.md` |
+
+Every analyzer is Blocking (none has an advisory mode) and its only exception is a project-record
+entry with `covers = "findings"`, the analyzer name as `rule` and a path glob; there is no comment
+route, so an allow-list (the test files that may read the clock, the packages whose `init` may start a
+goroutine) is a set of record entries, each with a justification and a review date. Only
+`gqaci_sensitive_format` is configurable, through its `-patterns` and `-redacting` flags (defaults in
+`sensitiveformat.DefaultConfig`). `tests/pack` keeps this section, the README and `internal/builtin`
+in step with the registry.
+
+Rules left out on purpose are listed in the recorded gaps below.
 
 ## Listing and documentation
 
@@ -107,9 +127,17 @@ tested this way, and the `Serve` hook that lets a test binary act as the vet too
 
 These are gaps, not claims:
 
-- One analyzer is bundled so far (`gqaci_sensitive_format`); the rest of the bundled set is a later
-  milestone. The bundled analyzer is configured through its flags or `sensitiveformat.New` in a
+- Only `gqaci_sensitive_format` is configurable, through its flags or `sensitiveformat.New` in a
   project driver; `qa/go-qa.toml` has no key for it yet.
+- Not shipped: a goroutine-leak rule (a `go` statement with no context, wait group or error group
+  in scope) is not decidable from one function without many false findings, and a rule for
+  `//go:build ignore` is a suppression-scanner matter (`docs/suppression.md`), not an analyzer. The
+  syntactic candidates were checked against the pack's rule (syntax must provably suffice): every
+  bundled rule needs types (the callee, the context in scope, the constant argument) or a flow
+  question (is the slice sorted afterwards), so the `gqaci.ast.*` pack stays empty.
+- `gqaci_map_range_order` and `gqaci_init_side_effects` read one function at a time: a slice passed
+  on through other variables or functions, and an effect hidden behind a call to a function of the
+  same package, are missed, in exchange for few false findings.
 - The docs detector does not know the registered analyzers, so a project page for an analyzer in
   `docs_dir` is reported as an orphan unless a record entry names the analyzer, and a missing page for
   an analyzer is not reported as dangling. `rule-doc` resolves the analyzer's `Doc` regardless.

@@ -5,6 +5,7 @@ package selfgate_test
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -66,7 +67,8 @@ func missing(base, got any, path string) []string {
 			return []string{path + ": not a mapping"}
 		}
 		var out []string
-		for key, value := range b {
+		for _, key := range slices.Sorted(maps.Keys(b)) {
+			value := b[key]
 			child, present := g[key]
 			if !present {
 				out = append(out, path+"."+key+": absent")

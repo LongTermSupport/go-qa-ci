@@ -27,11 +27,12 @@ const (
 
 // Serve is called first by a test binary's TestMain. A process started under the name ast-grep
 // (see Install) records its arguments, prints the configured output and exits with the
-// configured status; Serve does not return then.
-func Serve() {
+// configured status: Serve then returns that status and true, and TestMain exits with it.
+func Serve() (code int, served bool) {
 	if filepath.Base(os.Args[0]) == astgrep.Binary {
-		os.Exit(standIn())
+		return standIn(), true
 	}
+	return 0, false
 }
 
 func standIn() int {

@@ -100,9 +100,8 @@ type Input struct {
 	Steps []Step
 }
 
-// owners maps a built-in identifier prefix to the tool that raises it. The analyzer
-// gqaci_sensitive_format is deliberately absent: it is listed with the analyzers of the vet tool,
-// where it is active only when that tool carries it.
+// owners maps a built-in identifier prefix to the tool that raises it. The bundled analyzers are deliberately absent: they are listed with the analyzers of the vet tool,
+// where each is active only when that tool carries it.
 var owners = []struct{ prefix, tool string }{
 	{"gqaci.record.", "record"},
 	{"gqaci.suppression.", "suppression"},
@@ -162,7 +161,7 @@ func (in Input) enabledStep(name string) (Step, bool, error) {
 func builtins(_ context.Context, in Input) ([]Defence, error) {
 	var out []Defence
 	for _, id := range builtin.All() {
-		if id == builtin.SensitiveFormat {
+		if builtin.IsAnalyzer(id) {
 			continue
 		}
 		tool := ""

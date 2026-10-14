@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LongTermSupport/go-qa-ci/analyzers/pack"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
 	"github.com/LongTermSupport/go-qa-ci/internal/vet"
 	"github.com/LongTermSupport/go-qa-ci/internal/vettest"
@@ -123,7 +124,7 @@ func TestAnalyzersListsEveryRegisteredAnalyzerWithItsSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	// driver.Main registers the bundled analyzer beside the given ones.
-	want := []vet.Analyzer{{Name: "gqaci_sensitive_format", Summary: "gqaci_sensitive_format forbids printing a sensitive value without redaction"}, {Name: "gqaci_test", Summary: "reports calls to a function named Forbidden"}}
+	want := withBundledListing(vet.Analyzer{Name: "gqaci_test", Summary: "reports calls to a function named Forbidden"})
 	if !slices.Equal(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
@@ -264,7 +265,7 @@ func TestBuildProducesAVetToolFromTheProjectDriver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []vet.Analyzer{{Name: "gqaci_sensitive_format", Summary: "gqaci_sensitive_format forbids printing a sensitive value without redaction"}, {Name: "project_nopanic", Summary: "forbids panic"}}; !slices.Equal(listed, want) {
+	if want := withBundledListing(vet.Analyzer{Name: "project_nopanic", Summary: "forbids panic"}); !slices.Equal(listed, want) {
 		t.Errorf("got %+v, want %+v", listed, want)
 	}
 	found, err := tool.Vet(context.Background(), dir)
@@ -331,4 +332,17 @@ func TestWithAnalyzersReportsAnUnbuildableDriver(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "analyzer driver") {
 		t.Errorf("err = %v", err)
 	}
+}
+
+// withBundledListing is the listing of the bundled pack (read from the registry, each analyzer by
+// the first line of its Doc) with the given analyzers merged in, sorted by name.
+func withBundledListing(extra ...vet.Analyzer) []vet.Analyzer {
+	var out []vet.Analyzer
+	for _, a := range pack.All() {
+		summary, _, _ := strings.Cut(a.Doc, "\n")
+		out = append(out, vet.Analyzer{Name: a.Name, Summary: summary})
+	}
+	out = append(out, extra...)
+	slices.SortFunc(out, func(a, b vet.Analyzer) int { return strings.Compare(a.Name, b.Name) })
+	return out
 }

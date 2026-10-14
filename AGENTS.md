@@ -47,7 +47,15 @@ Active defences. Failures print these ids as listed, except for the code-prefixe
 - `unused` (golangci, error): Checks Go code for unused constants, variables, functions and types. Docs: `golangci-lint help linters`
 - `usestdlibvars` (golangci, error): A linter that detect the possibility to use variables/constants from the Go standard library. Docs: `golangci-lint help linters`
 - `wrapcheck` (golangci, error): Checks that errors returned from external packages are wrapped. Docs: `golangci-lint help linters`
+- `gqaci_defer_in_loop` (analyzer, error): gqaci_defer_in_loop forbids defer inside a loop body. Fix: Give each iteration its own function, so it returns every time: Docs: `go-qa rule-doc gqaci_defer_in_loop`
+- `gqaci_exec_context` (analyzer, error): gqaci_exec_context forbids exec.Command where a context is in scope. Fix: Use `exec.CommandContext`, with the context in scope: Docs: `go-qa rule-doc gqaci_exec_context`
+- `gqaci_exit_outside_main` (analyzer, error): gqaci_exit_outside_main forbids ending the process outside main. Fix: Return the error, and let `main` print it and choose the exit code: Docs: `go-qa rule-doc gqaci_exit_outside_main`
+- `gqaci_init_side_effects` (analyzer, error): gqaci_init_side_effects forbids side effects in init functions. Fix: Move the work into a function and call it from `main` (or from the code that needs it), where its error is handled: Docs: `go-qa rule-doc gqaci_init_side_effects`
+- `gqaci_map_range_order` (analyzer, error): gqaci_map_range_order forbids letting map iteration order decide the order of output. Fix: Collect the keys, sort them, and iterate the sorted keys: Docs: `go-qa rule-doc gqaci_map_range_order`
 - `gqaci_sensitive_format` (analyzer, error): gqaci_sensitive_format forbids printing a sensitive value without redaction. Fix: Give the sensitive type a method that prints a fixed placeholder, so every use of it is safe and no call site has to remember: Docs: `go-qa rule-doc gqaci_sensitive_format`
+- `gqaci_shell_exec` (analyzer, error): gqaci_shell_exec forbids starting a shell with -c. Fix: Pass the program and each argument as separate values, so nothing is parsed: Docs: `go-qa rule-doc gqaci_shell_exec`
+- `gqaci_test_clock` (analyzer, error): gqaci_test_clock forbids reading the wall clock in a test file. Fix: Inject the clock where the code under test reads it, and hand the test a fixed instant: Docs: `go-qa rule-doc gqaci_test_clock`
+- `gqaci_unconditional_skip` (analyzer, error): gqaci_unconditional_skip forbids a test that skips itself unconditionally. Fix: Fix the test or delete it. If it can only run in some environments, say which, in code: Docs: `go-qa rule-doc gqaci_unconditional_skip`
 
 Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, ast-grep, golangci, analyzers, deadcode, vuln, mod, test, coverage.
 
