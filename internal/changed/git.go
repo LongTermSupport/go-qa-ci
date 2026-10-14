@@ -16,7 +16,7 @@ import (
 func changedFiles(ctx context.Context, dir, base string) ([]string, error) {
 	against := "HEAD"
 	if base != "" {
-		mergeBase, err := git(ctx, dir, "merge-base", base, "HEAD")
+		mergeBase, err := git(ctx, dir, "merge-base", "--end-of-options", base, "HEAD")
 		if err != nil {
 			return nil, fmt.Errorf("--base %s: %w", base, err)
 		}

@@ -98,7 +98,7 @@ func TestGoModChangeWidensAndSaysWhy(t *testing.T) {
 }
 
 func TestEveryWideningFile(t *testing.T) {
-	for _, rel := range []string{"go.sum", "sub/go.mod", ".golangci.yml", "qa/go-qa.toml", "qa/record.toml", "qa/other.yml", "tools.lock", "go.work"} {
+	for _, rel := range []string{"go.sum", "sub/go.mod", ".golangci.yml", "qa/record.toml", "tools.lock", "go.work"} {
 		t.Run(rel, func(t *testing.T) {
 			dir := project(t)
 			write(t, dir, rel, "changed\n")
@@ -107,6 +107,44 @@ func TestEveryWideningFile(t *testing.T) {
 				t.Fatalf("widened reason %q does not name %s", plan.Widened, rel)
 			}
 		})
+	}
+}
+
+func computeWith(t *testing.T, dir string, opts changed.Options) *changed.Plan {
+	t.Helper()
+	opts.Root, opts.Modules = dir, []string{""}
+	plan, err := changed.Compute(t.Context(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan
+}
+
+func TestADirectoryWidensOnlyWhenTheConfigurationNamesIt(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "qa/rules/r.yml", "changed\n")
+	if plan := computeWith(t, dir, changed.Options{}); plan.Widened != "" {
+		t.Fatalf("qa/ widened with no configuration naming it: %s", plan.Widened)
+	}
+	plan := computeWith(t, dir, changed.Options{WidenDirs: []string{"qa/rules"}})
+	if !strings.Contains(plan.Widened, "qa/rules/r.yml") {
+		t.Fatalf("widened reason %q does not name the file under the configured directory", plan.Widened)
+	}
+}
+
+func TestAWideningDirectoryDoesNotMatchASiblingWithTheSamePrefix(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "qa2/r.yml", "changed\n")
+	if plan := computeWith(t, dir, changed.Options{WidenDirs: []string{"qa"}}); plan.Widened != "" {
+		t.Fatalf("qa2/ widened a run configured for qa/: %s", plan.Widened)
+	}
+}
+
+func TestABaseThatLooksLikeAnOptionIsRefusedBeforeGitSeesIt(t *testing.T) {
+	dir := project(t)
+	_, err := changed.Compute(t.Context(), changed.Options{Root: dir, Base: "--all", Modules: []string{""}})
+	if err == nil || !strings.Contains(err.Error(), "not an option") {
+		t.Fatalf("a base starting with a dash was not refused as an option: %v", err)
 	}
 }
 

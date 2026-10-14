@@ -100,6 +100,15 @@ func TestRunChangedGoModChangeWidensAndSaysWhy(t *testing.T) {
 	}
 }
 
+func TestRunChangedRefusesABaseThatLooksLikeAnOption(t *testing.T) {
+	t.Setenv("CI", "")
+	dir := gitModule(t)
+	code, _, errOut := runWith(&recorder{}, "--root", dir, "run", "--changed", "--base", "--all")
+	if code != 2 || !strings.Contains(errOut, "not an option") {
+		t.Errorf("exit %d, stderr %q", code, errOut)
+	}
+}
+
 func TestRunChangedWidensWhenTheExplicitConfigFileChanges(t *testing.T) {
 	for name, spelling := range map[string]func(dir string) string{
 		"relative":          func(string) string { return "ci/custom.toml" },
@@ -119,6 +128,57 @@ func TestRunChangedWidensWhenTheExplicitConfigFileChanges(t *testing.T) {
 				t.Errorf("summary:\n%s\n%s", out, errOut)
 			}
 		})
+	}
+}
+
+func TestRunChangedWidensOnTheRuleSourcesTheConfigurationNames(t *testing.T) {
+	cases := []struct {
+		name, config, changed, want string
+		extra                       map[string]string
+	}{
+		{"sgconfig.yml", "", "sgconfig.yml", "widened: sgconfig.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n"}},
+		{"an ast-grep rule directory", "", "rules/r.yml", "widened: rules/r.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n", "rules/r.yml": "id: r\n"}},
+		{"an ast-grep test directory", "", "rule-tests/r-test.yml", "widened: rule-tests/r-test.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\ntestConfigs:\n  - testDir: rule-tests\n", "rule-tests/r-test.yml": "id: r\n"}},
+		{"the documentation directory", "docs_dir = \"pages\"\n", "pages/x.md", "widened: pages/x.md changed", map[string]string{"pages/x.md": "# x\n"}},
+		{"the analyzer module", "[analyzers]\nmodule = \"tools/rules\"\ndriver = \"./driver\"\n", "tools/rules/notes.txt", "widened: tools/rules/notes.txt changed", map[string]string{"tools/rules/go.mod": "module example.com/rules\n", "tools/rules/r.go": "package rules\n"}},
+		{"the driver package of the root module", "[analyzers]\ndriver = \"./internal/qa/driver/...\"\n", "internal/qa/driver/notes.txt", "widened: internal/qa/driver/notes.txt changed", map[string]string{"internal/qa/driver/main.go": "package main\n"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CI", "")
+			dir := module(t, tc.config)
+			for rel, content := range tc.extra {
+				writeIn(t, dir, rel, content)
+			}
+			writeIn(t, dir, "other/other.go", "package other\n")
+			gitIn(t, dir, "init")
+			gitIn(t, dir, "add", "-A")
+			gitIn(t, dir, "commit", "-m", "initial")
+			edited := "changed\n"
+			if tc.changed == "sgconfig.yml" {
+				edited = tc.extra["sgconfig.yml"] + "# edited\n"
+			}
+			writeIn(t, dir, tc.changed, edited)
+			_, out, errOut := runWith(&recorder{}, "--root", dir, "run", "--changed")
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("summary lacks %q:\n%s\n%s", tc.want, out, errOut)
+			}
+		})
+	}
+}
+
+func TestRunChangedDoesNotWidenOnADirectoryNamedQaAlone(t *testing.T) {
+	t.Setenv("CI", "")
+	dir := module(t, "")
+	writeIn(t, dir, "qa/notes.md", "n\n")
+	writeIn(t, dir, "other/other.go", "package other\n")
+	gitIn(t, dir, "init")
+	gitIn(t, dir, "add", "-A")
+	gitIn(t, dir, "commit", "-m", "initial")
+	writeIn(t, dir, "qa/notes.md", "changed\n")
+	_, out, errOut := runWith(&recorder{}, "--root", dir, "run", "--changed")
+	if strings.Contains(out, "widened") {
+		t.Errorf("a file under qa/ that nothing configured widened the run:\n%s\n%s", out, errOut)
 	}
 }
 
