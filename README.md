@@ -31,7 +31,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 |           | `suppression`    | every route that silences a defence without a record entry (`gqaci.suppression.unrecorded`)                                                                                         |
 |           | `summary`        | agent summary freshness (`gqaci.summary.stale`)                                                                                                                                     |
 |           | `docs`           | every listed identifier resolves to documentation (`gqaci.docs.dangling`), every page documents a listed identifier (`gqaci.docs.orphan`)                                           |
-|           | `ast-grep`       | syntactic rules: the project's `sgconfig.yml` rules, then the bundled `gqaci.ast.*` pack; every project rule has an id (`gqaci.rules.unnamed`) and a proof (`gqaci.rules.untested`) |
+|           | `ast-grep`       | syntactic rules: the project's `sgconfig.yml` rules, then the bundled `gqaci.ast.*` pack (whatever it holds; `go-qa rules` lists it); every project rule has an id (`gqaci.rules.unnamed`) and a proof (`gqaci.rules.untested`) |
 |           | `golangci`       | golangci-lint over a strict bundled baseline; every finding prints its linter (and check code)                                                                                      |
 |           | `analyzers`      | `go/analysis` analyzers through `go vet -vettool`: the bundled `gqaci_sensitive_format` and the project's own driver; every finding prints its analyzer name                        |
 |           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                           |
@@ -75,9 +75,11 @@ A changed file under a `testdata` directory runs the tests of the package that o
 (not its importers); a changed file a package embeds (`go:embed`) runs that package and its
 importers. Any other non-Go file selects no package.
 
-A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, anything under
-`qa/`, the project record or the configuration file widens the run to everything, and the summary
-says why. So does a changed `.go` file whose package no longer exists. With no changed files the
+A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, the project
+record, the configuration file or a rule source widens the run to everything, and the summary says
+why. A rule source is whatever the configuration names: `sgconfig.yml`, its rule and test
+directories, `docs_dir`, and the analyzer module (`analyzers.module`, else the directory of
+`analyzers.driver`). Nothing is widened by its directory name alone. So does a changed `.go` file whose package no longer exists. With no changed files the
 run says so, skips what is scoped, runs the repo-wide defences and exits 0 if they pass. Because
 the scope is narrower, the checks that need a whole-project view (a record exception that
 licensed nothing is stale) do not speak in a narrowed run. The run summary opens with the mode
@@ -120,7 +122,8 @@ and a red proof.
 
 1. A `golang.org/x/tools/go/analysis` analyzer, for anything that needs types, scope or flow. The
    project keeps its analyzers in a small `main` package (a driver) and names it in
-   `[analyzers] driver`; go-qa runs it through `go vet -vettool`, prints each finding under the
+   `[analyzers] driver` (and, when it lives in a nested module so that its dependencies stay out of
+   the project's own `go.mod`, `[analyzers] module`); go-qa runs it through `go vet -vettool`, prints each finding under the
    analyzer name and applies the project record. Prove each analyzer with `analysistest` against a
    `testdata` fixture. See [docs/analyzers.md](docs/analyzers.md).
 2. An ast-grep rule, for a cheap single-file syntactic check, in the project's `sgconfig.yml` rule
@@ -203,6 +206,7 @@ bundled = true               # run the bundled gqaci.ast.* pack beside the proje
 
 [analyzers]
 # driver = "./internal/qa/vetdriver"  # your analyzer driver package; unset = go-qa is the vet tool
+# module = "qa"                       # the nested module (own go.mod) holding the driver; unset = the root module
 
 [coverage]
 fail_under_statements = 80   # percent of statements covered, 0 to 100
@@ -245,7 +249,8 @@ max_count = 1
 
 Paths in the file (`record`, `docs_dir`, `summary.file`, `modules`) must be relative and stay
 inside the root; each `modules` entry must hold a `go.mod`; `analyzers.driver` is a package of the
-project written like `./internal/qa/driver`. `[[stage]]` and `[[resolver]]` are described in
+module written like `./internal/qa/driver`, and `analyzers.module` (a relative directory holding a
+`go.mod`) says which module that is when the rules live in a nested one. `[[stage]]` and `[[resolver]]` are described in
 [docs/stages.md](docs/stages.md).
 
 ## Installing

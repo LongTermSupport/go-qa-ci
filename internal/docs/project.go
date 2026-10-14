@@ -76,7 +76,7 @@ func projectAnalyzers(ctx context.Context, root string, cfg config.Config) ([]st
 		return nil, nil
 	}
 	var ids []string
-	err := vet.WithAnalyzers(ctx, root, cfg.Analyzers.Driver, func(_ vet.Tool, found []vet.Analyzer) error {
+	err := vet.WithAnalyzers(ctx, cfg.Analyzers.BuildDir(root), cfg.Analyzers.Driver, func(_ vet.Tool, found []vet.Analyzer) error {
 		for _, a := range found {
 			ids = append(ids, a.Name)
 		}

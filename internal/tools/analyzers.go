@@ -23,7 +23,7 @@ func (e Executor) runAnalyzers() pipeline.Outcome {
 		return e.fail("%s: %v", e.Ctx.Config.Record.Path, err)
 	}
 	ctx := context.Background()
-	tool, cleanup, err := vet.Resolve(ctx, e.Ctx.Root, e.Ctx.Config.Analyzers.Driver)
+	tool, cleanup, err := vet.Resolve(ctx, e.Ctx.Config.Analyzers.BuildDir(e.Ctx.Root), e.Ctx.Config.Analyzers.Driver)
 	if err != nil {
 		return e.fail("%v", err)
 	}

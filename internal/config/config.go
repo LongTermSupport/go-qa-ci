@@ -2,7 +2,11 @@
 // unknown keys rejected so that a misspelt setting can never silently do nothing.
 package config
 
-import "github.com/LongTermSupport/go-qa-ci/internal/stage"
+import (
+	"path/filepath"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/stage"
+)
 
 // DefaultPath is the project configuration file, relative to the root.
 const DefaultPath = "qa/go-qa.toml"
@@ -47,10 +51,22 @@ type Resolver struct {
 
 // Analyzers configures the analyzers detector.
 type Analyzers struct {
-	// Driver is the project's analyzer driver: a package pattern inside the root, "./..." style,
-	// whose main calls driver.Main with the project's analyzers. Empty means go-qa itself is the
-	// vet tool, with the analyzers bundled in it.
+	// Driver is the project's analyzer driver: a package pattern inside Module (the root when
+	// Module is empty), "./..." style, whose main calls driver.Main with the project's analyzers.
+	// Empty means go-qa itself is the vet tool, with the analyzers bundled in it.
 	Driver string `toml:"driver"`
+	// Module is the directory, relative to the root, of the Go module holding the driver. Set it
+	// when the project's rules live in a nested module, so the dependencies they bring stay out of
+	// the go.mod of the project's own binaries. Empty means the driver is in the root module.
+	Module string `toml:"module"`
+}
+
+// BuildDir is the directory the driver is built in: the module's, or the root.
+func (a Analyzers) BuildDir(root string) string {
+	if a.Module == "" {
+		return root
+	}
+	return filepath.Join(root, filepath.FromSlash(a.Module))
 }
 
 // RecordPolicy is the [record] table: where the project record lives and how large it may grow.

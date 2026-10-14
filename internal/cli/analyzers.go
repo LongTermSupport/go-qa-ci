@@ -15,7 +15,7 @@ const analyzerSource = "analyzer help"
 // analyzerDoc returns the documentation a vet tool prints for id when id is one of its analyzers.
 func analyzerDoc(rootPath string, cfg config.Config, id string) (text string, found bool, err error) {
 	ctx := context.Background()
-	err = vet.WithAnalyzers(ctx, rootPath, cfg.Analyzers.Driver, func(tool vet.Tool, analyzers []vet.Analyzer) error {
+	err = vet.WithAnalyzers(ctx, cfg.Analyzers.BuildDir(rootPath), cfg.Analyzers.Driver, func(tool vet.Tool, analyzers []vet.Analyzer) error {
 		if !slices.ContainsFunc(analyzers, func(a vet.Analyzer) bool { return a.Name == id }) {
 			return nil
 		}

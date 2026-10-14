@@ -171,6 +171,9 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		{"absolute analyzers driver", "[analyzers]\ndriver = \"/usr/lib/driver\"\n", []string{"analyzers.driver"}},
 		{"escaping analyzers driver", "[analyzers]\ndriver = \"../driver\"\n", []string{"analyzers.driver"}},
 		{"analyzers driver not a relative package", "[analyzers]\ndriver = \"example.com/other/driver\"\n", []string{"analyzers.driver", "./"}},
+		{"absolute analyzers module", "[analyzers]\nmodule = \"/usr/lib/qa\"\ndriver = \"./driver\"\n", []string{"analyzers.module"}},
+		{"escaping analyzers module", "[analyzers]\nmodule = \"../qa\"\ndriver = \"./driver\"\n", []string{"analyzers.module"}},
+		{"analyzers module without go.mod", "[analyzers]\nmodule = \"qa\"\ndriver = \"./driver\"\n", []string{"analyzers.module", "go.mod"}},
 		{"unknown analyzers key", "[analyzers]\ndrivers = \"./x\"\n", []string{"analyzers.drivers"}},
 		{"not toml", "this is = = not toml\n", []string{config.DefaultPath}},
 		{"table spelt in another case", "[Tools]\nfmt = false\n", []string{"Tools", "tools"}},
@@ -208,6 +211,31 @@ func TestAnalyzersDriverIsAPackageInsideTheRoot(t *testing.T) {
 	}
 	if got.Analyzers.Driver != "./internal/qa/vetdriver" || config.Default().Analyzers.Driver != "" {
 		t.Errorf("driver = %q, default %q", got.Analyzers.Driver, config.Default().Analyzers.Driver)
+	}
+}
+
+func TestAnalyzersModuleNamesTheNestedModuleHoldingTheDriver(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "qa/go.mod", "module example.com/qa\n")
+	writeFile(t, dir, config.DefaultPath, "[analyzers]\nmodule = \"qa\"\ndriver = \"./driver\"\n")
+	got, err := config.Load(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Analyzers.Module != "qa" || got.Analyzers.BuildDir(dir) != filepath.Join(dir, "qa") {
+		t.Errorf("module = %q, build dir %q", got.Analyzers.Module, got.Analyzers.BuildDir(dir))
+	}
+	if config.Default().Analyzers.BuildDir(dir) != dir {
+		t.Error("with no module the driver builds in the root")
+	}
+}
+
+func TestAnalyzersModuleNeedsADriver(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "qa/go.mod", "module example.com/qa\n")
+	writeFile(t, dir, config.DefaultPath, "[analyzers]\nmodule = \"qa\"\n")
+	if _, err := config.Load(dir, ""); err == nil || !strings.Contains(err.Error(), "analyzers.module") {
+		t.Errorf("a module with no driver was accepted: %v", err)
 	}
 }
 
