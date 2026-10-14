@@ -63,7 +63,7 @@ func TestExecutorRecordFailsOnAMalformedFileWithTheReason(t *testing.T) {
 
 func TestExecutorStillFailsUnbuiltToolsHonestly(t *testing.T) {
 	exec, stderr := executorFor(t, "")
-	out := exec.Run(stepNamed(t, "test"))
+	out := exec.Run(stepNamed(t, "summary"))
 	if out.Kind != pipeline.KindFailed || out.Reason != "not implemented yet" || stderr.Len() != 0 {
 		t.Errorf("got %+v, %q", out, stderr)
 	}

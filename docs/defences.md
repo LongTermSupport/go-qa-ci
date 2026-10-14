@@ -51,3 +51,5 @@ These are gaps, not claims (TOOLING-SPEC 9.2):
   record as identifiers the project can see. A page for any other project rule is reported as an
   orphan until the listing feeds the detector.
 - Project pages are checked for existence and naming, not for the shape of their content.
+- Advisory identifiers (`GO-YYYY-NNNN`, from `vuln`) and `deadcode` have no page yet; see
+  `docs/runners.md`.

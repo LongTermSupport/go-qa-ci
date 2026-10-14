@@ -126,6 +126,8 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		{"unknown tier", "[record.trust]\nmodels = { x = \"cosmic\" }\n", []string{"cosmic"}},
 		{"record of wrong type", "record = 5\n", []string{"record", "path or a table"}},
 		{"coverage above 100", "[coverage]\nfail_under_statements = 101\n", []string{"fail_under_statements", "100"}},
+		{"efficacy above 100", "[mutants]\nthreshold_efficacy = 101\n", []string{"threshold_efficacy", "100"}},
+		{"efficacy negative", "[mutants]\nthreshold_efficacy = -1\n", []string{"threshold_efficacy"}},
 		{"coverage negative", "[coverage]\nfail_under_statements = -1\n", []string{"fail_under_statements"}},
 		{"max_per_rule above max_total", "[record]\nmax_total = 2\nmax_per_rule = 3\n", []string{"max_per_rule", "max_total"}},
 		{"max_policy above max_per_rule", "[record]\nmax_policy = 4\n", []string{"max_policy", "max_per_rule"}},

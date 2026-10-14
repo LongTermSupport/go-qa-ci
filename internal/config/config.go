@@ -132,6 +132,8 @@ type Mutants struct {
 	Mode MutantsMode `toml:"mode"`
 	// Base is the git ref diff mode compares against.
 	Base string `toml:"base"`
+	// ThresholdEfficacy is the least percentage of mutants the tests must kill.
+	ThresholdEfficacy int `toml:"threshold_efficacy"`
 }
 
 // MutantsMode selects which code is mutated.
@@ -201,7 +203,7 @@ func Default() Config {
 		},
 		AstGrep:  AstGrep{Bundled: true},
 		Coverage: Coverage{FailUnderStatements: 80},
-		Mutants:  Mutants{Mode: MutantsOff, Base: "origin/main"},
+		Mutants:  Mutants{Mode: MutantsOff, Base: "origin/main", ThresholdEfficacy: 100},
 	}
 }
 

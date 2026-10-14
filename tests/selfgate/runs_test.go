@@ -10,9 +10,9 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
 
-// selfGateTools are the tools whose rules are proven active: the formatter, the golangci-lint
-// detector, the suppression detector and the analyzers detector.
-var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers"}
+// selfGateTools are the tools proven active in the self-gate: the formatter, the golangci-lint,
+// suppression, analyzers and deadcode detectors, and the vuln, mod, test and coverage runners.
+var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers", "deadcode", "vuln", "mod", "test", "coverage"}
 
 // disabledSelfGateTools names the proven tools that a plain `go-qa run` would not execute.
 func disabledSelfGateTools(cfg config.Tools) []string {
@@ -40,7 +40,7 @@ func loadOwnConfig(t *testing.T) config.Config {
 }
 
 // The self-gate analyses the toolchain with the tools the configuration leaves on, so switching
-// fmt, golangci or suppression off in qa/go-qa.toml must fail the build.
+// any proven tool off in qa/go-qa.toml must fail the build.
 func TestSelfGateRunsTheFormatterAndGolangci(t *testing.T) {
 	t.Parallel()
 	if off := disabledSelfGateTools(loadOwnConfig(t).Tools); len(off) != 0 {
@@ -61,6 +61,16 @@ func TestSelfGateToolCheckDetectsASwitchedOffTool(t *testing.T) {
 			cfg.Suppression = false
 		case "analyzers":
 			cfg.Analyzers = false
+		case "deadcode":
+			cfg.Deadcode = false
+		case "vuln":
+			cfg.Vuln = false
+		case "mod":
+			cfg.Mod = false
+		case "test":
+			cfg.Test = false
+		case "coverage":
+			cfg.Coverage = false
 		}
 		if off := disabledSelfGateTools(cfg); !slices.Equal(off, []string{name}) {
 			t.Errorf("switching %s off reported %v", name, off)

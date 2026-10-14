@@ -3,7 +3,8 @@
 A Defence Before Fix (DBF) Toolchain for Go modules. Work in progress: no conformance to the DBF
 Tooling Specification is claimed. No declaration exists yet; one is added when the Toolchain has
 something to declare. Known gaps are recorded as they are found (TOOLING-SPEC 9.2), currently in
-`docs/golangci.md`, `docs/defences.md`, `docs/suppression.md` and `docs/analyzers.md`.
+`docs/golangci.md`, `docs/defences.md`, `docs/suppression.md`, `docs/analyzers.md` and
+`docs/runners.md`.
 
 ## Status
 
@@ -15,7 +16,8 @@ to bundled or project pages (`go-qa rule-doc`, `go-qa docs-check`, the `docs` to
 golangci-lint, which must be installed (see `docs/golangci.md`). The `suppression` tool fails every
 route that silences a defence without an entry in the project record (see `docs/suppression.md`).
 The `analyzers` tool runs `go/analysis` analyzers through `go vet -vettool` and prints each finding
-under the analyzer name (see `docs/analyzers.md`; no analyzer is bundled yet). Every other tool
+under the analyzer name (see `docs/analyzers.md`; no analyzer is bundled yet). The runners `vuln`, `mod`, `test`, `coverage` and `mutants` and the `deadcode` detector
+run the Go toolchain, govulncheck, deadcode and gremlins (see `docs/runners.md`). Every other tool
 engine is not built yet, so `go-qa run` reports each of them as failed (not implemented yet); nothing is claimed
 to pass. See `docs/PUBLICATION-CHECKLIST.md` before this repository is made public.
 
@@ -90,6 +92,7 @@ fail_under_statements = 80   # percent of statements covered, 0 to 100
 [mutants]
 mode = "off"                 # off | diff | full
 base = "origin/main"         # diff mode compares against the merge base with this ref
+threshold_efficacy = 100     # percent of mutants the tests must kill, 0 to 100
 ```
 
 The record policy can be a `[record]` table instead of the `record = "..."` shorthand:

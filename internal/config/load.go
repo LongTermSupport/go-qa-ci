@@ -107,6 +107,9 @@ func (c Config) problems(root string) []string {
 	if c.Coverage.FailUnderStatements < 0 || c.Coverage.FailUnderStatements > maxPercent {
 		problems = append(problems, fmt.Sprintf("coverage.fail_under_statements must be between 0 and %d", maxPercent))
 	}
+	if c.Mutants.ThresholdEfficacy < 0 || c.Mutants.ThresholdEfficacy > maxPercent {
+		problems = append(problems, fmt.Sprintf("mutants.threshold_efficacy must be between 0 and %d", maxPercent))
+	}
 	if !c.Mutants.Mode.Valid() {
 		problems = append(problems, fmt.Sprintf("mutants.mode %q is unknown (want off, diff or full)", c.Mutants.Mode))
 	}

@@ -10,9 +10,5 @@ claude-sonnet = "medium"
 
 [tools]
 summary = false
-deadcode = false
-vuln = false
-mod = false
-test = false
-coverage = false
+# Mutation testing is off until gremlins is part of the pinned toolchain install.
 mutants = false

@@ -217,8 +217,8 @@ func TestRunRejectsBadUsage(t *testing.T) {
 }
 
 func TestDefaultExecutorNeverClaimsAToolPassed(t *testing.T) {
-	code, out, _ := run("--root", module(t, ""), "run", "-t", "test")
-	if code != 1 || !strings.Contains(out, "test         FAILED (not implemented") {
+	code, out, _ := run("--root", module(t, ""), "run", "-t", "summary")
+	if code != 1 || !strings.Contains(out, "summary      FAILED (not implemented") {
 		t.Errorf("exit %d, stdout %q; want a failure naming the tool", code, out)
 	}
 }

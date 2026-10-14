@@ -7,6 +7,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/astgreptest"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/faketool"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 	"github.com/LongTermSupport/go-qa-ci/internal/vettest"
@@ -17,6 +18,7 @@ import (
 func TestMain(m *testing.M) {
 	vettest.Serve()
 	astgreptest.Serve()
+	faketool.Main()
 	os.Exit(m.Run())
 }
 

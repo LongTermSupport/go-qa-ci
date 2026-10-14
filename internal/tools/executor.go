@@ -38,6 +38,18 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 		return e.runGolangci()
 	case "analyzers":
 		return e.runAnalyzers()
+	case "deadcode":
+		return e.runDeadcode()
+	case "vuln":
+		return e.runVuln()
+	case "mod":
+		return e.runMod()
+	case "test":
+		return e.runTest()
+	case "coverage":
+		return e.runCoverage()
+	case "mutants":
+		return e.runMutants()
 	default:
 		return Pending{}.Run(step)
 	}
