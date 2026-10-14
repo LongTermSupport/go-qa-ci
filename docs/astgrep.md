@@ -62,7 +62,7 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
 - The tests that need the real binary (`tests/astgrep`: each rule fires on a violating Go snippet
   and stays quiet on a clean one, the project's rule tests pass, an ignore comment silences a rule,
   a project rule and a bundled rule are reported in one run) are skipped when it is not on `PATH`.
-  CI does not install ast-grep yet, so CI skips them; they run wherever the binary is installed.
+  CI does not install ast-grep yet, so CI skips them; they run wherever the binary is installed (verified with ast-grep 0.50.0).
   The detector's own logic is tested everywhere with a stand-in executable
   (`internal/astgreptest`).
 - A project rule's identifier does not yet resolve to a page through `go-qa rule-doc`: the defence
@@ -70,3 +70,16 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
   project record as identifiers the project can see.
 - `ast-grep` is not invoked with a pinned version check; the version in use is whatever is on
   `PATH`.
+
+## Writing Go call patterns
+
+A bare pattern such as `fmt.Println($$$ARGS)` never matches Go: tree-sitter-go reads it as a type
+conversion, not a call, so the rule silently never fires and `ast-grep test` then fails the
+project. Give the pattern a context and select the call:
+
+```yaml
+rule:
+  pattern:
+    context: "func t() { fmt.Println($$$ARGS) }"
+    selector: call_expression
+```

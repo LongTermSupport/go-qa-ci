@@ -8,6 +8,7 @@ package astgrep_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +35,7 @@ func requireAstGrep(t *testing.T) astgrep.Runner {
 }
 
 const (
-	printlnRule = "id: no-fmt-println\nlanguage: go\nseverity: error\nmessage: print through the logger\nrule:\n  pattern: fmt.Println($$$ARGS)\n"
+	printlnRule = "id: no-fmt-println\nlanguage: go\nseverity: error\nmessage: print through the logger\nrule:\n  pattern:\n    context: \"func t() { fmt.Println($$$ARGS) }\"\n    selector: call_expression\n"
 	printlnCase = "id: no-fmt-println\nvalid:\n  - |\n    package p\n    func f() { _ = 1 }\ninvalid:\n  - |\n    package p\n    func f() { fmt.Println(1) }\n"
 	tempRule    = "id: gqaci.ast.hardcoded-temp-path\nlanguage: go\nseverity: error\nmessage: use os.TempDir or t.TempDir\n" +
 		"note: \"go-qa rule-doc gqaci.ast.hardcoded-temp-path\"\nrule:\n  kind: interpreted_string_literal\n  regex: ^\"/(var/)?tmp(/[^\"]*)?\"$\n"
@@ -170,7 +171,11 @@ func TestEveryCleanSnippetIsQuiet(t *testing.T) {
 
 func TestAnIgnoreCommentSilencesARule(t *testing.T) {
 	runner := requireAstGrep(t)
-	source := "package p\n\nimport \"fmt\"\n\nfunc f() {\n\t// ast-grep-ignore: no-fmt-println\n\tfmt.Println(1)\n}\n"
+	const call = "package p\n\nimport \"fmt\"\n\nfunc f() {\n%s\tfmt.Println(1)\n}\n"
+	if ids := scanIDs(t, runner, printlnRule, fmt.Sprintf(call, "")); len(ids) != 1 {
+		t.Fatalf("positive control: the call without the comment must fire once, got %v", ids)
+	}
+	source := fmt.Sprintf(call, "\t// ast-grep-ignore: no-fmt-println\n")
 	if ids := scanIDs(t, runner, printlnRule, source); len(ids) != 0 {
 		t.Errorf("the ignore comment did not silence the rule: %v", ids)
 	}
