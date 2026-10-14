@@ -245,7 +245,7 @@ func TestAStageCanBeSelectedByNameAndAnUnknownNameListsStagesToo(t *testing.T) {
 	cfg := config.Default()
 	cfg.Stages = []stage.Stage{webStage()}
 	steps, err := tools.Select([]string{"weblint"}, cfg)
-	if err != nil || len(steps) != 1 || steps[0].Name != "weblint" || steps[0].Phase != pipeline.PhaseDetectors || steps[0].Rank < pipeline.StageRank {
+	if err != nil || len(steps) != 2 || steps[0].Name != "weblint" || steps[1].Name != "record" || steps[0].Phase != pipeline.PhaseDetectors || steps[0].Rank < pipeline.StageRank {
 		t.Errorf("steps = %+v, %v", steps, err)
 	}
 	_, err = tools.Select([]string{"nonesuch"}, cfg)

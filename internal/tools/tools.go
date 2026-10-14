@@ -56,8 +56,9 @@ func FromName(name string) (Tool, bool) {
 }
 
 // Select returns the steps a run executes: the enabled tools and every project stage when names is
-// empty, otherwise the tools and stages named (enabled or not), deduplicated. An unknown name is an
-// error listing the known ones.
+// empty, otherwise the tools and stages named (enabled or not), deduplicated, plus the record
+// check when a tool that applies the record is named. An unknown name is an error listing the known
+// ones.
 func Select(names []string, cfg config.Config) ([]pipeline.Step, error) {
 	catalogue := Catalogue()
 	var steps []pipeline.Step
@@ -91,7 +92,21 @@ func Select(names []string, cfg config.Config) ([]pipeline.Step, error) {
 		}
 		steps = append(steps, step)
 	}
-	return steps, nil
+	return withRecordCheck(steps, catalogue, cfg), nil
+}
+
+// withRecordCheck adds the record tool to a named selection that applies the record, when the
+// configuration switches it on: every tool but fmt reads the record, and an invalid entry must fail
+// the run before it can license anything, whichever tools `-t` names.
+func withRecordCheck(steps []pipeline.Step, catalogue []Tool, cfg config.Config) []pipeline.Step {
+	rank := indexOf(catalogue, "record")
+	if !cfg.Tools.Record || slices.ContainsFunc(steps, func(s pipeline.Step) bool { return s.Name == "record" }) {
+		return steps
+	}
+	if !slices.ContainsFunc(steps, func(s pipeline.Step) bool { return s.Name != "fmt" }) {
+		return steps
+	}
+	return append(steps, catalogue[rank].Step(rank))
 }
 
 // stageStep is the step of the project stage declared at position i; its rank follows every

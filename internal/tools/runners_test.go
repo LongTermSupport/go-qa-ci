@@ -103,6 +103,7 @@ func TestPassingTestsPass(t *testing.T) {
 func TestATestFailureStopsLaterRunners(t *testing.T) {
 	exec, _ := executorFor(t, "")
 	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": failingTest})
+	exec.Ctx.Config.Tools.Record = false
 	steps, err := tools.Select([]string{"test", "coverage", "mutants"}, exec.Ctx.Config)
 	if err != nil {
 		t.Fatal(err)

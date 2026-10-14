@@ -43,7 +43,9 @@ func main() { driver.Main(rules.NoPanic, rules.NoGlobals) }
 `driver.Main` wraps `unitchecker.Main` and never returns. It always registers the bundled analyzers
 beside the ones it is given, so a project driver cannot switch a Blocking defence off by leaving it
 out; to configure the bundled analyzer, pass `sensitiveformat.New(sensitiveformat.Config{...})`,
-which replaces the bundled one of the same name.
+which replaces the bundled one of the same name. `New` panics on a config with no pattern (an empty
+list marks no type sensitive, the case the `-patterns` flag refuses), and `driver.Main` panics on
+any other analyzer that takes the bundled name, so neither route leaves the defence off.
 
 Name analyzers with identifier characters only (`project_nopanic`), because the analyzer name is the
 identifier printed with every finding and the key of the record entry.

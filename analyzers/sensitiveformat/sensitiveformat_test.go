@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	"github.com/LongTermSupport/go-qa-ci/analyzers/sensitiveformat"
@@ -58,5 +59,27 @@ func TestDefaultPatternsAreNotEmpty(t *testing.T) {
 	}
 	if !slices.Contains(sensitiveformat.DefaultConfig().Patterns, "password") {
 		t.Error("password is not a default pattern")
+	}
+}
+
+func TestNewRefusesAnEmptyPatternListBecauseItSwitchesTheRuleOff(t *testing.T) {
+	for _, cfg := range []sensitiveformat.Config{{}, {Patterns: []string{" ", ""}}} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("New(%+v) did not panic", cfg)
+				}
+			}()
+			sensitiveformat.New(cfg)
+		}()
+	}
+}
+
+func TestBuiltRecognisesOnlyAnalyzersMadeByNew(t *testing.T) {
+	if !sensitiveformat.Built(sensitiveformat.Analyzer) || !sensitiveformat.Built(sensitiveformat.New(sensitiveformat.Config{Patterns: []string{"a"}})) {
+		t.Error("an analyzer made by New is not recognised")
+	}
+	if sensitiveformat.Built(&analysis.Analyzer{Name: sensitiveformat.Name}) || sensitiveformat.Built(nil) {
+		t.Error("an impostor is recognised")
 	}
 }

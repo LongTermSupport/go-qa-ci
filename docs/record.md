@@ -163,7 +163,9 @@ decider in `qa/go-qa.toml` is a placeholder to replace before the first public r
 The matcher that detectors use to apply the record also matches an entry that validation rejects
 (a glob without `policy = true`, say). That is deliberate and relies on an ordering: the `record`
 tool is a detector and fails the run with `gqaci.record.invalid` before any runner starts, so an
-invalid entry never licenses anything in a green run. An entry whose `added_by_model` maps to no tier
+invalid entry never licenses anything in a green run. A run that names tools with `-t` still
+includes the `record` tool whenever it is switched on and any tool other than `fmt` is named; with
+`record = false` in the configuration the entries are not validated on any run. An entry whose `added_by_model` maps to no tier
 is likewise invalid, and counts toward no tier's `max_count` while being reviewed against the lowest
 tier's horizon.
 

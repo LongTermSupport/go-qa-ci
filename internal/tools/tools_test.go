@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -111,5 +112,57 @@ func TestSelectUnknownNameListsTheKnownOnes(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q lacks %q", err, want)
 		}
+	}
+}
+
+func stepNames(steps []pipeline.Step) []string {
+	names := make([]string, len(steps))
+	for i, step := range steps {
+		names[i] = step.Name
+	}
+	return names
+}
+
+func TestSelectNamingADetectorStillRunsTheRecordCheckFirst(t *testing.T) {
+	steps, err := tools.Select([]string{"suppression"}, config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := stepNames(steps)
+	if len(got) != 2 || !slices.Contains(got, "record") || !slices.Contains(got, "suppression") {
+		t.Errorf("steps = %v", got)
+	}
+	slices.SortFunc(steps, func(a, b pipeline.Step) int { return a.Rank - b.Rank })
+	if steps[0].Name != "record" {
+		t.Errorf("record does not rank before suppression: %v", steps)
+	}
+}
+
+func TestSelectDoesNotDuplicateARecordCheckThatWasNamed(t *testing.T) {
+	steps, err := tools.Select([]string{"record", "suppression"}, config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stepNames(steps); len(got) != 2 {
+		t.Errorf("steps = %v", got)
+	}
+}
+
+func TestSelectLeavesFormatAloneAndHonoursTheRecordSwitch(t *testing.T) {
+	steps, err := tools.Select([]string{"fmt"}, config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stepNames(steps); len(got) != 1 {
+		t.Errorf("fmt alone selected %v", got)
+	}
+	cfg := config.Default()
+	cfg.Tools.Record = false
+	steps, err = tools.Select([]string{"suppression"}, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stepNames(steps); len(got) != 1 {
+		t.Errorf("record switched off but selected %v", got)
 	}
 }

@@ -104,7 +104,7 @@ func TestRunToolSelectionDedupesAndSorts(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d", code)
 	}
-	if want := []string{"fmt", "test", "mutants"}; !reflect.DeepEqual(rec.ran, want) {
+	if want := []string{"fmt", "record", "test", "mutants"}; !reflect.DeepEqual(rec.ran, want) {
 		t.Errorf("ran %v, want %v", rec.ran, want)
 	}
 }

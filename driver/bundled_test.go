@@ -25,9 +25,19 @@ func TestTheBundledAnalyzerIsRegisteredWhenTheProjectNamesNone(t *testing.T) {
 }
 
 func TestAConfiguredBundledAnalyzerReplacesTheBundledOneInsteadOfDuplicatingIt(t *testing.T) {
-	configured := sensitiveformat.New(sensitiveformat.Config{})
+	configured := sensitiveformat.New(sensitiveformat.Config{Patterns: []string{"pin"}})
 	got := withBundled([]*analysis.Analyzer{configured})
 	if len(got) != 1 || got[0] != configured {
 		t.Errorf("got %v", names(got))
 	}
+}
+
+func TestAnAnalyzerThatOnlyReusesTheBundledNameIsRefused(t *testing.T) {
+	impostor := &analysis.Analyzer{Name: sensitiveformat.Name, Run: func(*analysis.Pass) (any, error) { return struct{}{}, nil }}
+	defer func() {
+		if recover() == nil {
+			t.Error("a no-op analyzer under the bundled name replaced the bundled defence")
+		}
+	}()
+	withBundled([]*analysis.Analyzer{impostor})
 }

@@ -58,8 +58,14 @@ type checker struct {
 }
 
 // New returns the analyzer configured with cfg. The configuration is also settable through the
-// -patterns and -redacting flags, whose defaults are cfg.
+// -patterns and -redacting flags, whose defaults are cfg. It panics when cfg names no pattern
+// (an empty list marks no type sensitive and would switch the rule off, which the -patterns flag
+// refuses too): a project builds its analyzers at start-up, so the mistake stops the build of the
+// driver instead of leaving the defence silently off.
 func New(cfg Config) *analysis.Analyzer {
+	if !slices.ContainsFunc(cfg.Patterns, func(p string) bool { return strings.TrimSpace(p) != "" }) {
+		panic("sensitiveformat.New: " + errEmptyList.Error())
+	}
 	settings := Config{Patterns: slices.Clone(cfg.Patterns), Redacting: slices.Clone(cfg.Redacting)}
 	analyzer := &analysis.Analyzer{
 		Name:       Name,
@@ -89,6 +95,20 @@ func New(cfg Config) *analysis.Analyzer {
 		return struct{}{}, nil
 	}
 	return analyzer
+}
+
+// Built reports whether a was returned by New, which is the only constructor that guarantees the
+// rule is switched on: an analyzer that merely carries the name Name is not this one.
+func Built(a *analysis.Analyzer) bool {
+	if a == nil || a.Name != Name {
+		return false
+	}
+	f := a.Flags.Lookup("patterns")
+	if f == nil {
+		return false
+	}
+	_, ok := f.Value.(*listFlag)
+	return ok
 }
 
 // listFlag is a comma-separated list flag.
