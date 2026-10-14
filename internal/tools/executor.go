@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/docs"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/record"
@@ -16,6 +17,8 @@ type Executor struct {
 	Ctx Context
 	// Stderr receives the findings and diagnostics of the steps.
 	Stderr io.Writer
+	// Pack is the bundled ast-grep rule pack; nil means the pack shipped inside the binary.
+	Pack *astgrep.Pack
 }
 
 // Run executes one step.
@@ -29,6 +32,8 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 		return e.runSuppression()
 	case "docs":
 		return e.runDocs()
+	case "ast-grep":
+		return e.runAstGrep()
 	case "golangci":
 		return e.runGolangci()
 	case "analyzers":

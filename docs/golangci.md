@@ -107,5 +107,5 @@ clauses of DETECTOR-SPEC, and the gaps stand:
 - staticcheck 7.1 (`//lint:ignore` cannot be disabled): the inline route is detected, not disabled.
   The `suppression` tool fails every `//lint:ignore`, `//lint:file-ignore` and `staticcheck.conf`
   removal that the record does not license; `nolintlint` covers `//nolint` only.
-- Bespoke rules (DETECTOR-SPEC 4.1) are served by the `analyzers` tool (docs/analyzers.md) and the `ast-grep` tool, which
-  is not built yet; nothing here adds a custom golangci-lint build.
+- Bespoke rules (DETECTOR-SPEC 4.1) are served by the `analyzers` tool (docs/analyzers.md) and the `ast-grep` tool
+  (docs/astgrep.md); nothing here adds a custom golangci-lint build.

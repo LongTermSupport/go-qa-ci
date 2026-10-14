@@ -10,7 +10,6 @@ claude-sonnet = "medium"
 
 [tools]
 summary = false
-ast_grep = false
 deadcode = false
 vuln = false
 mod = false

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/astgreptest"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
@@ -15,6 +16,7 @@ import (
 // analyzers detector reaches the bundled analyzers in production.
 func TestMain(m *testing.M) {
 	vettest.Serve()
+	astgreptest.Serve()
 	os.Exit(m.Run())
 }
 
