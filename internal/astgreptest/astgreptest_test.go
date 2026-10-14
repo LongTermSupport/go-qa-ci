@@ -13,7 +13,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	astgreptest.Serve()
+	if code, served := astgreptest.Serve(); served {
+		os.Exit(code)
+	}
 	os.Exit(m.Run())
 }
 

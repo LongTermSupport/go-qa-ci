@@ -13,7 +13,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	faketool.Main()
+	if code, served := faketool.Main(); served {
+		os.Exit(code)
+	}
 	os.Exit(m.Run())
 }
 
