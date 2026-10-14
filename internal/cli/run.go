@@ -18,7 +18,7 @@ import (
 )
 
 // DBFPointer is printed after a failing run: failures name a rule, the method explains why.
-const DBFPointer = "Defence Before Fix: each failure names an identifier; fix the class of defect, not only the instance.\n" +
+const DBFPointer = "Defence Before Fix: a failure that names an identifier belongs to a class of defect; fix the class, not only the instance.\n" +
 	"Method: https://defence-before-fix.github.io/"
 
 // listFlag is a repeatable string flag.
@@ -155,7 +155,7 @@ func renderRunSummary(report pipeline.Report, scope []string, diff *changed.Plan
 		fmt.Fprintf(&out, "  %-10s %-12s %s\n", result.Step.Phase, result.Step.Name, text)
 	}
 	if report.StoppedBeforeRunners {
-		out.WriteString("detectors failed: runners were not started\n")
+		out.WriteString("format or detector failed: runners were not started\n")
 	}
 	if !report.Passed {
 		out.WriteString("\n" + DBFPointer + "\n")

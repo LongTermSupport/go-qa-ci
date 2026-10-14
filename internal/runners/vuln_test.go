@@ -2,6 +2,7 @@ package runners_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,17 +23,25 @@ const stream = `{"config":{"scanner_name":"govulncheck","scan_level":"symbol"}}
 {"finding":{"osv":"GO-2000-0001","fixed_version":"v1.1.0","trace":[{"module":"example.org/dep","version":"v1.0.0","package":"example.org/dep/parse","function":"Parse","position":{"filename":"parse/parse.go","line":12}},{"module":"example.com/fixture","package":"example.com/fixture","function":"other","position":{"filename":"other.go","line":9}}]}}
 `
 
-func TestParseVulnReportsOnlyReachedVulnerabilitiesOncePerModule(t *testing.T) {
+func TestParseVulnReportsOnlyReachedVulnerabilitiesOncePerModuleAndCallSiteFile(t *testing.T) {
 	got, err := runners.ParseVuln(strings.NewReader(stream))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := finding.Finding{
-		Rule: "GO-2000-0001", Path: "main.go", Line: 5,
-		Message: "Panic in parsing: example.org/dep/parse example.org/dep@v1.0.0 is called through Parse; fixed in v1.1.0",
+	// One finding per call-site file: an exception for one file must not license the advisory in
+	// another.
+	want := []finding.Finding{
+		{
+			Rule: "GO-2000-0001", Path: "main.go", Line: 5,
+			Message: "Panic in parsing: example.org/dep/parse example.org/dep@v1.0.0 is called through Parse; fixed in v1.1.0",
+		},
+		{
+			Rule: "GO-2000-0001", Path: "other.go", Line: 9,
+			Message: "Panic in parsing: example.org/dep/parse example.org/dep@v1.0.0 is called through Parse; fixed in v1.1.0",
+		},
 	}
-	if len(got) != 1 || got[0] != want {
-		t.Errorf("got %+v, want [%+v]", got, want)
+	if !slices.Equal(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
 
@@ -54,7 +63,7 @@ func TestVulnRunsGovulncheckAsJSONOverEveryPackage(t *testing.T) {
 	log := faketool.Install(t, "govulncheck", faketool.Spec{Stdout: stream})
 	dir := t.TempDir()
 	got, err := runners.Vuln(ctx(), dir)
-	if err != nil || len(got) != 1 {
+	if err != nil || len(got) != 2 {
 		t.Fatalf("got %v, %v", got, err)
 	}
 	calls := faketool.Calls(t, log)

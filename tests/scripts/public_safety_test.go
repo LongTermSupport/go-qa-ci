@@ -219,7 +219,10 @@ func TestGitConfigDenylistRoute(t *testing.T) {
 func TestStagedScanFails(t *testing.T) {
 	f := newFixture(t)
 	out, code := scan(t, f.repo, f.denylist, "--staged")
-	assertLeaksNothing(t, out, code, "staged text line")
+	assertLeaksNothing(t, out, code, "matched at staged ")
+	if strings.Contains(out, "staged text line") {
+		t.Errorf("the location is still a diff line, not a file and line:\n%s", out)
+	}
 }
 
 func TestStdinScanFails(t *testing.T) {
@@ -433,7 +436,7 @@ func TestStagedScanSeesNonASCIIFileName(t *testing.T) {
 	trackFiles(t, f.repo, map[string]string{term + ".txt": "innocent\n"})
 	writeFile(t, f.denylist, term+"\n")
 	out, code := scan(t, f.repo, f.denylist, "--staged")
-	if code != 1 || strings.Contains(out, term) || !strings.Contains(out, "denylist line 1 matched at staged text line") {
+	if code != 1 || strings.Contains(out, term) || !strings.Contains(out, "denylist line 1 matched at staged path #") {
 		t.Fatalf("exit code = %d, want 1 with a location and no term\n%s", code, out)
 	}
 }

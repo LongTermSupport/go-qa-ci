@@ -50,8 +50,9 @@ func (f vulnFinding) reached() bool {
 	return len(f.Trace) > 0 && f.Trace[0].Function != ""
 }
 
-// ParseVuln reads a govulncheck -format json stream and returns one finding per vulnerability and
-// module whose vulnerable symbol the code calls. Vulnerabilities that are only present in a
+// ParseVuln reads a govulncheck -format json stream and returns one finding per vulnerability,
+// module and call-site file whose vulnerable symbol the code calls, so that a record exception
+// scoped to one file cannot license the advisory in another. Vulnerabilities that are only present in a
 // dependency, or in a package that is imported but not called, are not findings: the scan
 // level is symbol, so reachability decides (TOOLING-SPEC 6).
 func ParseVuln(r io.Reader) ([]finding.Finding, error) {
@@ -78,7 +79,7 @@ func ParseVuln(r io.Reader) ([]finding.Finding, error) {
 	var findings []finding.Finding
 	for _, f := range reached {
 		vulnerable := f.Trace[0]
-		key := f.OSV + "\x00" + vulnerable.Module
+		key := f.OSV + "\x00" + vulnerable.Module + "\x00" + vulnFindingOf(f, "").Path
 		if seen[key] {
 			continue
 		}

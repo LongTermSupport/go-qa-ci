@@ -25,6 +25,16 @@ func TestFindingsPrintAsJSONRelativeToTheStageDirectory(t *testing.T) {
 	}
 }
 
+func TestAFileOutsideTheStageDirectoryButInsideTheProjectIsAccepted(t *testing.T) {
+	found, err := stage.ParseFindings(`[{"file":"../shared/b.ts","line":2,"rule":"r","message":"m"}]`, "web")
+	if err != nil || len(found) != 1 || found[0].Path != "shared/b.ts" {
+		t.Fatalf("got %+v, %v", found, err)
+	}
+	if _, err := stage.ParseFindings(`[{"file":"../../etc/a","line":2,"rule":"r","message":"m"}]`, "web"); err == nil {
+		t.Error("a file that leaves the project was accepted")
+	}
+}
+
 func TestFindingsThatAreNotTheContractAreRejected(t *testing.T) {
 	for name, json := range map[string]string{
 		"not json":        "not json",

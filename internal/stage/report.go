@@ -50,7 +50,7 @@ func decodeStrict(data string, v any) error {
 
 // ParseFindings reads the JSON list a stage printed: {"file", "line", "rule", "message", "note"?,
 // "column"?} per finding, with file relative to the stage directory dir (or to the root when dir is
-// empty). The findings carry root-relative, slash-separated paths; a note is appended to the
+// empty); a file may leave dir (../shared/b.ts) as long as it stays inside the project. The findings carry root-relative, slash-separated paths; a note is appended to the
 // message in parentheses.
 func ParseFindings(data, dir string) ([]finding.Finding, error) {
 	var raw []rawFinding
@@ -64,8 +64,8 @@ func ParseFindings(data, dir string) ([]finding.Finding, error) {
 			return nil, fmt.Errorf("finding #%d has no `rule`", i+1)
 		case r.Message == "":
 			return nil, fmt.Errorf("finding #%d (%s) has no `message`", i+1, r.Rule)
-		case r.File == "" || !filepath.IsLocal(filepath.FromSlash(r.File)):
-			return nil, fmt.Errorf("finding #%d (%s): `file` %q must be a relative path inside the project", i+1, r.Rule, r.File)
+		case r.File == "" || path.IsAbs(r.File) || !filepath.IsLocal(filepath.FromSlash(path.Join(dir, r.File))):
+			return nil, fmt.Errorf("finding #%d (%s): `file` %q must be a relative path that stays inside the project", i+1, r.Rule, r.File)
 		case r.Line < 0:
 			return nil, fmt.Errorf("finding #%d (%s): `line` %d is negative", i+1, r.Rule, r.Line)
 		}

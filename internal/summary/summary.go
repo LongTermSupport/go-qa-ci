@@ -1,5 +1,5 @@
 // Package summary writes the active defences into a delimited region of a file agents already
-// load (TOOLING-SPEC 5.3), and judges whether that region is current. Text outside the markers is
+// load (TOOLING-SPEC 7.1 and 7.2), and judges whether that region is current. Text outside the markers is
 // never touched.
 package summary
 

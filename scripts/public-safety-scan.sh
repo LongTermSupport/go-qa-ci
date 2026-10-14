@@ -64,6 +64,7 @@ if (( ${#patterns[@]} == 0 )); then
 fi
 
 mode="${1:---tree}"
+diff_lines=0
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 text="${work}/text"
@@ -101,6 +102,16 @@ case "${mode}" in
     --staged)
         # quotePath=false keeps non-ASCII names literal, so a name is matched as it is written.
         git -C "${repo_dir}" -c core.quotePath=false diff --cached --text --unified=0 --no-color > "${text}"
+        diff_lines="$(wc -l < "${text}")"
+        # One location per scanned line, so a hit in an added line is reported as file:line of the
+        # new file; the file names appended below are reported as staged path numbers.
+        awk '
+            /^diff --git / { file = ""; line = 0; print "0\t"; next }
+            /^\+\+\+ b\// { file = substr($0, 7); print "0\t" file; next }
+            /^@@ / { match($0, /\+[0-9]+/); line = substr($0, RSTART + 1, RLENGTH - 1) + 0; print "0\t" file; next }
+            /^\+/ { print line "\t" file; line++; next }
+            { print "0\t" file }
+        ' "${text}" > "${locations}"
         git -C "${repo_dir}" -c core.quotePath=false diff --cached --name-only >> "${text}"
         ;;
     --message)
@@ -156,6 +167,19 @@ for i in "${!patterns[@]}"; do
                     where="tracked path #${file_index}:${file_line}"
                 else
                     where="${file_name}:${file_line}"
+                fi
+            elif [[ "${mode}" == "--staged" ]]; then
+                if (( line_number > diff_lines )); then
+                    where="staged path #$((line_number - diff_lines))"
+                else
+                    location="$(awk -v n="${line_number}" 'NR == n { print; exit }' "${locations}")"
+                    file_line="${location%%$'\t'*}"
+                    file_name="${location#*$'\t'}"
+                    if [[ -z "${file_name}" || "${file_line}" == 0 ]] || matches_any_pattern "${file_name}"; then
+                        where="staged diff line ${line_number}"
+                    else
+                        where="staged ${file_name}:${file_line}"
+                    fi
                 fi
             else
                 where="${mode#--} text line ${line_number}"
