@@ -19,7 +19,7 @@ func runRuleDoc(rootPath string, cfg config.Config, args []string, stdout, stder
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
 	if !found {
-		return ruleDocFromAnalyzers(rootPath, cfg, args[0], stdout, stderr)
+		return ruleDocFromAnalyzers(rootPath, cfg, strings.TrimSpace(args[0]), stdout, stderr)
 	}
 	if code := emit(stdout, ExitOK, "%s", doc.Text); code != ExitOK {
 		return code

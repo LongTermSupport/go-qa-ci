@@ -68,7 +68,12 @@ plus the working tree (so a committed change on a branch is covered).
 | `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
+| `coverage` (narrowed)                                                     | the module-wide `fail_under_statements` threshold is applied to the affected packages only, so the result can differ from the full run's |
 | `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module) |
+
+A changed file under a `testdata` directory runs the tests of the package that owns the directory
+(not its importers); a changed file a package embeds (`go:embed`) runs that package and its
+importers. Any other non-Go file selects no package.
 
 A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, anything under
 `qa/`, the project record or the configuration file widens the run to everything, and the summary
@@ -101,7 +106,8 @@ Other commands, none of which run a defence:
 | `go-qa rules [--json]`                  | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
 | `go-qa rule-doc <id>`                   | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
 | `go-qa docs-check`                      | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
-| `go-qa record check`                    | validate the project record; findings are `gqaci.record.invalid`                                                                                                            |
+| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                                                                         |
+| `go-qa record prune <number>...`        | remove the exceptions numbered as `record list` shows them, and lower the ratchet to what remains                                                                           |
 | `go-qa record list [--json]`            | every exception with its justification, enumerated like the defences                                                                                                        |
 | `go-qa record explain <rule or number>` | one exception (or every exception for a rule) in full                                                                                                                       |
 | `go-qa summary [--check]`               | write the generated defence region into `[summary] file`; `--check` fails as `gqaci.summary.stale` when it is out of date                                                   |
@@ -147,8 +153,9 @@ the scope, and a generic one ("needed for now", "legacy", "TODO") is rejected by
 check; the check cannot verify the sentence is true, which is the Owner's judgement.
 `go-qa record list` enumerates the record like the defences. An exception licenses either a
 suppression written in the source or configuration (`covers = "suppressions"`) or the findings of
-a detector at a path (`covers = "findings"`). The `suppression` tool fails every route that
-silences a defence without such an entry. The format, the exact justification rules and the
+a detector at a path (`covers = "findings"`). The `suppression` tool fails the routes that
+silence a defence without such an entry; the routes it does not see are recorded as gaps in
+[docs/suppression.md](docs/suppression.md). The format, the exact justification rules and the
 `gqaci.record.*` findings are in [docs/record.md](docs/record.md) and
 [docs/suppression.md](docs/suppression.md).
 
@@ -161,8 +168,9 @@ defaults are in "Configuration" and the mechanics in [docs/record.md](docs/recor
 
 ## Configuration
 
-`qa/go-qa.toml` (optional; unknown keys are rejected with exit code 2 and the key named). These
-are the defaults, and a test keeps this listing equal to the built-in values:
+`qa/go-qa.toml` (optional; unknown keys, and keys spelt in another case, are rejected with exit
+code 2 and the key named; record caps and review horizons cannot be negative; `--config` may be
+a path inside the root, relative or absolute). These are the defaults, and a test keeps this listing equal to the built-in values:
 
 ```toml
 record = "qa/record.toml"    # shorthand for [record] path, with the defaults below
@@ -201,7 +209,7 @@ fail_under_statements = 80   # percent of statements covered, 0 to 100
 
 [mutants]
 mode = "off"                 # off | diff | full
-base = "origin/main"         # diff mode compares against the merge base with this ref
+base = "origin/main"         # the ref diff mode hands to gremlins --diff
 threshold_efficacy = 100     # percent of mutants the tests must kill, 0 to 100
 ```
 

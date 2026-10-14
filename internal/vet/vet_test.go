@@ -122,7 +122,8 @@ func TestAnalyzersListsEveryRegisteredAnalyzerWithItsSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []vet.Analyzer{{Name: "gqaci_test", Summary: "reports calls to a function named Forbidden"}}
+	// driver.Main registers the bundled analyzer beside the given ones.
+	want := []vet.Analyzer{{Name: "gqaci_sensitive_format", Summary: "gqaci_sensitive_format forbids printing a sensitive value without redaction"}, {Name: "gqaci_test", Summary: "reports calls to a function named Forbidden"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
@@ -263,7 +264,7 @@ func TestBuildProducesAVetToolFromTheProjectDriver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []vet.Analyzer{{Name: "project_nopanic", Summary: "forbids panic"}}; !slices.Equal(listed, want) {
+	if want := []vet.Analyzer{{Name: "gqaci_sensitive_format", Summary: "gqaci_sensitive_format forbids printing a sensitive value without redaction"}, {Name: "project_nopanic", Summary: "forbids panic"}}; !slices.Equal(listed, want) {
 		t.Errorf("got %+v, want %+v", listed, want)
 	}
 	found, err := tool.Vet(context.Background(), dir)

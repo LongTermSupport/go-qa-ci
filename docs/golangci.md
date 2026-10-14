@@ -44,7 +44,13 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
   `covers = "findings"` exceptions is not judged here (it needs every detector that applies the
   record); the `suppression` tool judges the suppression ones.
 - Configuration: a project `.golangci.{yml,yaml,toml,json}` is used as it is. Without one, the
-  strict baseline `configs/golangci.yml` is used.
+  strict baseline `configs/golangci.yml` is used. The file is looked for in the module's own
+  directory only: a nested module without a file of its own gets the baseline, even when a parent
+  directory holds a `.golangci.yml` that golangci-lint's own discovery would pick. A project file's
+  `linters.exclusions`, presets, `issues.new-from-*`, disabled linters and narrowed linter set can
+  drop findings, so the `suppression` tool reads the file and requires a record entry for each
+  (docs/suppression.md); the settings of golangci-lint's own that it does not list are a recorded
+  gap there.
 
 ## The bundled baseline
 
@@ -62,6 +68,12 @@ file). Each is listed in `docs/record.md` as a configuration exception, and the 
 detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
 disabling of the `govet` `fieldalignment` analyzer.
 
+Contributors: the tests of `internal/cli`, `internal/golangci`, `internal/tools` and
+`internal/defences` run the real `golangci-lint`, so `go test ./...` fails with
+`golangci-lint not found on PATH` when it is absent. That is the "a missing tool is never a pass"
+rule, not a flake: install the pinned binary with `scripts/install-tools.sh golangci-lint` and put
+its directory on the search path before running the gates.
+
 ## Self-gate (TOOLING-SPEC 8.2)
 
 CI runs `go-qa run --ci` over this repository (job `self-gate`). The configuration it analyses
@@ -69,7 +81,11 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 - `configs/golangci.yml` is the baseline (embedded in the binary).
 - `qa/golangci-overlay.yml` is the minimal overlay: the `depguard` allow-list and the two
-  configuration exceptions above. An overlay can add to the baseline but not change a value it sets.
+  configuration exceptions above. The merge adds the overlay's keys to the baseline and does not
+  override a value the baseline sets, but the baseline leaves `gosec.excludes` and
+  `linters.exclusions.rules` unset, so an overlay could still weaken it through those keys; only the
+  exact-content pin in `TestOverlayHoldsOnlyDocumentedExceptions` holds it to the documented
+  exceptions.
 - `.golangci.yml` is what golangci-lint discovers, so it is the merged result. golangci-lint cannot
   merge files, so it is mirrored by hand, and `tests/selfgate` fails unless it equals baseline plus
   overlay, carries every baseline linter, setting, formatter and issue cap, and the overlay holds
@@ -80,6 +96,9 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
+- Two Rules are not active on the toolchain's own source: `gosec::G204` (switched off for the whole
+  module, a configuration exception) and `gosec::G306` (one test file). Both are in the record with
+  a justification (docs/record.md), but the Rule is not held on this repository.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the

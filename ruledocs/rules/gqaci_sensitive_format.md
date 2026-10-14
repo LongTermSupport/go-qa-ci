@@ -9,21 +9,22 @@ type. A name is sensitive when it contains one of the configured fragments (by d
 secret, token, credential, apikey, privatekey), ignoring case and underscores.
 
 The sinks are `fmt` Print, Sprint, Fprint, Append and Errorf functions (operands formatted by
-`%v`, `%+v`, `%#v`, `%s` or `%w`, and every operand of a Print-style call), every `log` function
+`%v`, `%+v`, `%#v`, `%s`, `%w`, `%q`, `%x`, `%X` or `%d`, and every operand of a Print-style call), every `log` function
 and `*log.Logger` method, and every operand of a `log/slog` call that is passed as an `any`.
 
 Whether a type redacts depends on the sink, because each sink calls different methods:
 
 | Sink | Redacting method (in the method set of the value's type) |
 | --- | --- |
-| `fmt` and `log`, verbs `%v`, `%+v`, `%s`, `%w` and every Print-style operand | `String() string`, `Error() string` or `Format(fmt.State, rune)` |
+| `fmt` and `log`, verbs `%v`, `%+v`, `%s`, `%w`, `%q`, `%x`, `%X` and every Print-style operand | `String() string`, `Error() string` or `Format(fmt.State, rune)` |
 | `fmt` and `log`, verb `%#v` | `GoString() string` or `Format(fmt.State, rune)` |
-| `log/slog` | `LogValue() slog.Value` or `Error() string` |
+| `fmt` and `log`, verb `%d` | `Format(fmt.State, rune)` only |
+| `log/slog` | `LogValue() slog.Value`, `Error() string`, `MarshalJSON() ([]byte, error)` or `MarshalText() ([]byte, error)` |
 
 A type listed in `-redacting` redacts at every sink. An embedded type's method is promoted, so it
 redacts the outer type too. fmt does not call `LogValue`, and calls `GoString` only for `%#v`. slog
-never calls `String`: a JSON handler marshals the fields, so a type with only `String` still emits
-its password. slog also resolves only the top-level value, so a redacting type held in a field of
+never calls `String`: a JSON handler marshals the fields (through `MarshalJSON` or `MarshalText`
+when the type has one), so a type with only `String` still emits its password. slog also resolves only the top-level value, so a redacting type held in a field of
 another value still prints in full through slog. fmt calls the methods of a value it reaches through
 an exported field, but not through an unexported one, so a redacting type stored in an unexported
 field still prints in full and is flagged.
@@ -62,8 +63,10 @@ pattern.
 ## Limits
 
 An operand typed as an interface, or as a type parameter, is not followed, because its dynamic
-type is unknown at the call. Verbs other than the ones above (`%d`, `%x`, `%q`) are not checked.
-A pointer nested inside a value prints as an address and is not followed.
+type is unknown at the call. Verbs other than the ones above (`%b`, `%o`, `%e`, `%t` and so on)
+are not checked. For fmt and log, a pointer nested inside a value prints as an address and is not
+followed; slog's JSON handler does marshal through such a pointer, so a sensitive value reached
+that way through slog is a missed finding.
 
 ## Suppression
 

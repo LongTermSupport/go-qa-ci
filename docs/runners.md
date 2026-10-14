@@ -11,15 +11,16 @@ and `modules`). A required program that is not on `PATH` is an error, never a sk
 | `mod`                 | `go mod tidy -diff`, then `go mod verify`                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
 | `test`                | `go test -race -shuffle=on -count=1 ./...`                                            | a test fails or the code does not build                                            |
 | `coverage`            | `go test -covermode=atomic -coverpkg=./... -coverprofile`, then `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
-| `mutants`             | `gremlins unleash --threshold-efficacy N` (diff mode adds `--diff <base>`)            | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
+| `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                  | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
 | `deadcode` (detector) | `deadcode -test -json ./...`                                                          | a function is unreachable from every `main` function and test                      |
 
 ## Identifiers
 
 - `vuln` prints each finding under the advisory identifier (`GO-YYYY-NNNN`). Scanning is at symbol
   level: a vulnerability in a dependency, or in an imported but never called package, is not a
-  finding, because reachability decides. The location is the call site in the module. A record
-  exception (`covers = "findings"`) licenses an advisory for a path; on a run over the whole
+  finding, because reachability decides. The location is the call site in the module, and an
+  advisory reached from two files is two findings, so a record exception (`covers = "findings"`)
+  scoped to one file licenses the advisory in that file only; on a run over the whole
   project an exception for an advisory that is no longer reported fails as `gqaci.record.stale`.
 - `deadcode` prints findings under `deadcode` and the record licenses them by that name and path.
   It applies only to a module that has a `main` package; for a library it is skipped, saying so,
@@ -54,4 +55,13 @@ passes, one below it fails. A test with a real gremlins run (skipped when gremli
 - `govulncheck`, `deadcode` and `gremlins` are pinned in `tools.lock` and installed by
   `scripts/install-tools.sh`, which CI uses. The self-gate still keeps `mutants` off: no mutation
   run of this repository has been held to a threshold.
+- The identifiers `error[mod]`, `error[test]`, `error[coverage]` and `error[mutants]` name a runner,
+  not a defence, and resolve to no page: `go-qa rule-doc coverage` reports it as dangling. Whether a
+  runner verdict is a Defence in the sense of TOOLING-SPEC 4.2 is not settled here, so the gap is
+  recorded rather than papered over with pages.
+- `--diff <base>` is passed to gremlins as given. gremlins documents it as "diff branch or commit";
+  whether it compares with the tip of the ref or with the merge base was not verified, so the
+  README does not promise a merge base for `mutants.base`.
+- In a `--changed` run, `coverage` applies the module-wide `fail_under_statements` threshold to the
+  affected packages only, so a narrowed result can differ from the full run's.
 - The `licences` runner of the design brief is not built.

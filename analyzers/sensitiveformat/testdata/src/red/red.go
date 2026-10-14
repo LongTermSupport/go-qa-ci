@@ -116,11 +116,22 @@ func wrongMethodForTheSink(l LogValueToken, g GoStringSecret, s StringPassword, 
 	fmt.Printf("%v", g)    // want `to %v`
 	fmt.Println(g)         // want `to %v`
 	fmt.Printf("%#v", s)   // want `to %#v and implements no redacting GoString or Format method`
-	slog.Info("x", "s", s) // want `red.StringPassword exposes sensitive type red.StringPassword to slog and implements no redacting LogValue or Error method`
+	slog.Info("x", "s", s) // want `red.StringPassword exposes sensitive type red.StringPassword to slog and implements no redacting LogValue, Error, MarshalJSON or MarshalText method`
 	slog.Info("x", "g", g) // want `to slog`
 	fmt.Println(w)         // want `red.WrapsLogValue exposes sensitive type red.LogValueToken to %v`
 	slog.Info("x", "w", w) // want `to slog`
 	fmt.Println(s)
 	fmt.Printf("%#v", g)
 	slog.Info("x", "l", l)
+}
+
+// Quoted and hexadecimal verbs call String and Error as %v does; %d calls only Format.
+func otherVerbs(c Credentials, s StringPassword) {
+	fmt.Printf("%q", c) // want `red.Credentials exposes sensitive type red.Credentials to %q`
+	fmt.Printf("%x", c) // want `to %x`
+	fmt.Printf("%X", c) // want `to %X`
+	fmt.Printf("%d", c) // want `to %d and implements no redacting Format method`
+	fmt.Printf("%d", s) // want `red.StringPassword exposes sensitive type red.StringPassword to %d`
+	fmt.Printf("%q", s)
+	fmt.Printf("%x", s)
 }

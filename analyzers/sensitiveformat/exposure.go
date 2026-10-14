@@ -23,6 +23,12 @@ type sink struct {
 }
 
 func fmtSink(v verb) sink {
+	if v.letter == 'd' {
+		return sink{
+			destination: "%d", methods: "Format", nested: true,
+			redactedBy: hasFormat,
+		}
+	}
 	if v.sharp {
 		return sink{
 			destination: "%#" + string(v.letter), methods: "GoString or Format", nested: true,
@@ -38,8 +44,10 @@ func fmtSink(v verb) sink {
 }
 
 var slogSink = sink{
-	destination: "slog", methods: "LogValue or Error",
-	redactedBy: func(m *types.MethodSet) bool { return hasLogValue(m) || hasStringMethod(m, "Error") },
+	destination: "slog", methods: "LogValue, Error, MarshalJSON or MarshalText",
+	redactedBy: func(m *types.MethodSet) bool {
+		return hasLogValue(m) || hasStringMethod(m, "Error") || hasMarshaler(m, "MarshalJSON") || hasMarshaler(m, "MarshalText")
+	},
 }
 
 // holdKey identifies a type visited at a given redaction visibility, so a recursive type ends.
@@ -166,6 +174,17 @@ func hasFormat(methods *types.MethodSet) bool {
 func hasLogValue(methods *types.MethodSet) bool {
 	sig := lookupSignature(methods, "LogValue")
 	return sig != nil && sig.Params().Len() == 0 && sig.Results().Len() == 1 && isNamed(sig.Results().At(0).Type(), slogPath, "Value")
+}
+
+// hasMarshaler reports whether the method set has name() ([]byte, error): the JSON and text slog
+// handlers encode a value through MarshalJSON and MarshalText.
+func hasMarshaler(methods *types.MethodSet, name string) bool {
+	sig := lookupSignature(methods, name)
+	if sig == nil || sig.Params().Len() != 0 || sig.Results().Len() != 2 {
+		return false
+	}
+	data, ok := types.Unalias(sig.Results().At(0).Type()).(*types.Slice)
+	return ok && isBasic(data.Elem(), types.Byte) && types.Identical(sig.Results().At(1).Type(), types.Universe.Lookup("error").Type())
 }
 
 func isBasic(t types.Type, kind types.BasicKind) bool {

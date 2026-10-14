@@ -41,7 +41,7 @@ record = "docs/enumeration.md"
 
 [[project.gap]]
 clause = "7.1"
-summary = "the summary inherits the 5.1 gaps and says so in its preamble"
+summary = "the summary inherits the 5.1 gaps and says so in its preamble, and a golangci-lint linter's line reuses the upstream description (what the tool does) rather than a standing instruction"
 record = "docs/enumeration.md"
 
 # Level 2: go-qa-ci as the Toolchain it ships, installed into a Consuming project with nothing else.
@@ -85,5 +85,5 @@ record = "docs/CONFORMANCE.md"
 
 [[artefact.gap]]
 clause = "8.2"
-summary = "mutation testing is switched off on the toolchain's own source, and only the golangci-lint rules are proven active there by a test"
+summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (module-wide) and G306 (one test file) are configured away there, and only the golangci-lint rules are proven active there by a test"
 record = "docs/golangci.md"

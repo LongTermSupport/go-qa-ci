@@ -189,11 +189,18 @@ func (c *checker) printf(pass *analysis.Pass, call *ast.CallExpr, sig *types.Sig
 	}
 	for index, arg := range call.Args[first:] {
 		for _, v := range operandVerbs(formatted, verbs, index) {
-			if v.letter == 'v' || v.letter == 's' || v.letter == 'w' {
+			if isReportedVerb(v.letter) {
 				c.report(pass, arg, fmtSink(v))
 			}
 		}
 	}
+}
+
+// isReportedVerb says whether fmt prints the contents of a struct operand under the verb: %v, %s
+// and %w call String and Error; %q, %x and %X call them too (and quote or encode the result); %d
+// calls no method but Format, and prints the string fields of a struct as %!d(string=...).
+func isReportedVerb(letter rune) bool {
+	return strings.ContainsRune("vswqxXd", letter)
 }
 
 // operandVerbs lists the verbs formatting operand index. A Print-style call and a format string

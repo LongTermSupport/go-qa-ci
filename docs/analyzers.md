@@ -40,9 +40,10 @@ import (
 func main() { driver.Main(rules.NoPanic, rules.NoGlobals) }
 ```
 
-`driver.Main` wraps `unitchecker.Main` and never returns. The driver lists only the analyzers it is
-given; the project keeps the bundled ones by passing them too (`sensitiveformat.Analyzer`, or
-`sensitiveformat.New(sensitiveformat.Config{...})` to configure it).
+`driver.Main` wraps `unitchecker.Main` and never returns. It always registers the bundled analyzers
+beside the ones it is given, so a project driver cannot switch a Blocking defence off by leaving it
+out; to configure the bundled analyzer, pass `sensitiveformat.New(sensitiveformat.Config{...})`,
+which replaces the bundled one of the same name.
 
 Name analyzers with identifier characters only (`project_nopanic`), because the analyzer name is the
 identifier printed with every finding and the key of the record entry.
@@ -110,5 +111,11 @@ These are gaps, not claims:
 - The docs detector does not know the registered analyzers, so a project page for an analyzer in
   `docs_dir` is reported as an orphan unless a record entry names the analyzer, and a missing page for
   an analyzer is not reported as dangling. `rule-doc` resolves the analyzer's `Doc` regardless.
+- A findings exception whose rule is not a registered analyzer is never reported stale by an
+  analyzers run, so a mistyped analyzer name, or an analyzer removed from the driver, leaves a dead
+  entry; golangci-lint findings exceptions are not judged for staleness either (docs/record.md).
+- `-p` filters findings only after the whole module has been analysed (`go vet ./...` always
+  runs), so a single-file run costs as much as a full run; DETECTOR-SPEC 5.2 is met in effect, not
+  in cost.
 - A project driver is built with whatever `go.mod` the project has; go-qa does not check that the
   driver's go-qa-ci version matches the running binary.

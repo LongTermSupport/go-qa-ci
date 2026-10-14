@@ -96,7 +96,9 @@ func missing(base, got any, path string) []string {
 }
 
 // merge applies overlay on top of base: mappings merge, lists append, and a scalar the baseline
-// already sets cannot be changed, so an overlay can add to the defence set but never weaken it.
+// already sets cannot be changed. That does not stop an overlay weakening the baseline through a key
+// the baseline leaves unset (gosec.excludes, linters.exclusions.rules); TestOverlayHoldsOnlyDocumentedExceptions
+// pins the overlay's exact content for that reason.
 func merge(base, overlay any, path string) (any, error) {
 	switch o := overlay.(type) {
 	case map[string]any:

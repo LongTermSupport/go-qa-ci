@@ -54,6 +54,19 @@ type PointerFields struct {
 	Next *Credentials
 }
 
+// JSONSecret redacts for slog handlers, which marshal through MarshalJSON and MarshalText.
+type JSONSecret struct{ raw string }
+
+func (JSONSecret) MarshalJSON() ([]byte, error) { return []byte(`"[redacted]"`), nil }
+
+type TextSecret struct{ raw string }
+
+func (TextSecret) MarshalText() ([]byte, error) { return []byte("[redacted]"), nil }
+
+func marshalers(j JSONSecret, t TextSecret) {
+	slog.Info("x", "j", j, "t", t)
+}
+
 func ok(c Credentials, t Token, s Secret, p Password, k APIKey, w Wraps, h Holds, pl Plain, pf PointerFields) {
 	fmt.Printf("%v %+v %#v %s", c, c, c, c)
 	fmt.Printf("%v %s", p, k)

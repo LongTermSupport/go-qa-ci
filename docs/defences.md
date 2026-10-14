@@ -37,8 +37,9 @@ pages exist ahead of them so that the release audit (below) never has a gap to e
 - `gqaci.docs.dangling`: a built-in identifier, a project stage name, a rule a stage prints or a
   rule of the project's ast-grep rule directories (read from `sgconfig.yml`, so ast-grep need not
   be installed; skipped when the `ast-grep` tool is off) has no page, or a bundled page does not begin with `# <id>`, has no non-empty `## How to fix correctly`
-  section, or belongs to no built-in (TOOLING-SPEC 8.1: a Go test and this check, which the
-  self-gate runs, fail the release).
+  section, or belongs to no built-in (TOOLING-SPEC 8.1: a Go test and this check fail CI's `go` and
+  `self-gate` jobs on every push; no release process yet refuses to publish a tag on a red run, a
+  recorded gap in `docs/CONFORMANCE.md`).
 - `gqaci.docs.orphan`: a page in `docs_dir` documents no built-in identifier, no project stage or
   rule it prints, no project ast-grep rule, no analyzer of a configured project vet driver and no
   rule in the project record. `README.md` is exempt.
@@ -57,6 +58,13 @@ These are gaps, not claims (TOOLING-SPEC 9.2):
   golangci-lint linters, so a project page named for one is reported as an orphan. The bundled
   `gqaci.ast.*` pack rules are neither enumerated nor given pages, so `go-qa rule-doc` reports
   them dangling and `go-qa docs-check` does not.
-- Project pages are checked for existence and naming, not for the shape of their content.
+- Project pages are checked for existence and naming, not for the shape of their content. A
+  project page named like a bundled identifier replaces the bundled remediation, so an empty
+  `gqaci.record.stale.md` in `docs_dir` is accepted; nothing audits a page that shadows a built-in.
+- Only regular `.md` files count as pages when orphans are listed; a symlinked page is never an
+  orphan, although `rule-doc` reads it under its exact name.
+- When the bundled `gqaci.ast.*` pack gains rules, their identifiers must join `builtin.All()` (or
+  the 8.1 audit must enumerate them, with the family patterns of DETECTOR-SPEC 6.5); until they do,
+  the audit passes without covering them.
 - Advisory identifiers (`GO-YYYY-NNNN`, from `vuln`) and `deadcode` have no page yet; see
   `docs/runners.md`.
