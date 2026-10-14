@@ -83,8 +83,10 @@ Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
   source until that tool is built and switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the
   baseline fails the build until the file is mirrored; it cannot silently drift.
-- Only the golangci-lint rules are proven active by `tests/selfgate`; the other bundled tools have
-  no such test yet.
+- Only the golangci-lint rules are proven active by `tests/selfgate`: the configuration carries
+  every baseline defence, `qa/go-qa.toml` leaves `fmt` and `golangci` on, and the CI self-gate job
+  runs `go-qa run --ci`. The other bundled tools have no such test yet. The proof does not execute
+  the workflow itself: a hosted run that never happens is outside what a test can see.
 
 ## Recorded gaps (TOOLING-SPEC 9.2)
 
