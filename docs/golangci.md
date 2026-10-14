@@ -65,7 +65,7 @@ its allow-list is specific to a project; this repository adds its own in the ove
 
 ## Configuration exceptions
 
-This repository's overlay configures away `gosec G204` (module-wide) and `gosec G306` (one test
+This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in test files) and `gosec G306` (one test
 file). Each is listed in `docs/record.md` as a configuration exception, and the suppression
 detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
 disabling of the `govet` `fieldalignment` analyzer.
@@ -98,8 +98,9 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- Two Rules are not active on the toolchain's own source: `gosec::G204` (switched off for the whole
-  module, a configuration exception) and `gosec::G306` (one test file). Both are in the record with
+- Two Rules are not fully active on the toolchain's own source: `gosec::G204` (switched off in the
+  seven files that launch the tools and in test files, a configuration exception; every other file is
+  held to it) and `gosec::G306` (one test file). Both are in the record with
   a justification (docs/record.md), but the Rule is not held on this repository.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.

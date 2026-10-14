@@ -85,5 +85,5 @@ record = "docs/CONFORMANCE.md"
 
 [[artefact.gap]]
 clause = "8.2"
-summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (module-wide) and G306 (one test file) are configured away there, and only the golangci-lint rules are proven active there by a test"
+summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (seven launcher files and test files) and G306 (one test file) are configured away there, and only the golangci-lint rules are proven active there by a test"
 record = "docs/golangci.md"
