@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"bytes"
+	"debug/buildinfo"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -39,8 +40,14 @@ func runBinary(t *testing.T, binary, dir string, env []string, args ...string) (
 func TestWithoutTheMarkerTheBinaryIsTheCommandLine(t *testing.T) {
 	binary := buildGoQA(t)
 	out, _, err := runBinary(t, binary, t.TempDir(), []string{vet.EnvVar + "="}, "--version")
-	if err != nil || strings.TrimSpace(out) != cli.Version {
-		t.Errorf("got %q, %v", out, err)
+	// The binary reports the version stamped into it (a pseudo-version when built from a git
+	// checkout), which is not this test process's own: compare with the binary's build info.
+	info, infoErr := buildinfo.ReadFile(binary)
+	if infoErr != nil {
+		t.Fatalf("read build info: %v", infoErr)
+	}
+	if err != nil || strings.TrimSpace(out) != cli.VersionFrom(info) {
+		t.Errorf("got %q, %v; want %q", out, err, cli.VersionFrom(info))
 	}
 }
 
