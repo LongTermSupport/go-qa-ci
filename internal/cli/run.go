@@ -68,7 +68,7 @@ func ciEnabled() bool {
 }
 
 func runPipeline(rootPath string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, stdout, stderr io.Writer) int {
-	steps, err := tools.Select(opts.tools, cfg.Tools)
+	steps, err := tools.Select(opts.tools, cfg)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}

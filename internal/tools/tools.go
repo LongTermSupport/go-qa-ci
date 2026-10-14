@@ -2,12 +2,15 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
+	"github.com/LongTermSupport/go-qa-ci/internal/stage"
 )
 
 // Tool is one catalogue entry.
@@ -50,27 +53,78 @@ func FromName(name string) (Tool, bool) {
 	return Tool{}, false
 }
 
-// Select returns the steps a run executes: the enabled tools when names is empty, otherwise the
-// tools named (enabled or not), deduplicated. An unknown name is an error listing the known ones.
-func Select(names []string, cfg config.Tools) ([]pipeline.Step, error) {
+// Select returns the steps a run executes: the enabled tools and every project stage when names is
+// empty, otherwise the tools and stages named (enabled or not), deduplicated. An unknown name is an
+// error listing the known ones.
+func Select(names []string, cfg config.Config) ([]pipeline.Step, error) {
 	catalogue := Catalogue()
 	var steps []pipeline.Step
 	if len(names) == 0 {
 		for rank, tool := range catalogue {
-			if tool.Enabled(cfg) {
+			if tool.Enabled(cfg.Tools) {
 				steps = append(steps, tool.Step(rank))
 			}
+		}
+		for i := range cfg.Stages {
+			step, err := stageStep(cfg, i)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, step)
 		}
 		return steps, nil
 	}
 	for _, name := range names {
-		rank := indexOf(catalogue, name)
-		if rank < 0 {
-			return nil, fmt.Errorf("unknown tool %q; known tools: %s", name, strings.Join(Names(), ", "))
+		if rank := indexOf(catalogue, name); rank >= 0 {
+			steps = append(steps, catalogue[rank].Step(rank))
+			continue
 		}
-		steps = append(steps, catalogue[rank].Step(rank))
+		i := slices.IndexFunc(cfg.Stages, func(s stage.Stage) bool { return s.Name == name })
+		if i < 0 {
+			return nil, fmt.Errorf("unknown tool %q; known tools and stages: %s", name, strings.Join(slices.Concat(Names(), StageNames(cfg)), ", "))
+		}
+		step, err := stageStep(cfg, i)
+		if err != nil {
+			return nil, err
+		}
+		steps = append(steps, step)
 	}
 	return steps, nil
+}
+
+// stageStep is the step of the project stage declared at position i; its rank follows every
+// built-in tool of its phase, in declared order.
+func stageStep(cfg config.Config, i int) (pipeline.Step, error) {
+	s := cfg.Stages[i]
+	phase, err := s.PhaseOf()
+	if err != nil {
+		return pipeline.Step{}, fmt.Errorf("selecting a stage: %w", err)
+	}
+	return pipeline.Step{Name: s.Name, Phase: phase, Rank: pipeline.StageRank + i}, nil
+}
+
+// StageNames lists the names of the project stages in declared order.
+func StageNames(cfg config.Config) []string {
+	names := make([]string, len(cfg.Stages))
+	for i, s := range cfg.Stages {
+		names[i] = s.Name
+	}
+	return names
+}
+
+// CheckStages fails when a project stage takes the name of a built-in tool, which `-t` could then
+// no longer tell apart.
+func CheckStages(cfg config.Config) error {
+	var problems []string
+	for _, s := range cfg.Stages {
+		if _, builtin := FromName(s.Name); builtin {
+			problems = append(problems, fmt.Sprintf("stage `%s` has the name of a built-in tool", s.Name))
+		}
+	}
+	if len(problems) > 0 {
+		return errors.New(strings.Join(problems, "; "))
+	}
+	return nil
 }
 
 // Names lists every tool name in execution order.

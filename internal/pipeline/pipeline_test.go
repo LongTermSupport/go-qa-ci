@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
@@ -147,6 +148,24 @@ func TestPhaseNames(t *testing.T) {
 	} {
 		if got := phase.String(); got != want {
 			t.Errorf("phase %d = %q, want %q", phase, got, want)
+		}
+	}
+}
+
+func TestParsePhaseReadsEveryPhaseName(t *testing.T) {
+	for _, phase := range []pipeline.Phase{pipeline.PhaseFormat, pipeline.PhaseDetectors, pipeline.PhaseRunners} {
+		got, err := pipeline.ParsePhase(phase.String())
+		if err != nil || got != phase {
+			t.Errorf("ParsePhase(%q) = %v, %v", phase.String(), got, err)
+		}
+	}
+}
+
+func TestParsePhaseRejectsAnythingElseNamingTheChoices(t *testing.T) {
+	for _, name := range []string{"", "Format", "detector", "unknown"} {
+		_, err := pipeline.ParsePhase(name)
+		if err == nil || !strings.Contains(err.Error(), "format, detectors or runners") {
+			t.Errorf("ParsePhase(%q) error = %v", name, err)
 		}
 	}
 }

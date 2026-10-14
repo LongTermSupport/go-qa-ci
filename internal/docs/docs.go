@@ -1,11 +1,12 @@
 // Package docs resolves identifiers to remediation pages offline (TOOLING-SPEC 4.2) and audits
 // the pages (TOOLING-SPEC 8.1).
 //
-// Resolution order: a project page in the documentation directory, then a page bundled with
-// go-qa. Nothing is fetched from the network. Sources that depend on tools not built yet (the
-// golangci-lint and staticcheck catalogues, analyzer help, project stages) are appended to this
-// order by the milestones that add them; until then their identifiers are dangling here, which
-// is a recorded gap (docs/defences.md).
+// Resolution order: a project page in the documentation directory, a project stage (its name, or
+// a rule its rules command ships documentation for), a page bundled with go-qa, and last a
+// configured [[resolver]] glob. Nothing is fetched from the network. Sources that depend on tools
+// not built yet (the golangci-lint and staticcheck catalogues) are appended to this order by the
+// milestones that add them; until then their identifiers are dangling here, which is a recorded
+// gap (docs/defences.md).
 package docs
 
 import (
@@ -17,6 +18,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/glob"
+	"github.com/LongTermSupport/go-qa-ci/internal/stage"
 	"github.com/LongTermSupport/go-qa-ci/ruledocs"
 )
 
@@ -29,13 +33,24 @@ const (
 	Project Source = iota
 	// Bundled is a page shipped inside go-qa.
 	Bundled
+	// Stage is what a project stage says about itself or what its rules command ships.
+	Stage
+	// Configured is the text of a [[resolver]] entry whose glob matches the identifier.
+	Configured
 )
 
 func (s Source) String() string {
-	if s == Project {
+	switch s {
+	case Project:
 		return "project"
+	case Stage:
+		return "stage"
+	case Configured:
+		return "configured resolver"
+	case Bundled:
+		return "bundled"
 	}
-	return "bundled"
+	return "unknown"
 }
 
 // Doc is a resolved page.
@@ -54,6 +69,20 @@ type Resolver struct {
 	Root string
 	// DocsDir holds the project pages, relative to Root with forward slashes.
 	DocsDir string
+	// Stages are the project stages: each resolves under its name, and its rules command may ship
+	// documentation for the rules it prints.
+	Stages []stage.Stage
+	// Patterns are the configured [[resolver]] entries, consulted last.
+	Patterns []config.Resolver
+	// rules caches what the stages' rules commands print; nil means every lookup runs them again.
+	rules *stageRules
+}
+
+// ForConfig is the resolver for the project at root as cfg describes it, project stages and
+// configured resolvers included. The rules commands of the stages run once, and only when an
+// identifier gets that far in the resolution order.
+func ForConfig(root string, cfg config.Config) Resolver {
+	return Resolver{Root: root, DocsDir: cfg.DocsDir, Stages: cfg.Stages, Patterns: cfg.Resolvers, rules: &stageRules{}}
 }
 
 const pageSuffix = ".md"
@@ -86,8 +115,43 @@ func (r Resolver) Resolve(id string) (doc Doc, found bool, err error) {
 	if err != nil || found {
 		return doc, found, err
 	}
+	if doc, found, err = r.fromStages(id); err != nil || found {
+		return doc, found, err
+	}
 	if text, ok := ruledocs.Page(id); ok {
 		return Doc{Source: Bundled, Text: text}, true, nil
+	}
+	return r.configured(id)
+}
+
+// fromStages resolves a stage name to the stage's own description, and a rule a stage prints to
+// the documentation its rules command ships for it.
+func (r Resolver) fromStages(id string) (Doc, bool, error) {
+	if i := slices.IndexFunc(r.Stages, func(s stage.Stage) bool { return s.Name == id }); i >= 0 {
+		return Doc{Source: Stage, Text: r.Stages[i].Doc()}, true, nil
+	}
+	rules, err := r.stageRules()
+	if err != nil {
+		return Doc{}, false, err
+	}
+	for _, rule := range rules {
+		if rule.ID == id && rule.Doc != "" {
+			return Doc{Source: Stage, Text: rule.Doc}, true, nil
+		}
+	}
+	return Doc{}, false, nil
+}
+
+// configured is the text of the first [[resolver]] whose glob matches the identifier.
+func (r Resolver) configured(id string) (Doc, bool, error) {
+	for _, pattern := range r.Patterns {
+		ok, err := glob.Match(pattern.Matches, id)
+		if err != nil {
+			return Doc{}, false, fmt.Errorf("resolver `%s`: %w", pattern.Matches, err)
+		}
+		if ok {
+			return Doc{Source: Configured, Text: strings.ReplaceAll(pattern.Text, "{id}", id)}, true, nil
+		}
 	}
 	return Doc{}, false, nil
 }

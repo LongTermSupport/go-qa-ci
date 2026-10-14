@@ -51,6 +51,9 @@ func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
 	case "mutants":
 		return e.runMutants()
 	default:
+		if s, found := e.stageNamed(step.Name); found {
+			return e.runStage(s)
+		}
 		return Pending{}.Run(step)
 	}
 }

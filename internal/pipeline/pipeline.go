@@ -9,6 +9,7 @@ package pipeline
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 )
 
@@ -37,6 +38,16 @@ func (p Phase) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+// ParsePhase is the phase a configuration names.
+func ParsePhase(name string) (Phase, error) {
+	for _, phase := range []Phase{PhaseFormat, PhaseDetectors, PhaseRunners} {
+		if phase.String() == name {
+			return phase, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown phase %q (want format, detectors or runners)", name)
 }
 
 // StageRank is the first Rank of a project stage; built-in tools rank below it, so a phase runs

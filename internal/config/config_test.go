@@ -196,3 +196,55 @@ func TestExplicitConfigPath(t *testing.T) {
 		t.Error("explicit file was not read")
 	}
 }
+
+const shellStage = "[[stage]]\nname = \"shellcheck\"\nphase = \"detectors\"\nsays = \"ShellCheck over every shell script\"\n" +
+	"fix = \"Quote expansions\"\ncommand = [\"shellcheck\", \"{files}\"]\nfiles = [\"scripts/*.sh\"]\n"
+
+func TestStagesAndResolversAreLoaded(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, config.DefaultPath, shellStage+
+		"[[stage]]\nname = \"web\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"web-test\"]\noutput = \"findings\"\ndir = \"web\"\n"+
+		"[[resolver]]\nmatches = \"SC[0-9]*\"\ntext = \"See the ShellCheck wiki for {id}.\"\n")
+	got, err := config.Load(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Stages) != 2 || got.Stages[0].Name != "shellcheck" || got.Stages[1].Dir != "web" || got.Stages[1].Output != "findings" {
+		t.Errorf("stages = %+v", got.Stages)
+	}
+	if len(got.Resolvers) != 1 || got.Resolvers[0].Matches != "SC[0-9]*" {
+		t.Errorf("resolvers = %+v", got.Resolvers)
+	}
+}
+
+func TestLoadRejectsBadStagesAndResolvers(t *testing.T) {
+	tests := map[string]struct {
+		content string
+		wantSub []string
+	}{
+		"unknown stage key":     {shellStage + "colour = \"red\"\n", []string{"stage.colour"}},
+		"unknown resolver key":  {"[[resolver]]\nmatches = \"a\"\ntext = \"t\"\nextra = 1\n", []string{"resolver.extra"}},
+		"stage without phase":   {"[[stage]]\nname = \"x\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\"]\n", []string{"stage `x`", "unknown phase"}},
+		"stage declared twice":  {shellStage + shellStage, []string{"stage `shellcheck` is declared twice"}},
+		"stage without files":   {"[[stage]]\nname = \"x\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\", \"{files}\"]\n", []string{"selects no files"}},
+		"stage escaping dir":    {shellStage + "dir = \"../up\"\n", []string{"dir \"../up\""}},
+		"resolver bad glob":     {"[[resolver]]\nmatches = \"[\"\ntext = \"t\"\n", []string{"resolver `[`", "invalid glob"}},
+		"resolver without text": {"[[resolver]]\nmatches = \"a*\"\ntext = \" \"\n", []string{"resolver `a*` has no text"}},
+		"resolver no matches":   {"[[resolver]]\ntext = \"t\"\n", []string{"resolver has no `matches`"}},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, dir, config.DefaultPath, tc.content)
+			_, err := config.Load(dir, "")
+			if err == nil {
+				t.Fatal("Load accepted the file")
+			}
+			for _, sub := range tc.wantSub {
+				if !strings.Contains(err.Error(), sub) {
+					t.Errorf("error %q does not mention %q", err, sub)
+				}
+			}
+		})
+	}
+}

@@ -13,7 +13,9 @@ the page; an identifier with none is dangling and exits 1.
 
 A project page is named after the identifier exactly as printed. A page whose name differs only in
 case, or in `-` against `_`, documents the same identifier. Resolution order: project page, then
-bundled page, then the documentation of a registered analyzer (`docs/analyzers.md`). A project page therefore overrides a bundled one; an unreadable project page is an
+the project stage of that name or the documentation its rules command ships for the rule
+(`docs/stages.md`), then bundled page, then the documentation of a registered analyzer
+(`docs/analyzers.md`), then the first configured `[[resolver]]` whose glob matches. A project page therefore overrides a bundled one; an unreadable project page is an
 error, never a silent fall-through. Nothing is fetched from the network.
 
 ## What a page contains
@@ -32,11 +34,12 @@ pages exist ahead of them so that the release audit (below) never has a gap to e
 
 ## The docs detector (`docs` tool, `go-qa docs-check`)
 
-- `gqaci.docs.dangling`: a built-in identifier has no page, or a bundled page does not begin with
-  `# <id>`, has no non-empty `## How to fix correctly` section, or belongs to no built-in
-  (TOOLING-SPEC 8.1: a Go test and this check, which the self-gate runs, fail the release).
-- `gqaci.docs.orphan`: a page in `docs_dir` documents no built-in identifier and no rule in the
-  project record. `README.md` is exempt.
+- `gqaci.docs.dangling`: a built-in identifier, a project stage name or a rule a stage prints has no
+  page, or a bundled page does not begin with `# <id>`, has no non-empty `## How to fix correctly`
+  section, or belongs to no built-in (TOOLING-SPEC 8.1: a Go test and this check, which the
+  self-gate runs, fail the release).
+- `gqaci.docs.orphan`: a page in `docs_dir` documents no built-in identifier, no project stage or
+  rule it prints, and no rule in the project record. `README.md` is exempt.
 
 ## Recorded gaps
 
@@ -47,8 +50,8 @@ These are gaps, not claims (TOOLING-SPEC 9.2):
   `go-qa rule-doc` has no page for them; they join the resolution order through their own explain
   routes (TOOLING-SPEC 4.2). `docs/golangci.md` records the gap per clause.
 - The defence listing (`rules`, M11) does not exist, so the detector cannot require a page for a
-  project rule it cannot enumerate, and treats only built-ins and rules named in the project
-  record as identifiers the project can see. A page for any other project rule is reported as an
+  project rule it cannot enumerate, and treats only built-ins, project stages and their rules, and
+  rules named in the project record as identifiers the project can see. A page for any other project rule is reported as an
   orphan until the listing feeds the detector.
 - Project pages are checked for existence and naming, not for the shape of their content.
 - Advisory identifiers (`GO-YYYY-NNNN`, from `vuln`) and `deadcode` have no page yet; see

@@ -23,5 +23,5 @@ func Run(root string, cfg config.Config) ([]finding.Finding, error) {
 	for _, exception := range rec.Exceptions {
 		documented = append(documented, exception.Rule)
 	}
-	return Check(Input{Root: root, DocsDir: cfg.DocsDir, Documented: documented})
+	return Check(Input{Root: root, DocsDir: cfg.DocsDir, Documented: documented, Stages: cfg.Stages, Patterns: cfg.Resolvers})
 }

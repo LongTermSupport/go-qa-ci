@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/glob"
 )
 
 const maxPercent = 100
@@ -126,12 +128,37 @@ func (c Config) problems(root string) []string {
 	if driver := c.Analyzers.Driver; driver != "" && (!strings.HasPrefix(driver, "./") || !filepath.IsLocal(driver)) {
 		problems = append(problems, fmt.Sprintf("analyzers.driver %q must be a package inside the root, written like ./internal/qa/vetdriver", driver))
 	}
+	problems = append(problems, c.stageProblems()...)
 	for _, module := range c.Modules {
 		switch {
 		case !filepath.IsLocal(module):
 			problems = append(problems, fmt.Sprintf("modules entry %q must be a relative path inside the root", module))
 		case !isFile(filepath.Join(root, module, "go.mod")):
 			problems = append(problems, fmt.Sprintf("modules entry %q has no go.mod", module))
+		}
+	}
+	return problems
+}
+
+// stageProblems checks the project stages and resolvers.
+func (c Config) stageProblems() []string {
+	var problems []string
+	names := map[string]bool{}
+	for _, s := range c.Stages {
+		problems = append(problems, s.Problems()...)
+		if names[s.Name] {
+			problems = append(problems, fmt.Sprintf("stage `%s` is declared twice", s.Name))
+		}
+		names[s.Name] = true
+	}
+	for _, r := range c.Resolvers {
+		if strings.TrimSpace(r.Matches) == "" {
+			problems = append(problems, "resolver has no `matches`")
+		} else if err := glob.Valid(r.Matches); err != nil {
+			problems = append(problems, fmt.Sprintf("resolver `%s`: %v", r.Matches, err))
+		}
+		if strings.TrimSpace(r.Text) == "" {
+			problems = append(problems, fmt.Sprintf("resolver `%s` has no text", r.Matches))
 		}
 	}
 	return problems

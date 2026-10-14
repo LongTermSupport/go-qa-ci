@@ -72,9 +72,9 @@ func TestEverySwitchControlsExactlyOneTool(t *testing.T) {
 }
 
 func TestSelectWithoutNamesIsTheEnabledToolsInCatalogueOrder(t *testing.T) {
-	cfg := config.Default().Tools
-	cfg.Mutants = false
-	cfg.Fmt = false
+	cfg := config.Default()
+	cfg.Tools.Mutants = false
+	cfg.Tools.Fmt = false
 	steps, err := tools.Select(nil, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func TestSelectWithoutNamesIsTheEnabledToolsInCatalogueOrder(t *testing.T) {
 }
 
 func TestSelectNamedToolsIgnoresTheSwitchAndKeepsCatalogueRank(t *testing.T) {
-	steps, err := tools.Select([]string{"test", "fmt", "test"}, config.Tools{})
+	steps, err := tools.Select([]string{"test", "fmt", "test"}, config.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestSelectNamedToolsIgnoresTheSwitchAndKeepsCatalogueRank(t *testing.T) {
 }
 
 func TestSelectUnknownNameListsTheKnownOnes(t *testing.T) {
-	_, err := tools.Select([]string{"clippy"}, config.Default().Tools)
+	_, err := tools.Select([]string{"clippy"}, config.Default())
 	if err == nil {
 		t.Fatal("no error")
 	}

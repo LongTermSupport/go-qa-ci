@@ -2,6 +2,8 @@
 // unknown keys rejected so that a misspelt setting can never silently do nothing.
 package config
 
+import "github.com/LongTermSupport/go-qa-ci/internal/stage"
+
 // DefaultPath is the project configuration file, relative to the root.
 const DefaultPath = "qa/go-qa.toml"
 
@@ -29,6 +31,18 @@ type Config struct {
 	Coverage Coverage `toml:"coverage"`
 	// Mutants configures mutation testing.
 	Mutants Mutants `toml:"mutants"`
+	// Stages are the project's own defences and runners, run in the phase each names.
+	Stages []stage.Stage `toml:"stage"`
+	// Resolvers document identifiers no listing names, such as the codes of a linter a stage runs.
+	Resolvers []Resolver `toml:"resolver"`
+}
+
+// Resolver is a [[resolver]] entry: the documentation of every identifier matching a glob.
+type Resolver struct {
+	// Matches is a glob over identifiers.
+	Matches string `toml:"matches"`
+	// Text is the documentation; {id} stands for the identifier.
+	Text string `toml:"text"`
 }
 
 // Analyzers configures the analyzers detector.

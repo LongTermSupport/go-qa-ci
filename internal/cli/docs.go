@@ -13,7 +13,7 @@ func runRuleDoc(rootPath string, cfg config.Config, args []string, stdout, stder
 	if len(args) != 1 {
 		return emit(stderr, ExitUsage, "go-qa rule-doc: want exactly one identifier\nusage: go-qa rule-doc <id>")
 	}
-	doc, found, err := docs.Resolver{Root: rootPath, DocsDir: cfg.DocsDir}.Resolve(args[0])
+	doc, found, err := docs.ForConfig(rootPath, cfg).Resolve(args[0])
 	if err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}

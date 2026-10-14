@@ -27,17 +27,17 @@ Global flags: `--root DIR` (default: the directory of the active `go.work`, else
 `go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root). Exit codes: 0
 success, 1 a defence or tool failed, 2 usage or configuration error.
 
-| Command                                                               | What                                                                                     |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `go-qa run [-t tool]... [-p path]... [--ci] [--no-fix] [--fail-fast]` | the gate: selected tools in phase order, a summary table, and the DBF pointer on failure |
-| `go-qa tools`                                                         | the tool catalogue in execution order, with phase and enabled or disabled                |
-| `go-qa record check`                                                  | validate the project record; findings are `gqaci.record.invalid`                         |
-| `go-qa record list [--json]`                                          | every exception with its justification, enumerated like the defences                     |
-| `go-qa record explain <rule or number>`                               | one exception (or every exception for a rule) in full                                    |
-| `go-qa rule-doc <id>`                                                 | the page for an identifier, offline; exit 1 when it is dangling                          |
+| Command                                                               | What                                                                                                |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `go-qa run [-t tool]... [-p path]... [--ci] [--no-fix] [--fail-fast]` | the gate: selected tools in phase order, a summary table, and the DBF pointer on failure            |
+| `go-qa tools`                                                         | the tool catalogue in execution order, with phase and enabled or disabled                           |
+| `go-qa record check`                                                  | validate the project record; findings are `gqaci.record.invalid`                                    |
+| `go-qa record list [--json]`                                          | every exception with its justification, enumerated like the defences                                |
+| `go-qa record explain <rule or number>`                               | one exception (or every exception for a rule) in full                                               |
+| `go-qa rule-doc <id>`                                                 | the page for an identifier, offline; exit 1 when it is dangling                                     |
 | `go-qa rules`                                                         | the registered `go/analysis` analyzers with their summaries (the complete listing is not built yet) |
-| `go-qa docs-check`                                                    | the docs detector: dangling identifiers, orphan pages, malformed bundled pages           |
-| `go-qa --version`                                                     | the version                                                                              |
+| `go-qa docs-check`                                                    | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                      |
+| `go-qa --version`                                                     | the version                                                                                         |
 
 `run` executes every enabled tool, or only those named with `-t` (an unknown name lists the known
 ones). `-p` limits the run to a file or directory under the root. A format or detector failure
@@ -127,7 +127,7 @@ max_count = 1
 
 Paths in the file (`record`, `docs_dir`, `summary.file`, `modules`) must be relative and stay
 inside the root; each `modules` entry must hold a `go.mod`; `analyzers.driver` is a package of the
-project written like `./internal/qa/driver`. `[[stage]]` and `[[resolver]]` are not accepted yet and are rejected as unknown keys until they are built.
+project written like `./internal/qa/driver`. `[[stage]]` (the project's own commands, run in a phase) and `[[resolver]]` (documentation for identifiers by glob) are described in [docs/stages.md](docs/stages.md); both are empty by default.
 
 ## Public safety
 

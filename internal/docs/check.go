@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/builtin"
+	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/stage"
 	"github.com/LongTermSupport/go-qa-ci/ruledocs"
 )
 
@@ -30,6 +32,11 @@ type Input struct {
 	// Documented are further identifiers a project page may document without them being listed,
 	// such as the rules of the project record.
 	Documented []string
+	// Stages are the project stages: each stage's name and every rule its rules command prints
+	// must resolve, and a page for either is not an orphan.
+	Stages []stage.Stage
+	// Patterns are the configured [[resolver]] entries that document identifiers by glob.
+	Patterns []config.Resolver
 }
 
 // Orphans returns, sorted, the project pages (relative to root) that document none of ids.
@@ -62,13 +69,17 @@ func Orphans(root, docsDir string, ids []string) ([]string, error) {
 // Check is the docs detector: every built-in and listed identifier resolves, the bundled pages
 // pass their audit, and no project page is an orphan.
 func Check(in Input) ([]finding.Finding, error) {
-	resolver := Resolver{Root: in.Root, DocsDir: in.DocsDir}
-	must := sortedStrings(append(slices.Clone(in.Listed), builtin.All()...))
+	resolver := Resolver{Root: in.Root, DocsDir: in.DocsDir, Stages: in.Stages, Patterns: in.Patterns, rules: &stageRules{}}
+	stageIDs, err := resolver.stageIdentifiers()
+	if err != nil {
+		return nil, err
+	}
+	must := sortedStrings(slices.Concat(in.Listed, builtin.All(), stageIDs))
 	var findings []finding.Finding
 	for _, id := range must {
-		_, found, err := resolver.Resolve(id)
-		if err != nil {
-			return nil, err
+		_, found, resolveErr := resolver.Resolve(id)
+		if resolveErr != nil {
+			return nil, resolveErr
 		}
 		if found {
 			continue

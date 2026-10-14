@@ -111,6 +111,9 @@ func withConfig(rootDir, configFile string, stderr io.Writer, fn func(string, co
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
 	}
+	if err = tools.CheckStages(cfg); err != nil {
+		return emit(stderr, ExitUsage, "go-qa: %v", err)
+	}
 	return fn(rootDir, cfg)
 }
 
@@ -122,6 +125,9 @@ func listTools(cfg config.Config, stdout, stderr io.Writer) int {
 			state = "enabled"
 		}
 		fmt.Fprintf(&out, "%-12s %-10s %s\n", tool.Name, tool.Phase, state)
+	}
+	for _, s := range cfg.Stages {
+		fmt.Fprintf(&out, "%-12s %-10s stage\n", s.Name, s.Phase)
 	}
 	if _, err := io.WriteString(stdout, out.String()); err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
