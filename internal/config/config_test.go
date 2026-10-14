@@ -142,6 +142,8 @@ func TestLoadRejectsBadConfig(t *testing.T) {
 		{"table spelt in another case", "[Tools]\nfmt = false\n", []string{"Tools", "tools"}},
 		{"key spelt in another case", "[tools]\nFMT = false\n", []string{"tools.FMT", "tools.fmt"}},
 		{"nested key spelt in another case", "[record.trust.high]\nMax_Review_Days = 3\n", []string{"max_review_days"}},
+		{"history_base like an option", "[record]\nhistory_base = \"--all\"\n", []string{"record.history_base"}},
+		{"mutants base like an option", "[mutants]\nbase = \"-x\"\n", []string{"mutants.base"}},
 		{"negative max_total", "[record]\nmax_total = -1\nmax_per_rule = -2\nmax_policy = -3\n", []string{"record.max_total", "record.max_per_rule", "record.max_policy"}},
 		{"negative max_review_days", "[record]\nmax_review_days = -5\n", []string{"record.max_review_days"}},
 		{"negative tier limits", "[record.trust.low]\nmax_review_days = -1\nmax_count = -1\n", []string{"record.trust.low.max_review_days", "record.trust.low.max_count"}},

@@ -24,7 +24,7 @@ type Input struct {
 	Today date.Date
 }
 
-// Review applies the anti-bloat controls (TOOLING-SPEC 6.4): provenance, trust tiers, review
+// Review applies the anti-bloat controls, the toolchain defaults that serve TOOLING-SPEC 6.4: provenance, trust tiers, review
 // horizons and co-signing per entry (gqaci.record.invalid), expiry (gqaci.record.expired) and the
 // budgets (gqaci.record.budget). The ratchet is a separate control.
 func Review(in Input) []finding.Finding {

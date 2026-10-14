@@ -41,14 +41,11 @@ func isHighWaterLine(trimmed string) bool {
 func RemoveExceptions(text string, indexes []int) string {
 	lines := strings.SplitAfter(text, "\n")
 	isComment := func(i int) bool { return strings.HasPrefix(strings.TrimSpace(lines[i]), "#") }
-	var headers, entries []int
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "[") {
-			headers = append(headers, i)
-		}
-		if trimmed == exceptionHeader {
-			entries = append(entries, i)
+	var tables, entries []int
+	for _, h := range headers([]byte(text)) {
+		tables = append(tables, h.line-1)
+		if h.exception {
+			entries = append(entries, h.line-1)
 		}
 	}
 	drop := make([]bool, len(lines))
@@ -62,7 +59,7 @@ func RemoveExceptions(text string, indexes []int) string {
 			start--
 		}
 		end := len(lines)
-		for _, h := range headers {
+		for _, h := range tables {
 			if h > header {
 				end = h
 				break

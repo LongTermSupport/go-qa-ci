@@ -29,9 +29,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/pelletier/go-toml/v2/unstable"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 )
@@ -125,8 +127,6 @@ type rawException struct {
 	Covers        string  `toml:"covers"`
 }
 
-const exceptionHeader = "[[exception]]"
-
 // Load reads the record at path. A missing file is an empty record; a file that cannot be read or
 // parsed, has an unknown key, a malformed date or an unknown covers value is an error.
 func Load(path string) (Record, error) {
@@ -175,12 +175,46 @@ func Parse(data []byte) (Record, error) {
 	return convert(raw, headerLines(data))
 }
 
+// header is one table header of the record file.
+type header struct {
+	// line is the 1-based line of the header.
+	line int
+	// exception is true for an [[exception]] entry.
+	exception bool
+}
+
+// headers returns every table header of data, in file order. The TOML parser finds them, so a
+// header with a trailing comment or inner spaces is seen, and the text of a multi-line string that
+// looks like a header is not.
+func headers(data []byte) []header {
+	var parser unstable.Parser
+	parser.Reset(data)
+	var found []header
+	for parser.NextExpression() {
+		node := parser.Expression()
+		if node.Kind != unstable.Table && node.Kind != unstable.ArrayTable {
+			continue
+		}
+		var parts []string
+		line := 0
+		for keys := node.Key(); keys.Next(); {
+			part := keys.Node()
+			parts = append(parts, string(part.Data))
+			if line == 0 {
+				line = parser.Shape(part.Raw).Start.Line
+			}
+		}
+		found = append(found, header{line: line, exception: node.Kind == unstable.ArrayTable && slices.Equal(parts, []string{"exception"})})
+	}
+	return found
+}
+
 // headerLines returns the 1-based line of every [[exception]] header, in file order.
 func headerLines(data []byte) []int {
 	var lines []int
-	for i, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == exceptionHeader {
-			lines = append(lines, i+1)
+	for _, h := range headers(data) {
+		if h.exception {
+			lines = append(lines, h.line)
 		}
 	}
 	return lines

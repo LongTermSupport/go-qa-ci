@@ -3,6 +3,7 @@ package record_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -117,5 +118,29 @@ func TestLoadNamesUnknownKey(t *testing.T) {
 	_, err := record.Load(write(t, "[[exception]]\nreson = \"typo\"\n"))
 	if err == nil || !strings.Contains(err.Error(), "reson") {
 		t.Errorf("error %v does not name the key", err)
+	}
+}
+
+func TestEntryLinesSurviveHeadersWithCommentsSpacesAndStringLookalikes(t *testing.T) {
+	text := "[[exception]] # first\n" +
+		"rule = \"a\"\n" +
+		"path = \"a.go\"\n" +
+		"justification = \"\"\"\n[[exception]]\nnot a header, only text\n\"\"\"\n" +
+		"[[ exception ]]\n" +
+		"rule = \"b\"\n" +
+		"path = \"b.go\"\n" +
+		"[[exception]]   # third\n" +
+		"rule = \"c\"\n" +
+		"path = \"c.go\"\n"
+	loaded, err := record.Parse([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []int
+	for _, e := range loaded.Exceptions {
+		got = append(got, e.Line)
+	}
+	if want := []int{1, 8, 11}; !slices.Equal(got, want) {
+		t.Errorf("entry lines %v, want %v", got, want)
 	}
 }

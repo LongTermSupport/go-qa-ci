@@ -65,3 +65,11 @@ func TestRemoveExceptionsIgnoresOutOfRangeIndexes(t *testing.T) {
 		t.Errorf("changed:\n%s", out)
 	}
 }
+
+func TestRemoveExceptionsFindsHeadersWithCommentsAndSpaces(t *testing.T) {
+	text := "[[exception]] # first\nrule = \"a\"\n\n# second\n[[ exception ]]   # note\nrule = \"b\"\n\n[[exception]]\nrule = \"c\"\n"
+	out := record.RemoveExceptions(text, []int{1})
+	if strings.Contains(out, `"b"`) || strings.Contains(out, "second") || !strings.Contains(out, `"a"`) || !strings.Contains(out, `"c"`) {
+		t.Errorf("wrong entry removed:\n%s", out)
+	}
+}

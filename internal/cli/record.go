@@ -110,11 +110,11 @@ func recordPrune(rootPath string, cfg config.Config, args []string, stdout, stde
 		}
 		indexes = append(indexes, number-1)
 	}
-	remaining, err := record.Prune(rootPath, cfg.Record.Path, indexes)
+	removed, remaining, err := record.Prune(rootPath, cfg.Record.Path, indexes)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa record prune: %v", err)
 	}
-	return emit(stdout, ExitOK, "removed %d exception(s); %d remain; commit the change", len(indexes), remaining)
+	return emit(stdout, ExitOK, "removed %d exception(s); %d remain; commit the change", removed, remaining)
 }
 
 // write sends text to stdout; a failed write is a failure of the command.

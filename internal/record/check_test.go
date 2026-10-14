@@ -22,6 +22,10 @@ func project(t *testing.T, content string) string {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
+		// The ratchet is judged against committed history, and a check without any fails.
+		git(t, root, "init", "-q", "-b", "main")
+		git(t, root, "add", ".")
+		git(t, root, "commit", "-q", "-m", "record")
 	}
 	return root
 }
@@ -51,7 +55,11 @@ func TestCheckPropagatesParseErrorsWithThePath(t *testing.T) {
 	}
 }
 
-func checkPolicy() config.RecordPolicy { return config.Default().Record }
+func checkPolicy() config.RecordPolicy {
+	policy := config.Default().Record
+	policy.HistoryBase = "main"
+	return policy
+}
 
 func TestCheckAppliesThePolicyReviewWithTheGivenClock(t *testing.T) {
 	root := project(t, "[ratchet]\nhigh_water = 1\ndecided_by = \"alice\"\ndecided_on = 2026-06-01\nreason = \""+soundReason+"\"\n\n"+

@@ -39,19 +39,25 @@ func Gate(root string, policy config.RecordPolicy, today date.Date, mayLower boo
 	report.Findings = append(report.Findings, Review(in)...)
 
 	previous, baseUnresolved := previousRecord(root, policy.Path, policy.HistoryBase)
+	// A raise can be seen only against history, so history that is not there is a gap, not a pass:
+	// it fails where the record is enforced (CI) and is noted locally.
+	var gap string
 	switch {
-	case previous == nil && len(rec.Exceptions) > 0:
-		report.Notes = append(report.Notes, "no committed history for the record; a raise of high_water is not checked against it")
-	case baseUnresolved && len(rec.Exceptions) > 0:
-		// A raise already committed on this branch is visible only against the merge base, so an
-		// unresolvable base is a gap: it fails where the record is enforced (CI) and is noted locally.
-		gap := fmt.Sprintf("history_base %q does not resolve to a merge base with HEAD (not fetched, no such ref, or a shallow clone); "+
+	case len(rec.Exceptions) == 0:
+	case previous == nil && headResolves(root):
+		gap = "the record committed at HEAD does not parse, so a raise of high_water is not checked against it"
+	case previous == nil:
+		gap = "no committed history for the record (no repository, no commit, or no git); a raise of high_water is not checked against it"
+	case baseUnresolved:
+		gap = fmt.Sprintf("history_base %q does not resolve to a merge base with HEAD (not fetched, no such ref, or a shallow clone); "+
 			"a committed raise of high_water is not checked against it", policy.HistoryBase)
-		if mayLower {
-			report.Notes = append(report.Notes, gap)
-		} else {
-			report.Findings = append(report.Findings, in.ratchetFinding("[ratchet] "+gap))
-		}
+	}
+	switch {
+	case gap == "":
+	case mayLower:
+		report.Notes = append(report.Notes, gap)
+	default:
+		report.Findings = append(report.Findings, in.ratchetFinding("[ratchet] "+gap))
 	}
 	verdict := ReviewRatchet(in, previous)
 	report.Findings = append(report.Findings, verdict.Findings...)
@@ -87,41 +93,42 @@ func rewriteHighWater(file string, value int) error {
 	return writeFile(file, text)
 }
 
-// Prune removes the exceptions at indexes (0-based, file order) from the record at recordPath
-// under root, and lowers high_water to the count that remains. A record without a [ratchet] table
-// only loses the entries. It returns the number of exceptions that remain.
-func Prune(root, recordPath string, indexes []int) (int, error) {
+// Prune removes the exceptions at indexes (0-based, file order, a repeated index counts once) from
+// the record at recordPath under root, and lowers high_water to the count that remains. A record
+// without a [ratchet] table only loses the entries. It returns the number of exceptions removed
+// and the number that remain.
+func Prune(root, recordPath string, indexes []int) (removed, remaining int, err error) {
 	file := filepath.Join(root, filepath.FromSlash(recordPath))
 	data, err := readFile(file)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %w", recordPath, err)
+		return 0, 0, fmt.Errorf("%s: %w", recordPath, err)
 	}
 	rec, err := Parse(data)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %w", recordPath, err)
+		return 0, 0, fmt.Errorf("%s: %w", recordPath, err)
 	}
 	for _, index := range indexes {
 		if index < 0 || index >= len(rec.Exceptions) {
-			return 0, fmt.Errorf("%s: no exception #%d (the record holds %d)", recordPath, index+1, len(rec.Exceptions))
+			return 0, 0, fmt.Errorf("%s: no exception #%d (the record holds %d)", recordPath, index+1, len(rec.Exceptions))
 		}
 	}
 	text := RemoveExceptions(string(data), indexes)
 	pruned, err := Parse([]byte(text))
 	if err != nil {
-		return 0, fmt.Errorf("%s: pruned record does not parse: %w", recordPath, err)
+		return 0, 0, fmt.Errorf("%s: pruned record does not parse: %w", recordPath, err)
 	}
-	remaining := len(pruned.Exceptions)
+	remaining = len(pruned.Exceptions)
 	if rec.Ratchet != nil {
 		lowered, ok := SetHighWater(text, remaining)
 		if !ok {
-			return 0, fmt.Errorf("%s: %w", recordPath, errNoHighWater)
+			return 0, 0, fmt.Errorf("%s: %w", recordPath, errNoHighWater)
 		}
 		text = lowered
 	}
 	if err := writeFile(file, text); err != nil {
-		return 0, fmt.Errorf("%s: %w", recordPath, err)
+		return 0, 0, fmt.Errorf("%s: %w", recordPath, err)
 	}
-	return remaining, nil
+	return len(rec.Exceptions) - remaining, remaining, nil
 }
 
 func writeFile(file, text string) error {
@@ -150,7 +157,7 @@ func writeFile(file, text string) error {
 // found, so only HEAD was compared.
 func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved bool) {
 	revisions := []string{"HEAD"}
-	if mergeBase, ok := git(root, "merge-base", base, "HEAD"); ok {
+	if mergeBase, ok := git(root, "merge-base", "--end-of-options", base, "HEAD"); ok {
 		revisions = append(revisions, strings.TrimSpace(mergeBase))
 	} else {
 		baseUnresolved = true
@@ -165,6 +172,12 @@ func previousRecord(root, recordPath, base string) (best *Record, baseUnresolved
 		}
 	}
 	return best, baseUnresolved
+}
+
+// headResolves reports whether HEAD names a commit.
+func headResolves(root string) bool {
+	_, ok := git(root, "rev-parse", "--verify", "--quiet", "HEAD^{commit}")
+	return ok
 }
 
 // recordAt reads the record at revision rev. Paths are resolved from root, not from the top of the

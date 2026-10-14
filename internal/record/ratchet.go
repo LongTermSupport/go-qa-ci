@@ -26,7 +26,7 @@ type RatchetVerdict struct {
 	LowerTo *int
 }
 
-// ReviewRatchet applies the ratchet (TOOLING-SPEC 6.4): the record may not hold entries without a
+// ReviewRatchet applies the ratchet, a toolchain default that serves TOOLING-SPEC 6.4: the record may not hold entries without a
 // signed ceiling, grow past it, or have the ceiling raised except by a configured decider's fresh
 // signature. previous is the record as committed before this change, or nil when no history is
 // available, in which case a raise cannot be detected.
@@ -84,11 +84,13 @@ func ratchetProblems(in Input, count int, previous *Record) []string {
 }
 
 // freshSignature reports whether the current ratchet was signed after the previous one and within
-// the raise window.
+// the raise window. Dates are whole days, so a second raise on the day of the previous signature is
+// accepted when it is a new decision: another decider or a different reason.
 func freshSignature(in Input, previous *Record) bool {
-	signed := in.Record.Ratchet.DecidedOn
-	newer := previous.Ratchet == nil || signed.After(previous.Ratchet.DecidedOn)
-	return newer && !signed.Before(in.Today.AddDays(-RaiseWindowDays))
+	current := in.Record.Ratchet
+	newer := previous.Ratchet == nil || current.DecidedOn.After(previous.Ratchet.DecidedOn) ||
+		(current.DecidedOn.Equal(previous.Ratchet.DecidedOn) && (current.DecidedBy != previous.Ratchet.DecidedBy || current.Reason != previous.Ratchet.Reason))
+	return newer && !current.DecidedOn.Before(in.Today.AddDays(-RaiseWindowDays))
 }
 
 func (in Input) ratchetFinding(message string) finding.Finding {

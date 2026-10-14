@@ -68,7 +68,7 @@ analyzers detector reports the unused ones for analyzer names on a run over the 
 (docs/analyzers.md); no run reports an unused findings exception for a golangci-lint linter yet,
 which is a recorded gap, not a claim.
 
-## Anti-bloat controls (TOOLING-SPEC 6.4)
+## Anti-bloat controls (defaults serving TOOLING-SPEC 6.4)
 
 `go-qa record check` and the `record` tool apply the `[record]` policy from `qa/go-qa.toml`
 (`max_total`, `max_per_rule`, `max_policy`, `max_review_days`, `deciders`, `[record.trust]`).
@@ -121,12 +121,23 @@ ceiling fails until the lowered ceiling is committed. `go-qa record prune <numbe
 exceptions numbered as `record list` shows them, with the comments above them, and lowers
 `high_water` to what remains.
 
-When git or the record's history is unavailable (no repository, no commit), a note says so and a
-raise cannot be detected (`record check` prints the note on stderr); that is a gap, not a pass. A
-record absent from a commit that exists counts as empty, so creating a record is a raise from zero. When `history_base` does not resolve to a merge
-base with `HEAD` (a missing `origin`, a different default branch, a shallow clone), a raise already
-committed on the branch cannot be seen: the gate fails with a `gqaci.record.ratchet` finding in CI
-and notes it locally. Set `history_base` to a ref that exists, and fetch enough history for it.
+When git or the record's history is unavailable (no repository, no commit, or a record at `HEAD`
+that does not parse), a raise cannot be detected, and that is a gap, not a pass: the gate fails with
+a `gqaci.record.ratchet` finding in CI (and in `go-qa record check`) and prints a note locally. A
+record absent from a commit that exists counts as empty, so creating a record is a raise from zero.
+When `history_base` does not resolve to a merge base with `HEAD` (a missing `origin`, a different
+default branch, a shallow clone), a raise already committed on the branch cannot be seen either: the
+same finding in CI, a note locally. Set `history_base` to a ref that exists, and fetch enough
+history for it. `history_base` and `mutants.base` must be refs, never a value starting with `-`.
+
+Dates are whole days, so a second raise signed on the day of the previous signature is accepted
+when it is a new decision (another `decided_by` or a different `reason`); a signature that changed
+nothing is not fresh. A raise that was signed and committed on a long-lived branch is judged against
+the merge base, so once its `decided_on` is older than 14 days CI on that branch fails until the
+branch merges or the raise is signed afresh.
+
+The ratchet, the budgets and the tiers are the toolchain's own defaults, offered to serve
+TOOLING-SPEC 6.4 (a toolchain should state its defaults); 6.4 does not require them.
 
 ## Configuration exceptions
 
@@ -136,16 +147,17 @@ a project-level exception that the suppression detector requires to be recorded 
 recorded rule is the one the detector prints (docs/suppression.md), and the record entry's path is
 the configuration file.
 
-| Detector rule | Scope                                    | Hazard                                                                         | Why it does not apply                                                                                                   |
-| ------------- | ---------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| gosec `G204`  | whole module                             | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
-| gosec `G306`  | `tests/scripts/secret_scan_test.go` only | a file written more permissive than 0600 can be read or altered by other users | the file is a test stub that must be executable (0700, owner only), written into a private per-test temporary directory |
-| govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
+| Detector rule          | Scope                                           | Hazard                                                                         | Why it does not apply                                                                                                   |
+| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| gosec `G204`           | whole module                                    | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
+| gosec `G306`           | `tests/scripts/secret_scan_test.go` only        | a file written more permissive than 0600 can be read or altered by other users | the file is a test stub that must be executable (0700, owner only), written into a private per-test temporary directory |
+| govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
 
 The entries are `golangci.yml::gosec.excludes::G204`, `golangci.yml::exclusions.rules::gosec/G306`
 and `golangci.yml::govet.disable::fieldalignment`, all against `.golangci.yml`. Their review dates
 are the owner's to re-decide; a lapsed one fails `gqaci.record.expired`. The `example-owner`
 decider in `qa/go-qa.toml` is a placeholder to replace before the first public release.
+
 ## Not yet built
 
 `record prune` takes explicit numbers; it does not yet find the stale exceptions itself. The

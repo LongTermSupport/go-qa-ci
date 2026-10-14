@@ -87,6 +87,18 @@ func TestARaiseNeedsAFreshSignatureNewerThanTheLast(t *testing.T) {
 	}
 }
 
+func TestASecondRaiseOnTheSameDayNeedsANewDecision(t *testing.T) {
+	before := signed(t, 1, today(t), "a.go")
+	same := signed(t, 2, today(t), "a.go", "b.go")
+	assertOne(t, ratchetOf(t, same, &before).Findings, finding.RecordRatchet, "raised from 1 to 2")
+
+	reworded := signed(t, 2, today(t), "a.go", "b.go")
+	reworded.Ratchet.Reason = "A second entry is needed for the generated client, which the first decision did not cover."
+	if got := ratchetOf(t, reworded, &before).Findings; len(got) != 0 {
+		t.Errorf("a re-signed raise on the same day was rejected: %v", got)
+	}
+}
+
 func TestAdoptingTheRatchetAtTheExistingCountIsNotARaise(t *testing.T) {
 	legacy := signed(t, 0, today(t), "a.go")
 	legacy.Ratchet = nil

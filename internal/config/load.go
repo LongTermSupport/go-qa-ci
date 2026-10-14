@@ -150,6 +150,11 @@ func (c Config) problems(root string) []string {
 		problems = append(problems, fmt.Sprintf("mutants.mode %q is unknown (want off, diff or full)", c.Mutants.Mode))
 	}
 	problems = append(problems, c.Record.Problems()...)
+	for _, ref := range []struct{ key, value string }{{"record.history_base", c.Record.HistoryBase}, {"mutants.base", c.Mutants.Base}} {
+		if strings.HasPrefix(ref.value, "-") {
+			problems = append(problems, fmt.Sprintf("%s %q must be a git ref, not an option", ref.key, ref.value))
+		}
+	}
 	local := map[string]string{"record.path": c.Record.Path, "docs_dir": c.DocsDir}
 	if c.Summary.File != "" {
 		local["summary.file"] = c.Summary.File

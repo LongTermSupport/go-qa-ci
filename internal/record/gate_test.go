@@ -160,13 +160,66 @@ func TestACommittedRaiseWithAnUnresolvableBaseIsAGapNotAPass(t *testing.T) {
 	}
 }
 
-func TestWithoutHistoryTheGateSaysSo(t *testing.T) {
+func TestWithoutHistoryTheGateFailsInCIAndSaysSoLocally(t *testing.T) {
 	root := t.TempDir()
 	writeRecord(t, root, recordText(t, 1, today(t), "a.go"))
-	report := gate(t, root, false)
-	if len(report.Findings) != 0 || len(report.Notes) != 1 || !strings.Contains(report.Notes[0], "no committed history") {
-		t.Errorf("got %v, %v", report.Findings, report.Notes)
+	ci := gate(t, root, false)
+	assertOne(t, ratchetFindings(ci), finding.RecordRatchet, "no committed history")
+	local := gate(t, root, true)
+	if len(local.Findings) != 0 || len(local.Notes) != 1 || !strings.Contains(local.Notes[0], "no committed history") {
+		t.Errorf("got %v, %v", local.Findings, local.Notes)
 	}
+}
+
+func TestAnUnparseableRecordAtHeadIsNamedAsSuch(t *testing.T) {
+	root := repoWith(t, "this is = = not toml\n")
+	writeRecord(t, root, recordText(t, 1, today(t), "a.go"))
+	policy := testPolicy()
+	policy.Path = recordRel
+	policy.HistoryBase = "main"
+	report, err := record.Gate(root, policy, today(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := ratchetFindings(report)
+	if len(found) == 0 || !strings.Contains(found[0].Message, "does not parse") {
+		t.Errorf("got %v", found)
+	}
+}
+
+func TestAHistoryBaseThatLooksLikeAnOptionIsNotRunAsOne(t *testing.T) {
+	root := repoWith(t, recordText(t, 1, today(t), "a.go"))
+	policy := testPolicy()
+	policy.Path = recordRel
+	policy.HistoryBase = "--all"
+	report, err := record.Gate(root, policy, today(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertOne(t, ratchetFindings(report), finding.RecordRatchet, "does not resolve")
+}
+
+func TestAModuleInARepositorySubdirectoryFindsItsOwnHistory(t *testing.T) {
+	repo := t.TempDir()
+	git(t, repo, "init", "-q", "-b", "main")
+	root := filepath.Join(repo, "svc")
+	writeRecord(t, root, recordText(t, 1, today(t).AddDays(-3), "a.go"))
+	git(t, repo, "add", ".")
+	git(t, repo, "commit", "-q", "-m", "record")
+	writeRecord(t, root, recordText(t, 2, today(t).AddDays(-3), "a.go", "b.go"))
+	assertOne(t, ratchetFindings(gate(t, root, false)), finding.RecordRatchet, "raised from 1 to 2")
+}
+
+func TestCreatingARecordWithAStaleSignatureIsARaiseFromZero(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(root, "README"), []byte("x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-q", "-m", "first")
+	writeRecord(t, root, recordText(t, 1, today(t).AddDays(-60), "a.go"))
+	assertOne(t, ratchetFindings(gate(t, root, false)), finding.RecordRatchet, "raised from 0 to 1")
 }
 
 func TestAShrunkRecordMustLowerItsCeiling(t *testing.T) {
@@ -193,7 +246,7 @@ func TestAShrunkRecordHasItsCeilingLoweredWhenAllowed(t *testing.T) {
 
 func TestPruneRemovesEntriesAndLowersHighWater(t *testing.T) {
 	root := repoWith(t, recordText(t, 3, today(t), "a.go", "b.go", "c.go"))
-	remaining, err := record.Prune(root, recordRel, []int{0, 2})
+	_, remaining, err := record.Prune(root, recordRel, []int{0, 2})
 	if err != nil || remaining != 1 {
 		t.Fatalf("got %d, %v", remaining, err)
 	}
@@ -214,15 +267,23 @@ func TestPruneOfARecordWithoutARatchetOnlyRemoves(t *testing.T) {
 	root := t.TempDir()
 	text := strings.SplitN(recordText(t, 2, today(t), "a.go", "b.go"), "\n[[exception]]", 2)
 	writeRecord(t, root, "[[exception]]"+text[1])
-	remaining, err := record.Prune(root, recordRel, []int{0})
+	_, remaining, err := record.Prune(root, recordRel, []int{0})
 	if err != nil || remaining != 1 {
 		t.Errorf("got %d, %v", remaining, err)
 	}
 }
 
+func TestPruneCountsEachNamedEntryOnce(t *testing.T) {
+	root := repoWith(t, recordText(t, 3, today(t), "a.go", "b.go", "c.go"))
+	removed, remaining, err := record.Prune(root, recordRel, []int{1, 1, 1})
+	if err != nil || removed != 1 || remaining != 2 {
+		t.Errorf("got removed %d, remaining %d, %v", removed, remaining, err)
+	}
+}
+
 func TestPruneRejectsAnEntryNumberThatDoesNotExist(t *testing.T) {
 	root := repoWith(t, recordText(t, 1, today(t), "a.go"))
-	if _, err := record.Prune(root, recordRel, []int{4}); err == nil {
+	if _, _, err := record.Prune(root, recordRel, []int{4}); err == nil {
 		t.Error("out-of-range index accepted")
 	}
 }

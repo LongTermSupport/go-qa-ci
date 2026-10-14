@@ -41,6 +41,18 @@ func recordModule(t *testing.T, recordToml string) string {
 	return dir
 }
 
+// committedRecordModule is recordModule in a repository whose main branch holds the record: the
+// ratchet is judged against committed history, and a record check without any fails.
+func committedRecordModule(t *testing.T, recordToml string) string {
+	t.Helper()
+	dir := module(t, "[record]\ndeciders = [\"alice\"]\nhistory_base = \"main\"\n")
+	writeFile(t, dir, "qa/record.toml", recordToml)
+	gitIn(t, dir, "init")
+	gitIn(t, dir, "add", "-A")
+	gitIn(t, dir, "commit", "-m", "record")
+	return dir
+}
+
 // validRecord is decided today by a configured decider and due for review in 30 days; the CLI
 // reads the real clock, so the dates are relative to it.
 func validRecord() string {
@@ -71,8 +83,8 @@ func TestRecordCheckReportsAnOverBudgetRecord(t *testing.T) {
 func TestRecordCheckPassesAValidRecord(t *testing.T) {
 	signed := "[ratchet]\nhigh_water = 1\ndecided_by = \"alice\"\ndecided_on = " + date.Today().String() +
 		"\nreason = \"" + goodWhy + "\"\n\n"
-	r := exec("--root", recordModule(t, signed+validRecord()), "record", "check")
-	if r.code != 0 || !strings.HasPrefix(r.err, "note: no committed history") || !strings.Contains(r.out, "1 exceptions") {
+	r := exec("--root", committedRecordModule(t, signed+validRecord()), "record", "check")
+	if r.code != 0 || r.err != "" || !strings.Contains(r.out, "1 exceptions") {
 		t.Errorf("got %+v", r)
 	}
 }
