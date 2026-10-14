@@ -37,7 +37,7 @@ func TestGolangciRoutes(t *testing.T) {
 		},
 		{"severity left at error", "severity:\n  default: error\n  rules:\n    - linters: [revive]\n      severity: error\n" + capsOff, nil},
 		{"issue cap above zero", "issues:\n  max-issues-per-linter: 50\n  max-same-issues: 0\n", []string{"golangci.yml::issues.max-issues-per-linter::50@" + cfg + ":2"}},
-		{"issue caps left at the default", "linters:\n  default: standard\n", []string{"golangci.yml::issues.max-issues-per-linter::unset@" + cfg + ":0", "golangci.yml::issues.max-same-issues::unset@" + cfg + ":0"}},
+		{"issue caps left unset: go-qa forces both to 0 on its own run", "linters:\n  default: standard\n", nil},
 		{
 			"new code only", "issues:\n  new: true\n  new-from-rev: HEAD~1\n  new-from-merge-base: main\n  new-from-patch: p.diff\n  max-issues-per-linter: 0\n  max-same-issues: 0\n",
 			[]string{"golangci.yml::issues.new@" + cfg + ":2", "golangci.yml::issues.new-from-rev::HEAD~1@" + cfg + ":3", "golangci.yml::issues.new-from-merge-base::main@" + cfg + ":4", "golangci.yml::issues.new-from-patch::p.diff@" + cfg + ":5"},

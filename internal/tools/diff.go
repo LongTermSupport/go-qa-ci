@@ -29,7 +29,9 @@ func (e Executor) packagesOf(module string) (patterns []string, run bool) {
 //   - per-package engines (golangci, analyzers, test, coverage) run on the changed packages and
 //     their importers; deadcode and mutants, which are whole-program, run when any package is
 //     affected;
-//   - vuln and mod judge go.mod and go.sum, whose change widens the run, so they are skipped;
+//   - vuln and mod judge the whole module, not a package: a changed Go file can call a vulnerable
+//     function of a module already required, or import one go.mod does not yet list, so they run
+//     whenever any package is affected and are skipped only when no Go package changed;
 //   - the repo-wide defences (record, docs, summary) are not narrowed.
 func (e Executor) runNarrowed(step pipeline.Step) (outcome pipeline.Outcome, handled bool) {
 	plan := e.Ctx.Diff
@@ -38,13 +40,11 @@ func (e Executor) runNarrowed(step pipeline.Step) (outcome pipeline.Outcome, han
 		return e.onFiles(step, plan.GoFiles(), "no changed Go files"), true
 	case "suppression", "ast-grep":
 		return e.onFiles(step, plan.Scope, "no changed files"), true
-	case "golangci", "analyzers", "test", "coverage", "deadcode", "mutants":
+	case "golangci", "analyzers", "test", "coverage", "deadcode", "mutants", "vuln", "mod":
 		if len(plan.Packages) == 0 {
 			return pipeline.Skipped("no changed Go packages"), true
 		}
 		return pipeline.Outcome{}, false
-	case "vuln", "mod":
-		return pipeline.Skipped("go.mod and go.sum are unchanged"), true
 	case "record", "docs", "summary":
 		return pipeline.Outcome{}, false
 	}

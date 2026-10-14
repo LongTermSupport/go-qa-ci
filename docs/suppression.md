@@ -17,8 +17,9 @@ globs are honoured. `-p` limits the scan to the named paths.
 | `gqaci.suppression.bare`       | a suppression that names no rule, or gives no reason (the next section)        | no                    |
 | `gqaci.record.stale`           | a `covers = "suppressions"` exception that licenses nothing the scan found     | removed by the owner  |
 
-An unparseable file is reported as `gqaci.suppression.unrecorded` with `cannot parse`, whether or not
-the record names it: what the file silences is unknown, so it cannot be licensed.
+An unparseable file is reported as `gqaci.suppression.unrecorded` with `cannot parse` and the parser's
+own `file:line:column` position, whether or not the record names it: what the file silences is unknown,
+so it cannot be licensed.
 
 Staleness is judged only on a run over the whole project (no `-p`), because only this tool applies
 suppression exceptions and a scoped scan sees only some of them. Exceptions with
@@ -52,7 +53,7 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `linters.disable` item                                                                                                                             | `linters.disable::X`                                                   |
 | `linters.default` other than `standard` or `all`                                                                                                   | `linters.default::X`                                                   |
 | `severity.rules` entry that is not `error`; `severity.default` other than `error`                                                                  | `severity.rules::<linters>/<severity>`, `severity.default::X`          |
-| `issues.max-issues-per-linter`, `issues.max-same-issues` unset or above 0                                                                          | `issues.<key>::unset` or `issues.<key>::<value>`                       |
+| `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                  | `issues.<key>::<value>`                                                |
 | `issues.new`, `new-from-rev`, `new-from-merge-base`, `new-from-patch`                                                                              | `issues.new`, `issues.new-from-rev::X`, and so on                      |
 | `run.tests: false`                                                                                                                                 | `run.tests`                                                            |
 | `errcheck.exclude-functions`, `gosec.excludes`, `govet.disable`, `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable` items | `<linter>.<setting>::X`                                                |
@@ -65,14 +66,17 @@ to one exclusion among several in a file: the path of the exception is the confi
 the justification must state which exclusion it covers. A TOML configuration has no usable lines
 (it is converted before reading), so its findings point at line 0.
 
-The default issue caps of golangci-lint (50 per linter, 3 of the same issue) hide findings, so a
-configuration that does not set both to 0 is a route even though it excludes nothing in writing.
+The default issue caps of golangci-lint (50 per linter, 3 of the same issue) would hide findings, but
+`go-qa run` passes both as 0 on the command line, which overrides the file, so a configuration that
+leaves them unset hides nothing from this toolchain and is no route. A cap set above 0 is a route:
+it states an intent to hide, and it would hide findings if the file were run by golangci-lint alone.
 
 ## Bare suppressions
 
 `gqaci.suppression.bare` fails even when the record names the rule:
 
-- a disabling directive naming no linter, or naming linters but giving no `// reason`;
+- a disabling directive naming no linter, naming `all` (which silences every linter exactly as a
+  bare directive does), or naming linters but giving no `// reason`;
 - a staticcheck ignore naming no check or giving no reason;
 - a gosec or ast-grep marker naming no rule.
 

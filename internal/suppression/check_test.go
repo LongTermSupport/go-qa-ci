@@ -109,10 +109,23 @@ func TestBareDirectivesFailEvenWhenRecorded(t *testing.T) {
 	}
 }
 
+func TestNolintNamingAllIsBareAndNoRecordEntryLicensesIt(t *testing.T) {
+	t.Parallel()
+	for _, directive := range []string{nolint + ":all // reason", nolint + ":errcheck,all // reason", nolint + ":all"} {
+		files := map[string]string{"p.go": "package p\n\nfunc g() {\n\tf() " + directive + "\n}\n"}
+		for _, rec := range []record.Record{{}, recordFor("all", "p.go"), recordFor("errcheck", "p.go")} {
+			got := check(t, files, rec)
+			if len(got) == 0 || got[0].Rule != builtin.SuppressionBare || !strings.Contains(got[0].Message, "every linter") {
+				t.Errorf("%s with record %v: got %v", directive, rec, got)
+			}
+		}
+	}
+}
+
 func TestUnparseableFilesFailEvenWithARecord(t *testing.T) {
 	t.Parallel()
 	got := check(t, map[string]string{"bad.go": "package p\nfunc ("}, recordFor("errcheck", "bad.go"))
-	if len(got) != 1 || got[0].Rule != builtin.SuppressionUnrecorded || got[0].Path != "bad.go" || !strings.Contains(got[0].Message, "cannot parse") {
+	if len(got) != 1 || got[0].Rule != builtin.SuppressionUnrecorded || got[0].Path != "bad.go" || !strings.Contains(got[0].Message, "cannot parse") || !strings.Contains(got[0].Message, "bad.go:2") {
 		t.Errorf("got %v", got)
 	}
 }

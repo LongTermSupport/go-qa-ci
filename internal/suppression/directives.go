@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -90,7 +91,13 @@ func directives(name string, line int, text string) []Suppression {
 		found = append(found, build(name, line, route, rules, bare)...)
 	}
 	if m := disableDirective.FindStringSubmatch(text); m != nil {
-		add(RouteNolint, splitList(m[1]), disableProblem(m))
+		linters := splitList(m[1])
+		if slices.Contains(linters, "all") {
+			// `all` silences every linter exactly as a bare directive does, so it is no named rule.
+			add(RouteNolint, nil, "the directive names `all`, so it silences every linter on its line")
+		} else {
+			add(RouteNolint, linters, disableProblem(m))
+		}
 	}
 	if m := ignoreDirective.FindStringSubmatch(text); m != nil {
 		checks := splitList(m[1])

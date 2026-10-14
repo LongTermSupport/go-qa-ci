@@ -68,7 +68,7 @@ plus the working tree (so a committed change on a branch is covered).
 | `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
-| `vuln`, `mod`                                                             | skipped: they judge `go.mod` and `go.sum`, and a change to either widens the run                                                         |
+| `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module) |
 
 A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, anything under
 `qa/`, the project record or the configuration file widens the run to everything, and the summary

@@ -152,6 +152,17 @@ func TestDiffSuppressionScansOnlyTheChangedFiles(t *testing.T) {
 	}
 }
 
+func TestDiffRunsVulnAndModWhenAGoPackageChangedBecauseCallsAndImportsCanChange(t *testing.T) {
+	root := diffProject(t, nil)
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, stderr := narrowed(t, root)
+	for _, name := range []string{"vuln", "mod"} {
+		if out := exec.Run(stepNamed(t, name)); out.Kind == pipeline.KindSkipped {
+			t.Errorf("%s was skipped although a Go package changed: %+v\n%s", name, out, stderr)
+		}
+	}
+}
+
 func TestDiffWidenedRunCoversEveryPackage(t *testing.T) {
 	root := diffProject(t, nil)
 	put(t, root, map[string]string{"go.mod": goModEdited})

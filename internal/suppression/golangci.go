@@ -150,8 +150,8 @@ var scalarRoutes = []scalarRoute{
 	{keys: []string{"linters", "settings", "revive", "ignore-generated-header"}, name: "revive.ignore-generated-header", fires: is("true")},
 }
 
-// issueCaps are the settings that, left at golangci-lint's default or set above zero, hide the
-// findings past a count.
+// issueCaps are the settings that, set above zero, hide the findings past a count. Left unset they
+// are no route: go-qa's own run passes both as 0 on the command line, which overrides the file.
 var issueCaps = []string{"max-issues-per-linter", "max-same-issues"}
 
 // scanGolangci reads one golangci-lint configuration for settings that exclude findings or switch
@@ -210,11 +210,7 @@ func (c config) scalars(name string) []Suppression {
 func (c config) caps(name string) []Suppression {
 	var found []Suppression
 	for _, key := range issueCaps {
-		node := at(c.root, "issues", key)
-		switch {
-		case node == nil:
-			found = append(found, c.suppression(name, "issues."+key+"::unset", 0))
-		case node.Value != "0":
+		if node := at(c.root, "issues", key); node != nil && node.Value != "0" {
 			found = append(found, c.suppression(name, "issues."+key+"::"+node.Value, c.line(node)))
 		}
 	}
