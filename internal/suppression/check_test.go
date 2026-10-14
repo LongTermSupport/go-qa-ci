@@ -53,7 +53,6 @@ func TestEveryRouteFailsUnrecordedAndPassesRecorded(t *testing.T) {
 		{"golangci new-from-merge-base", cfg, "issues:\n  new-from-merge-base: main\n  max-issues-per-linter: 0\n  max-same-issues: 0\n", "golangci.yml::issues.new-from-merge-base::main", cfg},
 		{"golangci exclusion presets", cfg, "linters:\n  exclusions:\n    presets: [comments]\n" + capsOff, "golangci.yml::exclusions.presets::comments", cfg},
 		{"golangci exclusion paths", cfg, "linters:\n  exclusions:\n    paths:\n      - vendor\n" + capsOff, "golangci.yml::exclusions.paths::vendor", cfg},
-		{"golangci disabled linter", cfg, "linters:\n  disable: [errcheck]\n" + capsOff, "golangci.yml::linters.disable::errcheck", cfg},
 		{"golangci issue cap above zero", cfg, "issues:\n  max-issues-per-linter: 50\n  max-same-issues: 0\n", "golangci.yml::issues.max-issues-per-linter::50", cfg},
 		{"staticcheck.conf initialisms", "staticcheck.conf", "checks = [\"all\"]\ninitialisms = [\"ID\"]\n", "staticcheck.conf::initialisms", "staticcheck.conf"},
 		{"staticcheck.conf dot-import whitelist", "staticcheck.conf", "checks = [\"all\"]\ndot_import_whitelist = [\"x\"]\n", "staticcheck.conf::dot_import_whitelist", "staticcheck.conf"},

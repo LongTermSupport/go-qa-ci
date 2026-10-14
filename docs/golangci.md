@@ -47,9 +47,11 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
   strict baseline `configs/golangci.yml` is used. The file is looked for in the module's own
   directory only: a nested module without a file of its own gets the baseline, even when a parent
   directory holds a `.golangci.yml` that golangci-lint's own discovery would pick. A project file's
-  `linters.exclusions`, presets, `issues.new-from-*`, disabled linters and narrowed linter set can
-  drop findings, so the `suppression` tool reads the file and requires a record entry for each
-  (docs/suppression.md); the settings of golangci-lint's own that it does not list are a recorded
+  `linters.exclusions`, presets, `issues.new-from-*`, a check disabled inside a running linter and a
+  narrowed `linters.default` can drop findings, so the `suppression` tool reads the file and requires a
+  record entry for each (docs/suppression.md). Which linters run (`linters.enable`, `linters.disable`)
+  is the defence set the project chooses, not a suppression: it needs no entry, and `go-qa rules`
+  lists the linters as they are, so what a project does not run is visible rather than recorded; the settings of golangci-lint's own that it does not list are a recorded
   gap there.
 
 ## The bundled baseline

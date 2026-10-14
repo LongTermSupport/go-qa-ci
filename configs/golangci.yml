@@ -1,6 +1,6 @@
 # go-qa strict golangci-lint v2 baseline, used when the project has no .golangci.* file.
-# Choosing which linters are enabled is choosing the defence set; only exclusions of findings
-# are suppressions, and this baseline carries none.
+# Choosing which linters are enabled or disabled is choosing the defence set (go-qa rules lists the
+# result); only exclusions of findings are suppressions, and this baseline carries none.
 version: "2"
 
 linters:
