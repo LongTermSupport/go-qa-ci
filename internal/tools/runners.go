@@ -172,13 +172,20 @@ func (e Executor) runTest() pipeline.Outcome {
 // the same go test run also measures the coverage and keeps it for that step.
 func (e Executor) testModule(module, dir string, packages []string) (output string, passed bool, err error) {
 	if e.Shared == nil {
-		return runners.Test(context.Background(), dir, packages...)
+		output, passed, err = runners.Test(context.Background(), dir, packages...)
+		if err != nil {
+			return "", false, fmt.Errorf("running the tests: %w", err)
+		}
+		return output, passed, nil
 	}
 	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, packages...)
-	if err == nil && passed {
+	if err != nil {
+		return "", false, fmt.Errorf("running the tests and measuring coverage: %w", err)
+	}
+	if passed {
 		e.Shared.put(module, cov)
 	}
-	return output, passed, err
+	return output, passed, nil
 }
 
 // runCoverage fails a module whose statement coverage is below the configured threshold.

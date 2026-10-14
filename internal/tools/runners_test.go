@@ -70,7 +70,16 @@ const countingTest = "package fixture\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\
 
 func goTestRuns(t *testing.T, root string) int {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, "runs.log"))
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := dir.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	data, err := dir.ReadFile("runs.log")
 	if err != nil {
 		t.Fatal(err)
 	}

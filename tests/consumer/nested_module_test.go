@@ -48,6 +48,24 @@ var noPanic = &analysis.Analyzer{
 func main() { driver.Main(noPanic) }
 `
 
+func readIn(t *testing.T, dir, rel string) string {
+	t.Helper()
+	handle, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := handle.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	data, err := handle.ReadFile(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 func put(t *testing.T, dir, rel, content string) {
 	t.Helper()
 	full := filepath.Join(dir, filepath.FromSlash(rel))
@@ -67,17 +85,11 @@ func nestedModule(t *testing.T) (goMod, goSum string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mod, err := os.ReadFile(filepath.Join(repo, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sum, err := os.ReadFile(filepath.Join(repo, "go.sum"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.SplitN(string(mod), "\n", 2)
+	mod := readIn(t, repo, "go.mod")
+	sum := readIn(t, repo, "go.sum")
+	lines := strings.SplitN(mod, "\n", 2)
 	return "module example.com/consumer/qa\n" + lines[1] +
-		"\nrequire github.com/LongTermSupport/go-qa-ci v0.0.0\n\nreplace github.com/LongTermSupport/go-qa-ci => " + repo + "\n", string(sum)
+		"\nrequire github.com/LongTermSupport/go-qa-ci v0.0.0\n\nreplace github.com/LongTermSupport/go-qa-ci => " + repo + "\n", sum
 }
 
 // consumer is a project whose product module has no dependencies and whose rules are in ./qa.
@@ -133,11 +145,7 @@ func TestTheProductModuleStaysDependencyFree(t *testing.T) {
 	if r := run("--root", dir, "run", "-t", "analyzers"); r.code != 1 {
 		t.Fatalf("got %+v", r)
 	}
-	got, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != rootGoMod {
+	if got := readIn(t, dir, "go.mod"); got != rootGoMod {
 		t.Errorf("building the nested driver changed the product go.mod:\n%s", got)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "go.sum")); err == nil {

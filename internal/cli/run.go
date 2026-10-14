@@ -186,7 +186,7 @@ func widenSources(rootPath string, cfg config.Config) (ruleSources, error) {
 	sources := ruleSources{dirs: []string{cfg.DocsDir}}
 	project, found, err := astgrep.LoadProject(rootPath)
 	if err != nil {
-		return ruleSources{}, err
+		return ruleSources{}, fmt.Errorf("reading the ast-grep rule sources: %w", err)
 	}
 	if found {
 		sources.files = append(sources.files, astgrep.ConfigFile)

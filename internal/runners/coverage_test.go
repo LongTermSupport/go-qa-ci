@@ -54,10 +54,10 @@ func TestMeasureCoverageCountsStatementsAcrossPackages(t *testing.T) {
 // detector on, shuffled, uncached (-count=1), and counting statements in atomic mode.
 func gateProbe() map[string]string {
 	return map[string]string{
-		"f.go":          "package fixture\n\nfunc Used() int { return 1 }\n",
-		"race_on.go":    "//go:build race\n\npackage fixture\n\nconst raceEnabled = true\n",
-		"race_off.go":   "//go:build !race\n\npackage fixture\n\nconst raceEnabled = false\n",
-		"f_test.go":     "package fixture\n\nimport (\n\t\"flag\"\n\t\"testing\"\n)\n\nfunc TestRunsLikeTheGate(t *testing.T) {\n\tif Used() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n\tif testing.CoverMode() != \"atomic\" {\n\t\tt.Errorf(\"cover mode %q\", testing.CoverMode())\n\t}\n\tfor name, want := range map[string]string{\"test.shuffle\": \"on\", \"test.count\": \"1\"} {\n\t\tif got := flag.Lookup(name).Value.String(); got != want {\n\t\t\tt.Errorf(\"-%s=%s, want %s\", name, got, want)\n\t\t}\n\t}\n\tif !raceEnabled {\n\t\tt.Error(\"the race detector is off\")\n\t}\n}\n",
+		"f.go":        "package fixture\n\nfunc Used() int { return 1 }\n",
+		"race_on.go":  "//go:build race\n\npackage fixture\n\nconst raceEnabled = true\n",
+		"race_off.go": "//go:build !race\n\npackage fixture\n\nconst raceEnabled = false\n",
+		"f_test.go":   "package fixture\n\nimport (\n\t\"flag\"\n\t\"testing\"\n)\n\nfunc TestRunsLikeTheGate(t *testing.T) {\n\tif Used() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n\tif testing.CoverMode() != \"atomic\" {\n\t\tt.Errorf(\"cover mode %q\", testing.CoverMode())\n\t}\n\tfor name, want := range map[string]string{\"test.shuffle\": \"on\", \"test.count\": \"1\"} {\n\t\tif got := flag.Lookup(name).Value.String(); got != want {\n\t\t\tt.Errorf(\"-%s=%s, want %s\", name, got, want)\n\t\t}\n\t}\n\tif !raceEnabled {\n\t\tt.Error(\"the race detector is off\")\n\t}\n}\n",
 	}
 }
 
