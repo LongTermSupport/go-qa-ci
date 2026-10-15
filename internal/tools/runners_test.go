@@ -301,6 +301,9 @@ func TestBuildCoversANestedModule(t *testing.T) {
 	})
 	out := exec.Run(stepNamed(t, "build"))
 	got := stderr.String()
+	if _, statErr := os.Stat(filepath.Join(exec.Ctx.Root, "fixture")); statErr == nil {
+		t.Error("the build left the binary of the root main package behind")
+	}
 	if out.Kind != pipeline.KindFailed || !strings.Contains(got, "error[build]: nested:") || !strings.Contains(got, "example.com/nested/lib") {
 		t.Errorf("got %+v, %q", out, got)
 	}

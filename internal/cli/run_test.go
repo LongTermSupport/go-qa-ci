@@ -72,7 +72,7 @@ func TestRunDetectorFailureLeavesRunnersUnstarted(t *testing.T) {
 	if code != 1 {
 		t.Errorf("exit = %d, want 1", code)
 	}
-	for _, runner := range []string{"vuln", "mod", "test", "coverage", "mutants"} {
+	for _, runner := range []string{"vuln", "mod", "build", "test", "coverage", "mutants"} {
 		if slices.Contains(rec.ran, runner) {
 			t.Errorf("runner %s started after a detector failure", runner)
 		}

@@ -11,7 +11,7 @@ an error, never a skipped check.
 | --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `vuln`                | `govulncheck -format json ./...`                                                                      | the code calls a vulnerable symbol the record does not license                     |
 | `mod`                 | `go mod tidy -diff`, then `go mod verify`                                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
-| `build`               | `go build ./...` with `GOFLAGS=-mod=mod` and `GOWORK=off`                                             | a package does not compile without its test files (see below)                      |
+| `build`               | `go build -o /dev/null ./...` (read-only, see below)                                                | a package does not compile without its test files (see below)                      |
 | `test`                | `go test -race -shuffle=on -count=1 [-covermode=atomic -coverprofile] ./...`                          | a test fails or the code does not build                                            |
 | `coverage`            | the `test` run's own `-covermode=atomic -coverpkg=./... -coverprofile`, read by `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
 | `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                              | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
@@ -23,8 +23,14 @@ an error, never a skipped check.
 production file that calls a helper defined only in a test file passes all three while
 `go build ./...` fails. The `build` runner compiles every package without its tests and fails with
 the compiler's own output (which names the package), printed as `error[build]: <module>: ...`. It
-runs in the module directory with `GOWORK=off` and `-mod=mod` appended to the caller's `GOFLAGS`
-(as the tool installer does), once for the root module and once for each module under `modules`.
+runs in the module directory under the caller's workspace and `GOFLAGS` (tags set with `go env -w`
+count), as every other runner does. It compiles every package that builds for the host GOOS/GOARCH
+and the default build tags; a file excluded by a constraint is not compiled, and non-main
+packages are not linked. It judges and never changes: `-o /dev/null` leaves no binary of a `main`
+package in the module, and any `-mod` flag of the caller's `GOFLAGS` is dropped, so the go command
+uses `vendor/` when it exists (and fails a package missing from it) and `-mod=readonly`
+otherwise: `go.mod` and `go.sum` are never rewritten and nothing is fetched. It runs once for the
+root module and once for each module under `modules`.
 A missing `go` binary is an error, never a skip.
 
 In diff mode (`run --changed`) it builds the changed packages and their importers, like `test`,

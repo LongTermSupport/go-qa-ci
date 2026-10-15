@@ -228,3 +228,12 @@ func TestDiffBuildCoversTheChangedPackageAndItsImportersNotAnUnrelatedOne(t *tes
 		t.Fatalf("the changed package must be built: %+v\n%s", out, stderr)
 	}
 }
+
+func TestDiffBuildFailsAnImporterThatNoLongerCompilesAgainstTheChangedPackage(t *testing.T) {
+	root := diffProject(t, nil)
+	put(t, root, map[string]string{"leaf/leaf.go": strings.Replace(leafSource, "Leaf()", "Renamed()", 1)})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), diffMod+"/mid") {
+		t.Fatalf("the importer must be built and named: %+v\n%s", out, stderr)
+	}
+}

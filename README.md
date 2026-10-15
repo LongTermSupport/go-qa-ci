@@ -37,7 +37,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 |           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                           |
 | runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
 |           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
-|           | `build`          | `go build ./...`: every package compiled without its test files (`GOFLAGS=-mod=mod`, `GOWORK=off`)                                                                                  |
+|           | `build`          | `go build -o /dev/null ./...`: every package, for the host GOOS/GOARCH and default tags, compiled without its tests     |
 |           | `test`           | `go test -race -shuffle=on -count=1 ./...`                                                                                                                                          |
 |           | `coverage`       | statement coverage with a threshold                                                                                                                                                 |
 |           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                  |

@@ -1,5 +1,5 @@
-// Package runners launches the external programs behind the runner tools (vuln, mod, test,
-// coverage, mutants) and the deadcode detector, and turns their output into findings or a verdict.
+// Package runners launches the external programs behind the runner tools (vuln, mod, build,
+// test, coverage, mutants) and the deadcode detector, and turns their output into findings or a verdict.
 //
 // A required program that is not installed is an error, never a skipped check.
 package runners
