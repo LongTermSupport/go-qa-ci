@@ -95,6 +95,6 @@ func Require(tb testing.TB, tool string, lookErr error) {
 	if AbsenceAllowed(tool, os.Getenv(OptOutEnv)) {
 		tb.Skipf("%s is not installed and %s opts out of it: %v", tool, OptOutEnv, lookErr)
 	}
-	tb.Fatalf("%s is not installed, and a test that cannot run is not a pass: run scripts/install-tools.sh %s (or set %s=%s to skip it knowingly): %v",
-		tool, tool, OptOutEnv, tool, lookErr)
+	tb.Fatalf("%s is not installed, and a test that cannot run is not a pass: run scripts/install-tools.sh %s and put the directory scripts/install-tools.sh --print-path %s prints on PATH (or set %s=%s to skip it knowingly): %v",
+		tool, tool, tool, OptOutEnv, tool, lookErr)
 }

@@ -1,181 +1,20 @@
 #!/usr/bin/env bash
-# Installs the external tools at the versions pinned in tools.lock.
+# Installs the external tools pinned in tools.lock through go-qa itself (go-qa install-tools), so
+# there is one install path: the checksum-verified, version-keyed tool directory that go-qa also
+# resolves its tools from.
 #
-# Usage: scripts/install-tools.sh [--check] [tool...]
-#   --check  only report missing or mismatched tools; exit 1 if any.
-#   tool...  limit to these tools (for example `golangci-lint` in a CI job that needs only that).
+# Usage: scripts/install-tools.sh [--check] [--print-path] [tool...]
+#   --check       install nothing; report the missing tools and exit 1 if any.
+#   --print-path  after installing, print the directory of each tool, one per line (CI appends
+#                 them to GITHUB_PATH so the tests find the tools).
+#   tool...       limit to these tools.
 #
-# Tools land in ${GOBIN}, else $(go env GOPATH)/bin. Release archives are linux/amd64 only; the
-# [go] tools build anywhere Go does. GOTOOLCHAIN is left as the environment sets it.
+# The directory is $GOQA_TOOLS_DIR, else the user cache directory (go-qa/tools).
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-lock="${GQACI_TOOLS_LOCK:-${repo_dir}/tools.lock}"
-check_only=0
-if [[ "${1:-}" == "--check" ]]; then
-    check_only=1
-    shift
-fi
-selected=("$@")
-
-# Prints "section name value" for every line of the lock.
-pins() {
-    awk -F'"' '
-        /^\[/ { gsub(/[\[\]]/, ""); section = $0; next }
-        /^[a-z]/ { name = $1; sub(/ *=.*/, "", name); print section, name, $2 }
-    ' "${lock}"
-}
-
-# The value pinned for a name in a section, or empty.
-pinned() {
-    pins | awk -v s="$1" -v n="$2" '$1 == s && $2 == n { print $3 }'
-}
-
-wanted() {
-    local name="$1" choice
-    if [[ ${#selected[@]} -eq 0 ]]; then
-        return 0
-    fi
-    for choice in "${selected[@]}"; do
-        [[ "${choice}" == "${name}" ]] && return 0
-    done
-    return 1
-}
-
-for choice in "${selected[@]}"; do
-    if [[ -z "$(pinned go "${choice}")$(pinned release "${choice}")" ]]; then
-        echo "install-tools: ${choice} is not pinned in tools.lock" >&2
-        exit 2
-    fi
-done
-
-# The version an installed tool reports; empty when it is not on PATH.
-installed_version() {
-    local section="$1" name="$2" bin
-    if ! bin="$(command -v "${name}")"; then
-        return 0
-    fi
-    case "${section}:${name}" in
-        go:*) go version -m "${bin}" | awk '$1 == "mod" { print $3; exit }' ;;
-        release:golangci-lint) "${bin}" --version | awk '{ for (i = 1; i < NF; i++) if ($i == "version") { print $(i + 1); exit } }' ;;
-        release:ast-grep) "${bin}" --version | awk '{ print $2; exit }' ;;
-        release:gitleaks) "${bin}" version | awk 'NR == 1 { print; exit }' ;;
-        release:actionlint) "${bin}" -version | awk 'NR == 1 { print; exit }' ;;
-        *) echo "install-tools: no version probe for ${name}" >&2; exit 2 ;;
-    esac
-}
-
-bin_dir() {
-    echo "${GOBIN:-$(go env GOPATH)/bin}"
-}
-
-require_linux_amd64() {
-    if [[ "$(uname -s)-$(uname -m)" != "Linux-x86_64" ]]; then
-        echo "install-tools: release archives are pinned for linux/amd64 only, not $(uname -s)-$(uname -m)" >&2
-        exit 2
-    fi
-}
-
-# The directory the running install works in, removed however the script ends.
-scratch=""
-trap 'if [[ -n "${scratch}" ]]; then rm -rf "${scratch}"; fi' EXIT
-
-fetch() {
-    curl --proto '=https' --tlsv1.2 -sSfL -o "$2" "$1"
-}
-
-# Downloads a release archive, verifies it against the sha256 pinned in tools.lock [checksums] (never
-# against a checksum file published beside it: a replaced asset could ship a replaced file), and
-# installs the binary found at <member> in the archive.
-#   install_archive <name> <url> <member> <strip-components>
-install_archive() {
-    local name="$1" url="$2" member="$3" strip="$4" sum archive
-    require_linux_amd64
-    sum="$(pinned checksums "${name}")"
-    if [[ -z "${sum}" ]]; then
-        echo "install-tools: ${name} is a [release] tool, so tools.lock [checksums] must pin its sha256" >&2
-        exit 2
-    fi
-    scratch="$(mktemp -d)"
-    archive="${scratch}/archive"
-    fetch "${url}" "${archive}"
-    echo "${sum}  ${archive}" | sha256sum -c -
-    tar -xzf "${archive}" -C "${scratch}" --strip-components="${strip}" "${member}"
-    install -D -m 0755 "${scratch}/$(basename "${member}")" "$(bin_dir)/${name}"
-}
-
-install_golangci_lint() {
-    local version="$1"
-    install_archive golangci-lint \
-        "https://github.com/golangci/golangci-lint/releases/download/v${version}/golangci-lint-${version}-linux-amd64.tar.gz" \
-        "golangci-lint-${version}-linux-amd64/golangci-lint" 1
-}
-
-install_gitleaks() {
-    local version="$1"
-    install_archive gitleaks \
-        "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" \
-        gitleaks 0
-}
-
-install_actionlint() {
-    local version="$1"
-    install_archive actionlint \
-        "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
-        actionlint 0
-}
-
-install_ast_grep() {
-    local version="$1" sum
-    require_linux_amd64
-    sum="$(pinned checksums ast-grep)"
-    if [[ -z "${sum}" ]]; then
-        echo "install-tools: ast-grep is a [release] tool, so tools.lock [checksums] must pin its sha256" >&2
-        exit 2
-    fi
-    scratch="$(mktemp -d)"
-    fetch "https://github.com/ast-grep/ast-grep/releases/download/${version}/app-x86_64-unknown-linux-gnu.zip" "${scratch}/app.zip"
-    echo "${sum}  ${scratch}/app.zip" | sha256sum -c -
-    unzip -q "${scratch}/app.zip" ast-grep -d "${scratch}"
-    install -D -m 0755 "${scratch}/ast-grep" "$(bin_dir)/ast-grep"
-}
-
-missing=0
-while read -r section name value; do
-    [[ "${section}" == "go" || "${section}" == "release" ]] || continue
-    wanted "${name}" || continue
-    if [[ "${section}" == "go" ]]; then
-        version="${value##*@}"
-    else
-        version="${value}"
-    fi
-    current="$(installed_version "${section}" "${name}")"
-    if [[ "${current}" == "${version}" ]]; then
-        echo "ok        ${name} ${version}"
-        continue
-    fi
-    if (( check_only )); then
-        echo "MISSING   ${name} ${version} (installed: ${current:-none})"
-        missing=1
-        continue
-    fi
-    echo "installing ${name} ${version}" >&2
-    case "${section}:${name}" in
-        go:*) GOBIN="$(bin_dir)" go install "${value}" ;;
-        release:golangci-lint) install_golangci_lint "${version}" ;;
-        release:ast-grep) install_ast_grep "${version}" ;;
-        release:gitleaks) install_gitleaks "${version}" ;;
-        release:actionlint) install_actionlint "${version}" ;;
-        *) echo "install-tools: no installer for ${name}" >&2; exit 2 ;;
-    esac
-    # The binary the shell resolves must now be the pinned one: an older copy earlier in the search
-    # path than the install directory would otherwise answer for it while the script reports success.
-    resolved="$(installed_version "${section}" "${name}")"
-    if [[ "${resolved}" != "${version}" ]]; then
-        echo "install-tools: installed ${name} ${version}, but the ${name} found first reports ${resolved:-nothing}; put $(bin_dir) before any other copy in the search path" >&2
-        exit 1
-    fi
-    echo "installed ${name} ${version}"
-done < <(pins)
-
-exit "${missing}"
+# Built, not `go run`: go run reports a failing program as exit 1 whatever code it returned.
+scratch="$(mktemp -d)"
+trap 'rm -rf "${scratch}"' EXIT
+go build -C "${repo_dir}" -o "${scratch}/go-qa" ./cmd/go-qa
+"${scratch}/go-qa" install-tools "$@"

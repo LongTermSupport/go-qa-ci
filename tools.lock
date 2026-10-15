@@ -1,5 +1,6 @@
 # Pinned versions of every external tool go-qa and this repository's CI use, installed by
-# scripts/install-tools.sh (TOOLING-SPEC 9.2 gap closed: the versions were not recorded anywhere).
+# `go-qa install-tools` and by `go-qa run` (TOOLING-SPEC 9.2 gap closed: the versions were not
+# recorded anywhere). The file is embedded in the go-qa binary: it is the only copy of the pins.
 # One `name = "value"` per line under a section:
 #   [go]        built from source with `go install <package>@<version>`; the Go checksum database
 #               verifies the module.

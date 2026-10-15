@@ -83,10 +83,13 @@ func ciEnabled() bool {
 	return v != "" && v != "false" && v != "0"
 }
 
-func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, stdout, stderr io.Writer) int {
+func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, newToolchain ToolchainFactory, stdout, stderr io.Writer) int {
 	steps, err := tools.Select(opts.tools, cfg)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
+	}
+	if err = ensureTools(context.Background(), newToolchain, tools.Needs(steps, cfg), stderr); err != nil {
+		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
 	scope := make([]string, 0, len(opts.paths))
 	for _, path := range opts.paths {

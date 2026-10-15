@@ -89,7 +89,7 @@ func (e Executor) runAstGrep() pipeline.Outcome {
 		if len(reported) > 0 {
 			return e.reportAll(reported)
 		}
-		return e.fail("%v; its rules were not run, and the pinned version is installed by scripts/install-tools.sh", err)
+		return e.fail("%v; its rules were not run, and the pinned version is installed by go-qa install-tools", err)
 	}
 	if err != nil {
 		return e.fail("%v", err)

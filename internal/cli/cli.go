@@ -48,20 +48,27 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] [--changed [--base REF]] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | install-tools [--check] [--print-path] [TOOL]... | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] [--changed [--base REF]] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
 
 // ExecutorFactory builds the executor for one run from its context.
 type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor
 
 // Run executes go-qa with args (without the program name) and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
-	return RunWith(args, stdout, stderr, func(ctx tools.Context, errOut io.Writer) pipeline.Executor {
+	return RunWithToolchain(args, stdout, stderr, func(ctx tools.Context, errOut io.Writer) pipeline.Executor {
 		return tools.NewExecutor(ctx, errOut)
-	})
+	}, DefaultToolchain)
 }
 
-// RunWith is Run with the executor of the `run` subcommand supplied by the caller.
+// RunWith is Run with the executor of the `run` subcommand supplied by the caller, and no tool
+// store: the caller supplies the external tools itself.
 func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactory) int {
+	return RunWithToolchain(args, stdout, stderr, newExecutor, nil)
+}
+
+// RunWithToolchain is RunWith with the store of pinned tools supplied by the caller; nil means
+// none.
+func RunWithToolchain(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactory, newToolchain ToolchainFactory) int {
 	flags := flag.NewFlagSet("go-qa", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	rootDir := flags.String("root", "", "project root (default: the go.work or go.mod directory)")
@@ -88,13 +95,15 @@ func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactor
 		return withConfig(*rootDir, *configFile, stderr, func(_ string, cfg config.Config) int {
 			return listTools(cfg, stdout, stderr)
 		})
+	case "install-tools":
+		return runInstallTools(rest[1:], newToolchain, stdout, stderr)
 	case "run":
 		opts, code, ok := parseRun(rest[1:], stderr)
 		if !ok {
 			return code
 		}
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
-			return runPipeline(rootPath, *configFile, cfg, opts, newExecutor, stdout, stderr)
+			return runPipeline(rootPath, *configFile, cfg, opts, newExecutor, newToolchain, stdout, stderr)
 		})
 	case "record":
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
@@ -106,10 +115,16 @@ func RunWith(args []string, stdout, stderr io.Writer, newExecutor ExecutorFactor
 		})
 	case "rules":
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			if err := ensureTools(context.Background(), newToolchain, golangciIf(cfg), stderr); err != nil {
+				return emit(stderr, ExitFailure, "go-qa: %v", err)
+			}
 			return runRules(rootPath, cfg, rest[1:], stdout, stderr)
 		})
 	case "summary":
 		return withConfig(*rootDir, *configFile, stderr, func(rootPath string, cfg config.Config) int {
+			if err := ensureTools(context.Background(), newToolchain, golangciIf(cfg), stderr); err != nil {
+				return emit(stderr, ExitFailure, "go-qa: %v", err)
+			}
 			return runSummary(rootPath, cfg, rest[1:], stdout, stderr)
 		})
 	case "docs-check":
@@ -167,4 +182,12 @@ func emit(w io.Writer, code int, format string, args ...any) int {
 		return ExitFailure
 	}
 	return code
+}
+
+// golangciIf is the tools the defence listing launches: golangci-lint, when that tool is on.
+func golangciIf(cfg config.Config) []string {
+	if cfg.Tools.Golangci {
+		return []string{"golangci-lint"}
+	}
+	return nil
 }
