@@ -3,7 +3,9 @@
 The runners execute code or audit dependencies, after every format and detector step has passed
 (TOOLING-SPEC 4.5). They stop at the first failing runner, so a failing `test` keeps `coverage`
 and `mutants` from running. Each runs once per Go module the configuration covers (the root module
-and `modules`). A required program that is not on `PATH` is an error, never a skipped check.
+and `modules`). `go-qa run` installs the pinned `govulncheck`, `deadcode` and `gremlins` it needs
+(see "Installing" in the README) and runs those copies; a tool that cannot be installed or found is
+an error, never a skipped check.
 
 | Tool                  | Command                                                                                               | Fails when                                                                         |
 | --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -53,7 +55,7 @@ installed, as every test needing a pinned tool does) proves the gate; the fakes 
 - `govulncheck` fetches the vulnerability database over the network, so `vuln` cannot run offline;
   an unreachable database is an error, never a pass.
 - `govulncheck`, `deadcode` and `gremlins` are pinned in `tools.lock` and installed by
-  `scripts/install-tools.sh`, which CI uses. The self-gate still keeps `mutants` off: no mutation
+  `go-qa install-tools`, which CI calls through `scripts/install-tools.sh`. The self-gate still keeps `mutants` off: no mutation
   run of this repository has been held to a threshold.
 - The identifiers `error[mod]`, `error[test]`, `error[coverage]` and `error[mutants]` name a runner,
   not a defence, and resolve to no page: `go-qa rule-doc coverage` reports it as dangling. Whether a

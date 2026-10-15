@@ -172,15 +172,15 @@ func TestNoWorkflowDownloadsAReleaseToolItself(t *testing.T) {
 
 func TestWorkflowsInstallActionlintAndGitleaksFromTheLock(t *testing.T) {
 	_, ciText := readWorkflow(t)
-	if !strings.Contains(ciText, "scripts/install-tools.sh actionlint") {
-		t.Error("a ci.yml job must install actionlint with scripts/install-tools.sh actionlint")
+	if !strings.Contains(ciText, "scripts/install-tools.sh --print-path actionlint") {
+		t.Error("a ci.yml job must install actionlint with scripts/install-tools.sh --print-path actionlint")
 	}
 	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "public-safety.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "scripts/install-tools.sh gitleaks") {
-		t.Error("public-safety.yml must install gitleaks with scripts/install-tools.sh gitleaks")
+	if !strings.Contains(string(data), "scripts/install-tools.sh --print-path gitleaks") {
+		t.Error("public-safety.yml must install gitleaks with scripts/install-tools.sh --print-path gitleaks")
 	}
 }
 

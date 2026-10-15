@@ -46,8 +46,8 @@ the root; one file is enough), `--ci` (also implied by a `CI` variable that is s
 or `0`: autofix, then fail if the working tree changed), `--no-fix` (only check formatting),
 `--fail-fast` (stop at the first failure of any kind), `--changed [--base <ref>]` (diff mode, see
 below). An unknown `-t` name lists the known ones.
-Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error. A required
-program that is not on `PATH` is an error, never a skipped check.
+Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error. A pinned tool that cannot be
+installed or found is an error, never a skipped check.
 
 Global flags: `--root DIR` (default: the directory of the active `go.work`, else of the enclosing
 `go.mod`) and `--config FILE` (default `qa/go-qa.toml`, relative to the root).
@@ -105,6 +105,7 @@ Other commands, none of which run a defence:
 | Command                                 | What                                                                                                                                                                        |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `go-qa tools`                           | the tool catalogue in execution order, with phase and enabled or disabled                                                                                                   |
+| `go-qa install-tools [--check] [--print-path] [tool...]` | install the pinned external tools (see "Installing"); needs no module |
 | `go-qa rules [--json]`                  | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
 | `go-qa rule-doc <id>`                   | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
 | `go-qa docs-check`                      | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
@@ -255,26 +256,47 @@ module written like `./internal/qa/driver`, and `analyzers.module` (a relative d
 
 ## Installing
 
-go-qa-ci pins every external tool in [tools.lock](tools.lock): golangci-lint, ast-grep, gitleaks,
-actionlint, deadcode, govulncheck and gremlins. Pin an exact tag of this repository (none is published yet). Install the
-binary, then the pinned tools from a checkout of the same tag:
+Two commands are the whole setup. Pin an exact commit or tag of this repository (none is
+published yet):
 
 ```bash
-go install github.com/LongTermSupport/go-qa-ci/cmd/go-qa@<tag>
-git clone --depth 1 --branch <tag> https://github.com/LongTermSupport/go-qa-ci /tmp/go-qa-ci
-/tmp/go-qa-ci/scripts/install-tools.sh            # versions from tools.lock
-/tmp/go-qa-ci/scripts/install-tools.sh --check    # report missing or mismatched tools, exit 1 if any
-/tmp/go-qa-ci/scripts/install-tools.sh ast-grep   # only the named tools
+go install github.com/LongTermSupport/go-qa-ci/cmd/go-qa@<commit-or-tag>
+go-qa run
 ```
 
-Tools land in `$GOBIN`, else `$(go env GOPATH)/bin`, which must be on `PATH`. The Go tools compile
-from source with `go install` (verified by the Go checksum database); every release archive
-(golangci-lint, ast-grep, gitleaks, actionlint) is verified against the sha256 pinned in
-`tools.lock`, never against a checksum file published beside it, and a release tool with no pinned
-sha256 is refused. Release archives are linux/amd64 only. The Go toolchain itself is the one `go.mod`
-requires. This repository's CI installs its tools the same way and then runs `go-qa run --ci`
-over itself (job `self-gate`).
+go-qa carries the [tools.lock](tools.lock) it was built with: golangci-lint, ast-grep, gitleaks,
+actionlint, deadcode, govulncheck and gremlins, each at an exact version. The first `go-qa run`
+installs the pinned tools the selected steps need into a directory go-qa manages and runs them
+from there; nothing is put on `PATH` by hand, and a copy of a tool found elsewhere on `PATH` is
+never used in place of the pinned one (the pinned directories are put first on `PATH` for the run,
+so the tests the gate starts find the same copies).
 
+To have the tools ready before the first run, for example in a container image build (needs only
+the go-qa binary, the Go toolchain for the three Go tools, and network access):
+
+```bash
+go-qa install-tools
+```
+
+`go-qa install-tools [--check] [--print-path] [tool...]` installs the named tools, or every pinned
+tool; it fetches nothing for a tool that is already installed. `--check` installs nothing and exits
+1 naming the tools that are missing. `--print-path` prints the directory of each tool, one per
+line, for a CI step that must put them on `PATH` (`go-qa install-tools --print-path >> "$GITHUB_PATH"`).
+
+The tools live under `$GOQA_TOOLS_DIR`, else `<user cache directory>/go-qa/tools`, as
+`<name>/<version>/<name>`, so two versions never overwrite each other. Every release archive
+(golangci-lint, ast-grep, gitleaks, actionlint) is verified against the sha256 pinned in
+`tools.lock` before it is unpacked, never against a checksum file published beside it, and a
+release tool with no pinned sha256 is refused; the Go tools (deadcode, govulncheck, gremlins) are
+built with `go install <package>@<version>`, verified by the Go checksum database. A tool is built
+in a scratch directory and renamed into place, so a failed download, checksum, extraction or build
+leaves nothing that looks installed. Release archives are linux/amd64 only; on another platform
+`go-qa install-tools` (and `go-qa run`, which needs the archives) fails naming the platform. The Go
+toolchain itself is the one the project's `go.mod` requires.
+
+This repository's CI installs its tools with `scripts/install-tools.sh`, a thin call of
+`go-qa install-tools` built from the checkout, then runs `go-qa run --ci` over itself (job
+`self-gate`).
 ## Public-safety guard
 
 This repository must stay safe to publish. Two scans guard it:

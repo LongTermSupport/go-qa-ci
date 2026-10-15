@@ -1,9 +1,9 @@
 # fmt and the golangci detector
 
-Both tools run the `golangci-lint` binary, which must be on `PATH`; a missing binary fails the step
-(`golangci-lint not found on PATH`), it is never skipped. The pinned release is in
-`tools.lock`; `scripts/install-tools.sh golangci-lint` installs it after verifying the archive against
-the sha256 pinned beside it in `tools.lock` (CI uses the same script). Tests that need the binary fail
+Both tools run the pinned `golangci-lint` binary. `go-qa run` installs the release `tools.lock` pins
+(`go-qa install-tools` does it ahead of time) after verifying the archive against the sha256 pinned
+beside it, and runs that copy; nothing is put on `PATH` by hand. A binary that is still missing
+fails the step (`golangci-lint not found on PATH`), it is never skipped. Tests that need the binary fail
 when it is missing, like those of every other pinned tool (`GQACI_TEST_WITHOUT_TOOLS`, docs/astgrep.md).
 
 ## `fmt`
@@ -75,7 +75,8 @@ Contributors: the tests of `internal/cli`, `internal/golangci`, `internal/tools`
 `internal/defences` run the real `golangci-lint`, so `go test ./...` fails with
 `golangci-lint not found on PATH` when it is absent. That is the "a missing tool is never a pass"
 rule, not a flake: install the pinned binary with `scripts/install-tools.sh golangci-lint` and put
-its directory on the search path before running the gates.
+the directory `scripts/install-tools.sh --print-path golangci-lint` prints on the search path
+before running `go test`. (`go-qa run` does this itself for the tests it starts.)
 
 ## Self-gate (TOOLING-SPEC 8.2)
 

@@ -29,7 +29,8 @@ The executable is `ast-grep`, never `sg`: on Linux `sg` is another program. When
 `PATH` the step fails with `ast-grep is not installed`, after the rules themselves have passed
 the checks in item 2; a rule with no id or no proof fails whether the binary is installed or not.
 A missing binary is an error like any other missing tool, never a skip, so no runner follows it.
-ast-grep is pinned in `tools.lock` and installed by `scripts/install-tools.sh`.
+ast-grep is pinned in `tools.lock`; `go-qa run` installs the pinned version itself before the
+gate (`go-qa install-tools` does it ahead of time), so a consumer puts nothing on `PATH`.
 
 With no `sgconfig.yml` and an empty or switched-off pack there is nothing to scan, and the step is
 skipped saying so.
@@ -61,13 +62,14 @@ project record to license it, and a bare one (no rule) is `gqaci.suppression.bar
 - The tests that need the real binary (`tests/astgrep`: each rule fires on a violating Go snippet
   and stays quiet on a clean one, the project's rule tests pass, an ignore comment silences a rule,
   a project rule and a bundled rule are reported in one run) fail when it is not installed (`internal/tooltest`: a test that cannot run is not a pass), naming
-  `scripts/install-tools.sh ast-grep`. `GQACI_TEST_WITHOUT_TOOLS=ast-grep` (names comma separated,
+  `scripts/install-tools.sh ast-grep` (`--print-path` prints the directory to put on `PATH` for `go test`). `GQACI_TEST_WITHOUT_TOOLS=ast-grep` (names comma separated,
   or `all`) skips them knowingly on a machine without the pinned tools; CI sets nothing and
   installs the pinned ast-grep (`tools.lock`) before `go test` (verified with ast-grep 0.50.0).
   The same rule holds for the gremlins and golangci-lint tests.
   The detector's own logic is tested everywhere with a stand-in executable
   (`internal/astgreptest`).
-- `ast-grep` is not invoked with a pinned version check; the version in use is whatever is on
+- `ast-grep` is resolved to the pinned copy in the go-qa tool directory (the installed directory
+  is put first on `PATH`); a `go-qa` library caller that skips `go-qa run` gets whatever is on
   `PATH`.
 - ast-grep honours `.gitignore` files, including those of a parent repository. A module that sits
   under a directory a parent repository ignores yields no matches on a full run or a `-p` directory

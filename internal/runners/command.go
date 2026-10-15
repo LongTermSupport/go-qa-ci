@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -35,9 +36,17 @@ func Locate(binary string) error {
 // Capture runs name in dir and returns its output and exit code; err is set only when the process
 // could not be run at all.
 func Capture(ctx context.Context, dir, name string, args ...string) (Output, error) {
+	return CaptureEnv(ctx, dir, nil, name, args...)
+}
+
+// CaptureEnv is Capture with extra KEY=value entries added to the environment of the program.
+func CaptureEnv(ctx context.Context, dir string, env []string, name string, args ...string) (Output, error) {
 	var out, errOut bytes.Buffer
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	cmd.Stdout = &out
 	cmd.Stderr = &errOut
 	runErr := cmd.Run()

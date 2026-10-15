@@ -7,7 +7,8 @@ name: CI
 # qa/golangci-overlay.yml (tests/selfgate, run by job go, proves .golangci.yml is exactly that);
 # 8.2 is met only in part, see docs/CONFORMANCE.md for the recorded gaps.
 # job workflows: actionlint over the workflows and shellcheck over the shell scripts.
-# Every external tool is installed by scripts/install-tools.sh at the version tools.lock pins.
+# Every external tool is installed by scripts/install-tools.sh (go-qa install-tools) at the version
+# tools.lock pins, into the go-qa tool directory; --print-path hands that directory to later steps.
 on:
   push:
     branches: ["**"]
@@ -38,9 +39,7 @@ jobs:
           go-version-file: go.mod
       # ast-grep and gremlins: their tests run the real binary, and a test that cannot run fails.
       - name: Install golangci-lint, ast-grep and gremlins (versions from tools.lock)
-        run: |
-          scripts/install-tools.sh golangci-lint ast-grep gremlins
-          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+        run: scripts/install-tools.sh --print-path golangci-lint ast-grep gremlins >> "${GITHUB_PATH}"
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
@@ -61,9 +60,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install the pinned tools (versions from tools.lock)
-        run: |
-          scripts/install-tools.sh
-          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+        run: scripts/install-tools.sh --print-path >> "${GITHUB_PATH}"
       - run: go install ./cmd/go-qa
       - name: go-qa run --ci
         run: go-qa run --ci
@@ -77,9 +74,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Install actionlint (version and sha256 from tools.lock)
-        run: |
-          export GOBIN="${RUNNER_TEMP}/bin"
-          PATH="${GOBIN}:${PATH}" scripts/install-tools.sh actionlint
-          echo "${GOBIN}" >> "${GITHUB_PATH}"
+        run: scripts/install-tools.sh --print-path actionlint >> "${GITHUB_PATH}"
       - run: actionlint
       - run: shellcheck scripts/*.sh .githooks/* .github/scripts/*.sh
