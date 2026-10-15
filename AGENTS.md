@@ -57,7 +57,7 @@ Active defences. Failures print these ids as listed, except for the code-prefixe
 - `gqaci_test_clock` (analyzer, error): gqaci_test_clock forbids reading the wall clock in a test file. Fix: Inject the clock where the code under test reads it, and hand the test a fixed instant: Docs: `go-qa rule-doc gqaci_test_clock`
 - `gqaci_unconditional_skip` (analyzer, error): gqaci_unconditional_skip forbids a test that skips itself unconditionally. Fix: Fix the test or delete it. If it can only run in some environments, say which, in code: Docs: `go-qa rule-doc gqaci_unconditional_skip`
 
-Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, ast-grep, golangci, analyzers, deadcode, vuln, mod, test, coverage.
+Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, ast-grep, golangci, analyzers, deadcode, vuln, mod, build, test, coverage.
 
 Project-record exceptions (prefer fixing the code; an exception names its hazard and scope):
 

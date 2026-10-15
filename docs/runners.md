@@ -11,10 +11,27 @@ an error, never a skipped check.
 | --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `vuln`                | `govulncheck -format json ./...`                                                                      | the code calls a vulnerable symbol the record does not license                     |
 | `mod`                 | `go mod tidy -diff`, then `go mod verify`                                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
+| `build`               | `go build ./...` with `GOFLAGS=-mod=mod` and `GOWORK=off`                                             | a package does not compile without its test files (see below)                      |
 | `test`                | `go test -race -shuffle=on -count=1 [-covermode=atomic -coverprofile] ./...`                          | a test fails or the code does not build                                            |
 | `coverage`            | the `test` run's own `-covermode=atomic -coverpkg=./... -coverprofile`, read by `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
 | `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                              | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
 | `deadcode` (detector) | `deadcode -test -json ./...`                                                                          | a function is unreachable from every `main` function and test                      |
+
+## Build
+
+`go vet`, `go test` and golangci-lint load a package together with its `_test.go` files, so a
+production file that calls a helper defined only in a test file passes all three while
+`go build ./...` fails. The `build` runner compiles every package without its tests and fails with
+the compiler's own output (which names the package), printed as `error[build]: <module>: ...`. It
+runs in the module directory with `GOWORK=off` and `-mod=mod` appended to the caller's `GOFLAGS`
+(as the tool installer does), once for the root module and once for each module under `modules`.
+A missing `go` binary is an error, never a skip.
+
+In diff mode (`run --changed`) it builds the changed packages and their importers, like `test`,
+because the importer is the package that stops compiling when a changed package loses an exported
+symbol. A change to `go.mod` widens the run to every package; with no changed Go package it is
+skipped, saying so. Build output is cached by the Go build cache, so building everything would be
+cheap too; the narrowed set keeps it consistent with the other per-package engines.
 
 ## Identifiers
 
@@ -27,7 +44,7 @@ an error, never a skipped check.
 - `deadcode` prints findings under `deadcode` and the record licenses them by that name and path.
   It applies only to a module that has a `main` package; for a library it is skipped, saying so,
   and the `unused` linter in the golangci baseline is the defence there.
-- `mod`, `test`, `coverage` and `mutants` print `error[mod]`, `error[test]`, `error[coverage]` and
+- `mod`, `build`, `test`, `coverage` and `mutants` print `error[mod]`, `error[build]`, `error[test]`, `error[coverage]` and
   `error[mutants]` with the module and the tool's own output. They are verdicts on a whole module,
   not findings in a file, so the project record has no exception for them.
 
@@ -57,7 +74,7 @@ installed, as every test needing a pinned tool does) proves the gate; the fakes 
 - `govulncheck`, `deadcode` and `gremlins` are pinned in `tools.lock` and installed by
   `go-qa install-tools`, which CI calls through `scripts/install-tools.sh`. The self-gate still keeps `mutants` off: no mutation
   run of this repository has been held to a threshold.
-- The identifiers `error[mod]`, `error[test]`, `error[coverage]` and `error[mutants]` name a runner,
+- The identifiers `error[mod]`, `error[build]`, `error[test]`, `error[coverage]` and `error[mutants]` name a runner,
   not a defence, and resolve to no page: `go-qa rule-doc coverage` reports it as dangling. Whether a
   runner verdict is a Defence in the sense of TOOLING-SPEC 4.2 is not settled here, so the gap is
   recorded rather than papered over with pages.

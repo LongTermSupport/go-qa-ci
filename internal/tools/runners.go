@@ -144,6 +144,32 @@ func (e Executor) runMod() pipeline.Outcome {
 	return e.verdict(err, failed)
 }
 
+// runBuild fails a module whose packages do not compile without their test files. A narrowed run
+// builds the changed packages and their importers, like test: a package that stops compiling, or
+// that stops providing what an importer's production code needs, is one of those.
+func (e Executor) runBuild() pipeline.Outcome {
+	failed := false
+	err := e.eachModuleInScope(func(module, dir string) error {
+		packages, run := e.packagesOf(module)
+		if !run {
+			return nil
+		}
+		output, passed, err := runners.Build(context.Background(), dir, packages...)
+		if err != nil {
+			return fmt.Errorf("build in %s: %w", displayModule(module), err)
+		}
+		if passed {
+			return nil
+		}
+		failed = true
+		if _, writeErr := fmt.Fprintf(e.Stderr, "error[build]: %s: the packages do not compile without their tests\n%s\n", displayModule(module), strings.TrimSpace(output)); writeErr != nil {
+			return fmt.Errorf("writing the output: %w", writeErr)
+		}
+		return nil
+	})
+	return e.verdict(err, failed)
+}
+
 // runTest runs every module's tests with the race detector, shuffled and uncached.
 func (e Executor) runTest() pipeline.Outcome {
 	failed := false

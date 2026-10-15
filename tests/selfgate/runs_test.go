@@ -13,8 +13,8 @@ import (
 )
 
 // selfGateTools are the tools proven active in the self-gate: the formatter, the golangci-lint,
-// suppression, analyzers and deadcode detectors, and the vuln, mod, test and coverage runners.
-var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers", "deadcode", "vuln", "mod", "test", "coverage"}
+// suppression, analyzers and deadcode detectors, and the vuln, mod, build, test and coverage runners.
+var selfGateTools = []string{"fmt", "golangci", "suppression", "analyzers", "deadcode", "vuln", "mod", "build", "test", "coverage"}
 
 // selfGateToolsFor is the set of tools the self-gate must run: the fixed set, plus ast-grep as soon
 // as there is a rule for it to run, a bundled one or a project's own. Until then the step is
@@ -112,6 +112,8 @@ func TestSelfGateToolCheckDetectsASwitchedOffTool(t *testing.T) {
 			cfg.Vuln = false
 		case "mod":
 			cfg.Mod = false
+		case "build":
+			cfg.Build = false
 		case "test":
 			cfg.Test = false
 		case "coverage":

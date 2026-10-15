@@ -191,7 +191,7 @@ func TestDiffWidenedRunCoversEveryPackage(t *testing.T) {
 func TestDiffWithNothingChangedSkipsWhatIsScopedAndStillRunsTheRepoWideDefences(t *testing.T) {
 	root := diffProject(t, nil)
 	exec, stderr := narrowed(t, root)
-	for _, name := range []string{"fmt", "suppression", "ast-grep", "golangci", "analyzers", "deadcode", "vuln", "mod", "test", "coverage", "mutants"} {
+	for _, name := range []string{"fmt", "suppression", "ast-grep", "golangci", "analyzers", "deadcode", "vuln", "mod", "build", "test", "coverage", "mutants"} {
 		if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindSkipped {
 			t.Errorf("%s: want skipped, got %+v", name, out)
 		}
@@ -212,5 +212,19 @@ func TestDiffRecordStillJudgesTheWholeRecord(t *testing.T) {
 	exec, stderr := narrowed(t, root)
 	if out := exec.Run(stepNamed(t, "record")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "gqaci.record") {
 		t.Fatalf("got %+v\n%s", out, stderr)
+	}
+}
+
+func TestDiffBuildCoversTheChangedPackageAndItsImportersNotAnUnrelatedOne(t *testing.T) {
+	root := diffProject(t, map[string]string{"other/broken.go": "package other\n\nfunc Broken() int { return testOnly() }\n"})
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("an unrelated package must not be built: %+v\n%s", out, stderr)
+	}
+	put(t, root, map[string]string{"leaf/leaf.go": "package leaf\n\nfunc Leaf() int { return missing() }\n"})
+	exec, stderr = narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), diffMod+"/leaf") {
+		t.Fatalf("the changed package must be built: %+v\n%s", out, stderr)
 	}
 }

@@ -139,6 +139,7 @@ type Tools struct {
 	Deadcode    bool `toml:"deadcode"`
 	Vuln        bool `toml:"vuln"`
 	Mod         bool `toml:"mod"`
+	Build       bool `toml:"build"`
 	Test        bool `toml:"test"`
 	Coverage    bool `toml:"coverage"`
 	Mutants     bool `toml:"mutants"`
@@ -228,7 +229,7 @@ func Default() Config {
 		Summary:     Summary{FixHeadings: []string{"How to fix correctly"}},
 		Tools: Tools{
 			Fmt: true, Record: true, Suppression: true, Summary: true, Docs: true, AstGrep: true,
-			Golangci: true, Analyzers: true, Deadcode: true, Vuln: true, Mod: true, Test: true,
+			Golangci: true, Analyzers: true, Deadcode: true, Vuln: true, Mod: true, Build: true, Test: true,
 			Coverage: true, Mutants: true,
 		},
 		AstGrep:  AstGrep{Bundled: true},

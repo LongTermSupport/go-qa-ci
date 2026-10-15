@@ -15,7 +15,7 @@ func TestCatalogueIsInPhaseOrder(t *testing.T) {
 	want := []string{
 		"fmt",
 		"record", "suppression", "summary", "docs", "ast-grep", "golangci", "analyzers", "deadcode",
-		"vuln", "mod", "test", "coverage", "mutants",
+		"vuln", "mod", "build", "test", "coverage", "mutants",
 	}
 	var got []string
 	last := pipeline.PhaseFormat
@@ -62,7 +62,7 @@ func TestEnabledFollowsConfig(t *testing.T) {
 func TestEverySwitchControlsExactlyOneTool(t *testing.T) {
 	all := config.Tools{
 		Fmt: true, Record: true, Suppression: true, Summary: true, Docs: true, AstGrep: true,
-		Golangci: true, Analyzers: true, Deadcode: true, Vuln: true, Mod: true, Test: true,
+		Golangci: true, Analyzers: true, Deadcode: true, Vuln: true, Mod: true, Build: true, Test: true,
 		Coverage: true, Mutants: true,
 	}
 	for _, tool := range tools.Catalogue() {

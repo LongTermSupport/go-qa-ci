@@ -261,3 +261,57 @@ func TestDeadcodeFailsAnUnreachableFunctionAndSkipsLibraries(t *testing.T) {
 		t.Errorf("library: got %+v", out)
 	}
 }
+
+const (
+	helperCaller = "package lib\n\nfunc Value() int { return helper() }\n"
+	helperInTest = "package lib\n\nimport \"testing\"\n\nfunc helper() int { return 1 }\n\nfunc TestValue(t *testing.T) {\n\tif Value() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+)
+
+func TestBuildFailsAProductionFileThatCallsATestOnlyHelperAndNamesThePackage(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "lib/lib.go": helperCaller, "lib/lib_test.go": helperInTest})
+	out := exec.Run(stepNamed(t, "build"))
+	got := stderr.String()
+	if out.Kind != pipeline.KindFailed || !strings.Contains(got, "error[build]: .: the packages do not compile without their tests") ||
+		!strings.Contains(got, "example.com/fixture/lib") || !strings.Contains(got, "undefined: helper") {
+		t.Errorf("got %+v, %q", out, got)
+	}
+	if testOut := exec.Run(stepNamed(t, "test")); testOut.Kind != pipeline.KindPassed {
+		t.Errorf("the fixture must be invisible to the test step: %+v", testOut)
+	}
+}
+
+func TestBuildPassesACleanModule(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "lib/lib.go": "package lib\n\nfunc Value() int { return 1 }\n"})
+	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+func TestBuildCoversANestedModule(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	exec.Ctx.Config.Modules = []string{"nested"}
+	project(t, exec, map[string]string{
+		"go.mod":                 fixtureMod,
+		"main.go":                "package main\n\nfunc main() {}\n",
+		"nested/go.mod":          "module example.com/nested\n\ngo 1.26\n",
+		"nested/lib/lib.go":      helperCaller,
+		"nested/lib/lib_test.go": helperInTest,
+	})
+	out := exec.Run(stepNamed(t, "build"))
+	got := stderr.String()
+	if out.Kind != pipeline.KindFailed || !strings.Contains(got, "error[build]: nested:") || !strings.Contains(got, "example.com/nested/lib") {
+		t.Errorf("got %+v, %q", out, got)
+	}
+}
+
+func TestBuildWithoutTheGoToolFailsTheStepWithTheReason(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "lib/lib.go": "package lib\n"})
+	t.Setenv("PATH", t.TempDir())
+	out := exec.Run(stepNamed(t, "build"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "go not found on PATH") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}

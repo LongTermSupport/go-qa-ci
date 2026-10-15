@@ -39,6 +39,7 @@ func Catalogue() []Tool {
 		{"deadcode", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Deadcode }},
 		{"vuln", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Vuln }},
 		{"mod", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Mod }},
+		{"build", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Build }},
 		{"test", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Test }},
 		{"coverage", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Coverage }},
 		{"mutants", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Mutants }},
