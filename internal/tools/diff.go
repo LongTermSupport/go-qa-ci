@@ -26,7 +26,7 @@ func (e Executor) packagesOf(module string) (patterns []string, run bool) {
 //
 //   - file-scoped detectors (fmt, suppression, ast-grep, stages that take {files}) run on the
 //     changed files, and are skipped when there are none;
-//   - per-package engines (golangci, analyzers, test, coverage) run on the changed packages and
+//   - per-package engines (golangci, analyzers, build, test, coverage) run on the changed packages and
 //     their importers; deadcode and mutants, which are whole-program, run when any package is
 //     affected;
 //   - vuln and mod judge the whole module, not a package: a changed Go file can call a vulnerable
@@ -40,7 +40,7 @@ func (e Executor) runNarrowed(step pipeline.Step) (outcome pipeline.Outcome, han
 		return e.onFiles(step, plan.GoFiles(), "no changed Go files"), true
 	case "suppression", "ast-grep":
 		return e.onFiles(step, plan.Scope, "no changed files"), true
-	case "golangci", "analyzers", "test", "coverage", "deadcode", "mutants", "vuln", "mod":
+	case "golangci", "analyzers", "build", "test", "coverage", "deadcode", "mutants", "vuln", "mod":
 		if len(plan.Packages) == 0 {
 			return pipeline.Skipped("no changed Go packages"), true
 		}

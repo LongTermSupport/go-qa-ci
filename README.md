@@ -37,6 +37,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 |           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                           |
 | runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
 |           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
+|           | `build`          | `go build -o /dev/null ./...`: every package, for the host GOOS/GOARCH and default tags, compiled without its tests     |
 |           | `test`           | `go test -race -shuffle=on -count=1 ./...`                                                                                                                                          |
 |           | `coverage`       | statement coverage with a threshold                                                                                                                                                 |
 |           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                  |
@@ -64,7 +65,7 @@ plus the working tree (so a committed change on a branch is covered).
 
 | Defences                                                                  | In diff mode                                                                                                                             |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| per-package engines: `golangci`, `analyzers`, `test`, `coverage`          | run on the packages containing a changed `.go` file and on the packages that import them, directly or not, within the module (`go list`) |
+| per-package engines: `golangci`, `analyzers`, `build`, `test`, `coverage` | run on the packages containing a changed `.go` file and on the packages that import them, directly or not, within the module (`go list`) |
 | `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
@@ -98,7 +99,7 @@ says nothing about the packages it did not run.
 
 A repository may hold more than one Go module that is not part of a `go.work`: list each under
 `modules` in `qa/go-qa.toml` (a relative path holding a `go.mod`). The tools that work per module
-(`golangci`, `analyzers`, `vuln`, `mod`, `test`, `coverage`, `mutants`) then run once for each.
+(`golangci`, `analyzers`, `vuln`, `mod`, `build`, `test`, `coverage`, `mutants`) then run once for each.
 
 Other commands, none of which run a defence:
 
@@ -198,6 +199,7 @@ analyzers = true
 deadcode = true
 vuln = true
 mod = true
+build = true
 test = true
 coverage = true
 mutants = true

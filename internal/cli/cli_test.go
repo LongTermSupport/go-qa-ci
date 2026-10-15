@@ -69,6 +69,7 @@ analyzers    detectors  enabled
 deadcode     detectors  enabled
 vuln         runners    enabled
 mod          runners    enabled
+build        runners    enabled
 test         runners    enabled
 coverage     runners    enabled
 mutants      runners    enabled

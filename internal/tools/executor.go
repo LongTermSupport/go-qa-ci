@@ -60,6 +60,8 @@ func (e Executor) run(step pipeline.Step) pipeline.Outcome {
 		return e.runVuln()
 	case "mod":
 		return e.runMod()
+	case "build":
+		return e.runBuild()
 	case "test":
 		return e.runTest()
 	case "coverage":
