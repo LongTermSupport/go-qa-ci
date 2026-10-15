@@ -74,6 +74,9 @@ func runInstallTools(args []string, newToolchain ToolchainFactory, stdout, stder
 		}
 		return ExitUsage
 	}
+	if *check && *printPath {
+		return emit(stderr, ExitUsage, "go-qa install-tools: --check installs nothing, so --print-path has nothing to print; use one or the other")
+	}
 	if newToolchain == nil {
 		return emit(stderr, ExitUsage, "go-qa install-tools: no tool store is configured")
 	}

@@ -33,7 +33,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 |           | `docs`           | every listed identifier resolves to documentation (`gqaci.docs.dangling`), every page documents a listed identifier (`gqaci.docs.orphan`)                                           |
 |           | `ast-grep`       | syntactic rules: the project's `sgconfig.yml` rules, then the bundled `gqaci.ast.*` pack; every project rule has an id (`gqaci.rules.unnamed`) and a proof (`gqaci.rules.untested`) |
 |           | `golangci`       | golangci-lint over a strict bundled baseline; every finding prints its linter (and check code)                                                                                      |
-|           | `analyzers`      | `go/analysis` analyzers through `go vet -vettool`: the 9 bundled analyzers (docs/analyzers.md) and the project's own driver; every finding prints its analyzer name                        |
+|           | `analyzers`      | `go/analysis` analyzers through `go vet -vettool`: the 9 bundled analyzers (docs/analyzers.md) and the project's own driver; every finding prints its analyzer name                 |
 |           | `deadcode`       | functions unreachable from every `main` function and test (modules with a `main` package)                                                                                           |
 | runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
 |           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
@@ -102,19 +102,19 @@ A repository may hold more than one Go module that is not part of a `go.work`: l
 
 Other commands, none of which run a defence:
 
-| Command                                 | What                                                                                                                                                                        |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `go-qa tools`                           | the tool catalogue in execution order, with phase and enabled or disabled                                                                                                   |
-| `go-qa install-tools [--check] [--print-path] [tool...]` | install the pinned external tools (see "Installing"); needs no module |
-| `go-qa rules [--json]`                  | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
-| `go-qa rule-doc <id>`                   | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
-| `go-qa docs-check`                      | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
-| `go-qa record check`                    | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                       |
-| `go-qa record prune <number>...`        | remove the exceptions numbered as `record list` shows them, and lower the ratchet to what remains                                                                           |
-| `go-qa record list [--json]`            | every exception with its justification, enumerated like the defences                                                                                                        |
-| `go-qa record explain <rule or number>` | one exception (or every exception for a rule) in full                                                                                                                       |
-| `go-qa summary [--check]`               | write the generated defence region into `[summary] file`; `--check` fails as `gqaci.summary.stale` when it is out of date                                                   |
-| `go-qa --version`                       | the version                                                                                                                                                                 |
+| Command                                                  | What                                                                                                                                                                        |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `go-qa tools`                                            | the tool catalogue in execution order, with phase and enabled or disabled                                                                                                   |
+| `go-qa install-tools [--check] [--print-path] [tool...]` | install the pinned external tools (see "Installing"); needs no module                                                                                                       |
+| `go-qa rules [--json]`                                   | every active defence, derived from the configuration, with its identifier, one-line statement and documentation route; also the record and its budget (docs/enumeration.md) |
+| `go-qa rule-doc <id>`                                    | the page for an identifier, offline; exit 1 when it is dangling                                                                                                             |
+| `go-qa docs-check`                                       | the docs detector: dangling identifiers, orphan pages, malformed bundled pages                                                                                              |
+| `go-qa record check`                                     | validate the project record and its policy; findings are `gqaci.record.invalid`, `.budget`, `.expired` and `.ratchet`                                                       |
+| `go-qa record prune <number>...`                         | remove the exceptions numbered as `record list` shows them, and lower the ratchet to what remains                                                                           |
+| `go-qa record list [--json]`                             | every exception with its justification, enumerated like the defences                                                                                                        |
+| `go-qa record explain <rule or number>`                  | one exception (or every exception for a rule) in full                                                                                                                       |
+| `go-qa summary [--check]`                                | write the generated defence region into `[summary] file`; `--check` fails as `gqaci.summary.stale` when it is out of date                                                   |
+| `go-qa --version`                                        | the version                                                                                                                                                                 |
 
 ## Writing rules
 
@@ -291,12 +291,15 @@ release tool with no pinned sha256 is refused; the Go tools (deadcode, govulnche
 built with `go install <package>@<version>`, verified by the Go checksum database. A tool is built
 in a scratch directory and renamed into place, so a failed download, checksum, extraction or build
 leaves nothing that looks installed. Release archives are linux/amd64 only; on another platform
-`go-qa install-tools` (and `go-qa run`, which needs the archives) fails naming the platform. The Go
+installing a release tool fails naming the platform. `go-qa install-tools` with no names, and a
+`go-qa run` whose steps need a release tool, therefore fail there; a run whose steps need only
+Go tools works. The Go
 toolchain itself is the one the project's `go.mod` requires.
 
 This repository's CI installs its tools with `scripts/install-tools.sh`, a thin call of
 `go-qa install-tools` built from the checkout, then runs `go-qa run --ci` over itself (job
 `self-gate`).
+
 ## Public-safety guard
 
 This repository must stay safe to publish. Two scans guard it:

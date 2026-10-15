@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/runners"
@@ -25,10 +27,15 @@ const DirEnv = "GOQA_TOOLS_DIR"
 const (
 	downloadTimeout = 15 * time.Minute
 	dirMode         = 0o750
+	// DefaultMaxArchiveBytes bounds a release download: the pinned archives are tens of megabytes,
+	// so 256 MiB leaves room to grow while a wrong or hostile URL cannot fill memory.
+	DefaultMaxArchiveBytes = 256 << 20
 )
 
 // Store is the directory the pinned tools are installed into. Dir/<name>/<version>/<name> is a
-// tool; the Download and GoInstall fields are the seams the tests replace.
+// release tool; a Go tool's version directory also names the Go that built it
+// (<version>+<goversion>), so a toolchain change reinstalls it. The Download, GoInstall and
+// GoVersion fields are the seams the tests replace.
 type Store struct {
 	// Dir holds the tools; it must be absolute.
 	Dir string
@@ -42,6 +49,10 @@ type Store struct {
 	Download func(ctx context.Context, url string, w io.Writer) error
 	// GoInstall runs `go install pkg` (package@version) with GOBIN set to gobin.
 	GoInstall func(ctx context.Context, pkg, gobin string) error
+	// GoVersion is the version of the go command that builds the Go tools.
+	GoVersion func() (string, error)
+	// MaxArchiveBytes caps a release download; zero means DefaultMaxArchiveBytes.
+	MaxArchiveBytes int64
 }
 
 // New is a Store that uses the network and the go command.
@@ -53,6 +64,7 @@ func New(lock Lock, dir string, log io.Writer) *Store {
 		Log:       log,
 		Download:  httpDownload,
 		GoInstall: goInstall,
+		GoVersion: goVersion(),
 	}
 }
 
@@ -71,7 +83,18 @@ func DefaultDir() (string, error) {
 	return filepath.Join(cache, "go-qa", "tools"), nil
 }
 
-func (s *Store) dir(tool Tool) string { return filepath.Join(s.Dir, tool.Name, tool.Version) }
+// dir is where the tool is installed; a Go tool's directory depends on the Go that builds it.
+func (s *Store) dir(tool Tool) (string, error) {
+	key := tool.Version
+	if tool.Kind == KindGo {
+		goVersion, err := s.GoVersion()
+		if err != nil {
+			return "", fmt.Errorf("the go version that builds %s: %w", tool.Name, err)
+		}
+		key += "+" + goVersion
+	}
+	return filepath.Join(s.Dir, tool.Name, key), nil
+}
 
 // Resolve is the path of the installed pinned copy of name.
 func (s *Store) Resolve(name string) (string, bool) {
@@ -79,7 +102,11 @@ func (s *Store) Resolve(name string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	path := filepath.Join(s.dir(tool), name)
+	dir, err := s.dir(tool)
+	if err != nil {
+		return "", false
+	}
+	path := filepath.Join(dir, name)
 	info, statErr := os.Stat(path)
 	if statErr != nil || !info.Mode().IsRegular() {
 		return "", false
@@ -154,6 +181,10 @@ func (s *Store) install(ctx context.Context, tool Tool) (err error) {
 	if err = s.checkInstallable(tool); err != nil {
 		return err
 	}
+	final, err := s.dir(tool)
+	if err != nil {
+		return err
+	}
 	parent := filepath.Join(s.Dir, tool.Name)
 	if err = os.MkdirAll(parent, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", parent, err)
@@ -165,6 +196,9 @@ func (s *Store) install(ctx context.Context, tool Tool) (err error) {
 	defer func() {
 		if removeErr := os.RemoveAll(scratch); removeErr != nil && err == nil {
 			err = fmt.Errorf("removing %s: %w", scratch, removeErr)
+		}
+		if err != nil {
+			err = errors.Join(err, removeIfEmpty(parent))
 		}
 	}()
 	stage := filepath.Join(scratch, "stage")
@@ -182,7 +216,7 @@ func (s *Store) install(ctx context.Context, tool Tool) (err error) {
 	if _, statErr := os.Stat(filepath.Join(stage, tool.Name)); statErr != nil {
 		return fmt.Errorf("the install produced no %s: %w", tool.Name, statErr)
 	}
-	if err = os.Rename(stage, s.dir(tool)); err != nil {
+	if err = os.Rename(stage, final); err != nil {
 		if _, ok := s.Resolve(tool.Name); ok {
 			return nil // another go-qa installed the same version first
 		}
@@ -219,9 +253,17 @@ func (s *Store) buildGo(ctx context.Context, tool Tool, stage string) error {
 // extracts the binary.
 func (s *Store) fetchRelease(ctx context.Context, tool Tool, stage string) error {
 	spec := releases[tool.Name]
+	limit := s.MaxArchiveBytes
+	if limit == 0 {
+		limit = DefaultMaxArchiveBytes
+	}
 	var archive bytes.Buffer
 	hash := sha256.New()
-	if err := s.Download(ctx, spec.url(tool.Version), io.MultiWriter(&archive, hash)); err != nil {
+	capped := &cappedWriter{w: io.MultiWriter(&archive, hash), left: limit}
+	if err := s.Download(ctx, spec.url(tool.Version), capped); err != nil {
+		if errors.Is(err, errArchiveTooLarge) {
+			return fmt.Errorf("the archive at %s exceeds %d bytes", spec.url(tool.Version), limit)
+		}
 		return fmt.Errorf("downloading %s: %w", spec.url(tool.Version), err)
 	}
 	if got := hex.EncodeToString(hash.Sum(nil)); got != tool.SHA256 {
@@ -259,7 +301,7 @@ func goInstall(ctx context.Context, pkg, gobin string) error {
 	if err != nil {
 		return fmt.Errorf("the go command is needed to build %s: %w", pkg, err)
 	}
-	out, err := runners.CaptureEnv(ctx, "", []string{"GOBIN=" + gobin}, goBinary, "install", pkg)
+	out, err := runners.CaptureEnv(ctx, "", goInstallEnv(gobin), goBinary, "install", pkg)
 	if err != nil {
 		return fmt.Errorf("go install: %w", err)
 	}
@@ -271,3 +313,70 @@ func goInstall(ctx context.Context, pkg, gobin string) error {
 
 // Names are the pinned tools, sorted.
 func (s *Store) Names() []string { return s.Lock.Names() }
+
+// goInstallEnv makes `go install pkg@version` independent of the consumer's module: -mod=vendor
+// cannot query a module, and a go.work would add its own requirements. GOTOOLCHAIN and GOPROXY
+// stay the consumer's.
+func goInstallEnv(gobin string) []string {
+	return []string{"GOBIN=" + gobin, "GOFLAGS=-mod=mod", "GOWORK=off"}
+}
+
+var errArchiveTooLarge = errors.New("archive too large")
+
+// cappedWriter fails the write that would take the total past the cap, so an oversized download
+// stops before it is held in memory.
+type cappedWriter struct {
+	w    io.Writer
+	left int64
+}
+
+func (c *cappedWriter) Write(p []byte) (int, error) {
+	if int64(len(p)) > c.left {
+		return 0, errArchiveTooLarge
+	}
+	c.left -= int64(len(p))
+	n, err := c.w.Write(p)
+	if err != nil {
+		return n, fmt.Errorf("buffering the archive: %w", err)
+	}
+	return n, nil
+}
+
+// removeIfEmpty removes dir after a failed install when nothing else lives in it; a directory
+// another install is using is left alone.
+func removeIfEmpty(dir string) error {
+	err := os.Remove(dir)
+	if err == nil || errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTEMPTY) {
+		return nil
+	}
+	return fmt.Errorf("removing %s: %w", dir, err)
+}
+
+// goVersion asks the go command that builds the Go tools for its version, once.
+func goVersion() func() (string, error) {
+	var once sync.Once
+	var version string
+	var err error
+	return func() (string, error) {
+		once.Do(func() { version, err = queryGoVersion() })
+		return version, err
+	}
+}
+
+func queryGoVersion() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	goBinary, err := exec.LookPath("go")
+	if err != nil {
+		return "", fmt.Errorf("the go command is needed to build the Go tools: %w", err)
+	}
+	out, err := runners.Capture(ctx, "", goBinary, "env", "GOVERSION")
+	if err != nil {
+		return "", fmt.Errorf("go env GOVERSION: %w", err)
+	}
+	version := strings.TrimSpace(out.Stdout)
+	if out.Code != 0 || version == "" {
+		return "", fmt.Errorf("go env GOVERSION exited %d: %s", out.Code, strings.TrimSpace(out.Combined()))
+	}
+	return version, nil
+}

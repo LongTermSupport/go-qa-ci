@@ -199,3 +199,11 @@ func TestInstallToolsNeedsNoModule(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 }
+
+func TestInstallToolsRefusesCheckWithPrintPath(t *testing.T) {
+	chain := newChain("a")
+	code, out, errOut := runChain(chain, nil, "install-tools", "--check", "--print-path")
+	if code != cli.ExitUsage || !strings.Contains(errOut, "--check") || !strings.Contains(errOut, "--print-path") || out != "" {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, out, errOut)
+	}
+}

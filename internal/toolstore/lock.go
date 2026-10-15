@@ -80,10 +80,12 @@ func ParseLock(text string) (Lock, error) {
 		return Lock{}, fmt.Errorf("reading tools.lock: %w", err)
 	}
 	for name, sum := range sums {
-		if tool, found := lock.tools[name]; found && tool.Kind == KindRelease {
-			tool.SHA256 = sum
-			lock.tools[name] = tool
+		tool, found := lock.tools[name]
+		if !found || tool.Kind != KindRelease {
+			return Lock{}, fmt.Errorf("tools.lock: [checksums] pins %s, which is not in [release]", name)
 		}
+		tool.SHA256 = sum
+		lock.tools[name] = tool
 	}
 	return lock, nil
 }

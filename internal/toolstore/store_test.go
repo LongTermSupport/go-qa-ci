@@ -119,6 +119,7 @@ func newFixture(t *testing.T, golangciSum, astGrepSum string) *fixture {
 			}
 			return nil
 		},
+		GoVersion: func() (string, error) { return "go1.25.1", nil },
 		GoInstall: func(_ context.Context, pkg, gobin string) error {
 			f.goInstall = append(f.goInstall, pkg+" -> "+gobin)
 			return os.WriteFile(filepath.Join(gobin, "deadcode"), []byte("deadcode-binary"), 0o600)
@@ -155,6 +156,9 @@ func TestInstallPlacesEveryToolUnderItsVersion(t *testing.T) {
 	}
 	for name, version := range map[string]string{"golangci-lint": "2.14.0", "ast-grep": "0.50.0", "deadcode": "v0.52.0"} {
 		path, ok := f.store.Resolve(name)
+		if name == "deadcode" {
+			version += "+go1.25.1" // a Go tool is keyed by the Go that builds it too
+		}
 		want := filepath.Join(f.store.Dir, name, version, name)
 		if !ok || path != want {
 			t.Errorf("%s: resolved %q (%v), want %q", name, path, ok, want)
@@ -334,5 +338,60 @@ func TestDefaultDirRefusesARelativeOverride(t *testing.T) {
 	t.Setenv(toolstore.DirEnv, "relative/dir")
 	if _, err := toolstore.DefaultDir(); err == nil {
 		t.Fatal("want an error for a relative directory")
+	}
+}
+
+func TestAGoToolIsReinstalledWhenTheGoToolchainChanges(t *testing.T) {
+	f := goodFixture(t)
+	if err := f.store.Install(t.Context(), "deadcode"); err != nil {
+		t.Fatal(err)
+	}
+	f.store.GoVersion = func() (string, error) { return "go1.26.0", nil }
+	if _, ok := f.store.Resolve("deadcode"); ok {
+		t.Fatal("a tool built by go1.25.1 resolved under go1.26.0")
+	}
+	if err := f.store.Install(t.Context(), "deadcode"); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.goInstall) != 2 {
+		t.Errorf("go install calls: %v", f.goInstall)
+	}
+}
+
+func TestAGoToolNeedsToKnowTheGoVersion(t *testing.T) {
+	f := goodFixture(t)
+	f.store.GoVersion = func() (string, error) { return "", errors.New("no go") }
+	if err := f.store.Install(t.Context(), "deadcode"); err == nil || !strings.Contains(err.Error(), "no go") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestAFailedInstallLeavesNoToolDirectory(t *testing.T) {
+	f := goodFixture(t)
+	f.store.GoInstall = func(context.Context, string, string) error { return errors.New("build failed") }
+	f.store.Download = func(context.Context, string, io.Writer) error { return errors.New("offline") }
+	for _, name := range []string{"deadcode", "golangci-lint"} {
+		if err := f.store.Install(t.Context(), name); err == nil {
+			t.Fatalf("%s: want an error", name)
+		}
+	}
+	dirs, err := os.ReadDir(f.store.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dirs) != 0 {
+		t.Errorf("left directories behind: %v", dirs)
+	}
+}
+
+func TestAnArchiveBeyondTheSizeCapIsRefusedBeforeItIsHashed(t *testing.T) {
+	f := goodFixture(t)
+	f.store.MaxArchiveBytes = 16
+	err := f.store.Install(t.Context(), "golangci-lint")
+	if err == nil || !strings.Contains(err.Error(), "16 bytes") {
+		t.Fatalf("want the cap named, got %v", err)
+	}
+	if left := entries(t, f.store.Dir); len(left) != 0 {
+		t.Errorf("left files behind: %v", left)
 	}
 }

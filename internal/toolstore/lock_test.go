@@ -32,6 +32,8 @@ func TestParseLockRejectsWhatItCannotRead(t *testing.T) {
 		"no section":      "a = \"b\"\n",
 		"malformed line":  "[go]\nnot a pin\n",
 		"go without @":    "[go]\nfoo = \"example.com/foo\"\n",
+		"orphan checksum": "[release]\na = \"1\"\n[checksums]\nb = \"abc\"\n",
+		"go checksum":     "[go]\nfoo = \"example.com/foo@v1\"\n[checksums]\nfoo = \"abc\"\n",
 	} {
 		if _, err := toolstore.ParseLock(text); err == nil {
 			t.Errorf("%s: want an error", name)
