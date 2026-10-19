@@ -237,3 +237,13 @@ func TestDiffBuildFailsAnImporterThatNoLongerCompilesAgainstTheChangedPackage(t 
 		t.Fatalf("the importer must be built and named: %+v\n%s", out, stderr)
 	}
 }
+
+func TestDiffBuildPassesWhenATestOnlyImporterOfTheChangedPackageIsAffected(t *testing.T) {
+	golden := "package golden\n\nimport (\n\t\"testing\"\n\n\t\"" + diffMod + "/leaf\"\n)\n\nfunc TestGolden(t *testing.T) {\n\tif leaf.Leaf() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+	root := diffProject(t, map[string]string{"golden/golden_test.go": golden})
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("a test-only importer has nothing to build and must not fail the build: %+v\n%s", out, stderr)
+	}
+}
