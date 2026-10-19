@@ -40,8 +40,8 @@ type Coverage struct {
 // MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)
 // and returns the coverage; tests that did not pass are a TestsFailedError, since nothing was
 // measured.
-func MeasureCoverage(ctx context.Context, dir string, packages ...string) (Coverage, error) {
-	output, passed, cov, err := TestAndMeasure(ctx, dir, packages...)
+func MeasureCoverage(ctx context.Context, dir string, measured []string, packages ...string) (Coverage, error) {
+	output, passed, cov, err := TestAndMeasure(ctx, dir, measured, packages...)
 	if err != nil {
 		return Coverage{}, err
 	}
@@ -55,21 +55,27 @@ func MeasureCoverage(ctx context.Context, dir string, packages ...string) (Cover
 // detector, shuffled and uncached, counting statements across every package (atomic mode, which
 // is correct under the race detector). The same run supplies the test verdict (passed, with output
 // everything go test printed) and the coverage, which is zero and meaningless when the tests did
-// not pass. Given package patterns, it tests and counts only those packages.
-func TestAndMeasure(ctx context.Context, dir string, packages ...string) (output string, passed bool, cov Coverage, err error) {
+// not pass. Given package patterns, it tests only those packages. measured names the packages
+// whose statements are counted; none means the tested packages, so a narrowed run can test the
+// importers of a change, whose tests may reach it, and count only the changed code.
+func TestAndMeasure(ctx context.Context, dir string, measured []string, packages ...string) (output string, passed bool, cov Coverage, err error) {
 	scratch, err := os.MkdirTemp("", "go-qa-coverage-")
 	if err != nil {
 		return "", false, Coverage{}, fmt.Errorf("creating a coverage directory: %w", err)
 	}
-	output, passed, cov, err = testAndMeasure(ctx, dir, filepath.Join(scratch, profileName), orAll(packages))
+	tested := orAll(packages)
+	if len(measured) == 0 {
+		measured = tested
+	}
+	output, passed, cov, err = testAndMeasure(ctx, dir, filepath.Join(scratch, profileName), measured, tested)
 	if removeErr := os.RemoveAll(scratch); removeErr != nil && err == nil {
 		err = fmt.Errorf("removing %s: %w", scratch, removeErr)
 	}
 	return output, passed, cov, err
 }
 
-func testAndMeasure(ctx context.Context, dir, profile string, packages []string) (output string, passed bool, cov Coverage, err error) {
-	args := slices.Concat(testFlags, []string{"-covermode=atomic", "-coverpkg=" + strings.Join(packages, ","), "-coverprofile=" + profile}, packages)
+func testAndMeasure(ctx context.Context, dir, profile string, measured, packages []string) (output string, passed bool, cov Coverage, err error) {
+	args := slices.Concat(testFlags, []string{"-covermode=atomic", "-coverpkg=" + strings.Join(measured, ","), "-coverprofile=" + profile}, packages)
 	tests, err := Capture(ctx, dir, goBinary, args...)
 	if err != nil {
 		return "", false, Coverage{}, err

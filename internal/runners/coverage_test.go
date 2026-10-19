@@ -41,7 +41,7 @@ func TestMeasureCoverageCountsStatementsAcrossPackages(t *testing.T) {
 		"f.go":      "package fixture\n\nfunc Used() int { return 1 }\n\nfunc Never() int { return 2 }\n",
 		"f_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestUsed(t *testing.T) {\n\tif Used() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n",
 	})
-	got, err := runners.MeasureCoverage(ctx(), dir)
+	got, err := runners.MeasureCoverage(ctx(), dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func gateProbe() map[string]string {
 }
 
 func TestMeasureCoverageRunsTheTestsTheWayTheTestStepDoes(t *testing.T) {
-	got, err := runners.MeasureCoverage(ctx(), module(t, gateProbe()))
+	got, err := runners.MeasureCoverage(ctx(), module(t, gateProbe()), nil)
 	if err != nil {
 		t.Fatalf("the coverage run is not the gate's test run: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestMeasureCoverageRunsTheTestsTheWayTheTestStepDoes(t *testing.T) {
 }
 
 func TestTestAndMeasureIsOneRunThatFeedsBothVerdicts(t *testing.T) {
-	output, passed, cov, err := runners.TestAndMeasure(ctx(), module(t, gateProbe()))
+	output, passed, cov, err := runners.TestAndMeasure(ctx(), module(t, gateProbe()), nil)
 	if err != nil || !passed {
 		t.Fatalf("got %q, %v, %v", output, passed, err)
 	}
@@ -86,7 +86,7 @@ func TestTestAndMeasureKeepsTheOutputOfFailingTests(t *testing.T) {
 		"f.go":      "package fixture\n\nfunc Used() int { return 1 }\n",
 		"f_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestUsed(t *testing.T) {\n\tt.Fatal(\"deliberate failure\")\n}\n",
 	})
-	output, passed, cov, err := runners.TestAndMeasure(ctx(), dir)
+	output, passed, cov, err := runners.TestAndMeasure(ctx(), dir, nil)
 	if err != nil || passed || !strings.Contains(output, "deliberate failure") || cov.Total != 0 {
 		t.Errorf("got %q, %v, %+v, %v", output, passed, cov, err)
 	}
@@ -97,7 +97,7 @@ func TestMeasureCoverageReportsFailingTestsAsSuch(t *testing.T) {
 		"f.go":      "package fixture\n\nfunc Used() int { return 1 }\n",
 		"f_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestUsed(t *testing.T) {\n\tt.Fatal(\"deliberate failure\")\n}\n",
 	})
-	_, err := runners.MeasureCoverage(ctx(), dir)
+	_, err := runners.MeasureCoverage(ctx(), dir, nil)
 	var failed *runners.TestsFailedError
 	if !errors.As(err, &failed) || !strings.Contains(failed.Output, "deliberate failure") {
 		t.Errorf("got %v", err)

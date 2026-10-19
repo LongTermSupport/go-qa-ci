@@ -153,6 +153,58 @@ func TestDiffCoverageMeasuresOnlyTheAffectedPackages(t *testing.T) {
 	}
 }
 
+// midGap is the importer with a function no test reaches, enough to put the changed package and
+// its importer together below the diff threshold.
+const midGap = "// Package mid is a fixture.\npackage mid\n\nimport \"" + diffMod + "/leaf\"\n\n// Mid is a fixture.\nfunc Mid() int { return leaf.Leaf() }\n\n// Gap is never called by a test.\nfunc Gap(n int) int {\n\tif n > 0 {\n\t\tn--\n\t}\n\treturn n\n}\n"
+
+func TestDiffCoverageJudgesTheChangedPackageNotTheGapsOfItsImporters(t *testing.T) {
+	root := diffProject(t, map[string]string{"mid/mid.go": midGap})
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	for _, shared := range []bool{false, true} {
+		exec, stderr := narrowed(t, root)
+		if shared {
+			exec.Shared = tools.NewMeasurements()
+			if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindPassed {
+				t.Fatalf("test: %+v\n%s", out, stderr)
+			}
+		}
+		if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed {
+			t.Fatalf("shared=%v: an untouched importer's gap must not fail a change to a covered package: %+v\n%s", shared, out, stderr)
+		}
+	}
+}
+
+func TestDiffCoverageStillFailsAChangedPackageBelowTheThreshold(t *testing.T) {
+	root := diffProject(t, map[string]string{"mid/mid.go": midGap})
+	put(t, root, map[string]string{"mid/mid.go": midGap + "\n// Extra is a fixture.\nfunc Extra() {}\n"})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "Gap") {
+		t.Fatalf("the changed package's own gap must fail: %+v\n%s", out, stderr)
+	}
+}
+
+func TestDiffCoverageCountsTheImportersTestsOfTheChangedPackage(t *testing.T) {
+	root := diffProject(t, nil)
+	if err := os.Remove(filepath.Join(root, "leaf", "leaf_test.go")); err != nil {
+		t.Fatal(err)
+	}
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("the importer's tests reach the changed package and must count: %+v\n%s", out, stderr)
+	}
+}
+
+func TestDiffCoverageOfAChangedTestOnlyPackageCountsNothingAndPasses(t *testing.T) {
+	golden := "package golden\n\nimport (\n\t\"testing\"\n\n\t\"" + diffMod + "/leaf\"\n)\n\nfunc TestGolden(t *testing.T) {\n\tif leaf.Leaf() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+	root := diffProject(t, map[string]string{"golden/golden_test.go": golden, "mid/mid.go": midGap})
+	put(t, root, map[string]string{"golden/golden_test.go": golden + "\n// changed\n"})
+	exec, stderr := narrowed(t, root)
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed {
+		t.Fatalf("a test-only change has no statements to fall short on: %+v\n%s", out, stderr)
+	}
+}
+
 func TestDiffSuppressionScansOnlyTheChangedFiles(t *testing.T) {
 	root := diffProject(t, map[string]string{"other/other.go": nolintSource})
 	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})

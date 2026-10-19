@@ -204,11 +204,12 @@ func (e Executor) testModule(module, dir string, packages []string) (output stri
 		}
 		return output, passed, nil
 	}
-	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, packages...)
+	measured, measure := e.measuredOf(module)
+	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, measured, packages...)
 	if err != nil {
 		return "", false, fmt.Errorf("running the tests and measuring coverage: %w", err)
 	}
-	if passed {
+	if passed && measure {
 		e.Shared.put(module, cov)
 	}
 	return output, passed, nil
@@ -220,10 +221,11 @@ func (e Executor) runCoverage() pipeline.Outcome {
 	failed := false
 	err := e.eachModuleInScope(func(module, dir string) error {
 		packages, run := e.packagesOf(module)
-		if !run {
+		measured, measure := e.measuredOf(module)
+		if !run || !measure {
 			return nil
 		}
-		message, err := e.coverageProblem(module, dir, threshold, packages)
+		message, err := e.coverageProblem(module, dir, threshold, measured, packages)
 		if err != nil {
 			return fmt.Errorf("coverage in %s: %w", displayModule(module), err)
 		}
@@ -243,11 +245,11 @@ func (e Executor) runCoverage() pipeline.Outcome {
 // met. The coverage is the test step's, from the shared run, when there is one; otherwise it is
 // measured here in a run of its own. Failing tests are a problem of the coverage gate too: nothing
 // was measured.
-func (e Executor) coverageProblem(module, dir string, threshold int, packages []string) (string, error) {
+func (e Executor) coverageProblem(module, dir string, threshold int, measured, packages []string) (string, error) {
 	cov, shared := e.Shared.take(module)
 	if !shared {
 		var err error
-		cov, err = runners.MeasureCoverage(context.Background(), dir, packages...)
+		cov, err = runners.MeasureCoverage(context.Background(), dir, measured, packages...)
 		var testsFailed *runners.TestsFailedError
 		if errors.As(err, &testsFailed) {
 			return strings.TrimSpace(testsFailed.Error()), nil

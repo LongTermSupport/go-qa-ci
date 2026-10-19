@@ -75,6 +75,9 @@ func TestLeafChangeRunsItsImportersButNotAnUnrelatedPackage(t *testing.T) {
 	if !slices.Equal(plan.Scope, []string{"leaf/leaf.go"}) {
 		t.Fatalf("scope %v", plan.Scope)
 	}
+	if got := plan.Changed[""]; !slices.Equal(got, []string{"./leaf"}) {
+		t.Fatalf("changed packages %v, want only ./leaf", got)
+	}
 }
 
 func TestChangeInTheTopPackageRunsOnlyThatPackage(t *testing.T) {
@@ -249,8 +252,21 @@ func TestTestdataFileRunsOnlyThePackageThatOwnsIt(t *testing.T) {
 	write(t, dir, "leaf/testdata/x.go", "package x\n")
 	write(t, dir, "leaf/testdata/golden/out.txt", "golden\n")
 	plan := compute(t, dir, "")
-	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./leaf"}) {
+	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./leaf"}) || !slices.Equal(plan.Changed[""], []string{"./leaf"}) {
 		t.Fatalf("plan %+v", plan)
+	}
+}
+
+func TestChangedTestOnlyPackageIsRunButHasNoCodeToMeasure(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "golden/golden_test.go", "package golden\n\nimport \"testing\"\n\nfunc TestG(t *testing.T) {}\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "golden")
+	write(t, dir, "golden/golden_test.go", "package golden\n\nimport \"testing\"\n\nfunc TestG(t *testing.T) { t.Log(1) }\n")
+	write(t, dir, "other/other.go", "package other\n\nfunc Other() int { return 5 }\n")
+	plan := compute(t, dir, "")
+	if !slices.Equal(plan.Packages[""], []string{"./golden", "./other"}) || !slices.Equal(plan.Changed[""], []string{"./other"}) {
+		t.Fatalf("packages %v, changed %v", plan.Packages, plan.Changed)
 	}
 }
 
