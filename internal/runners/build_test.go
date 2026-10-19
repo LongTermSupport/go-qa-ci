@@ -49,6 +49,49 @@ func TestBuildLimitedToPackagesLeavesTheOthersUnbuilt(t *testing.T) {
 	}
 }
 
+// goldenTest is a test-only package: it has no production file, so go build refuses it when it is
+// named although ./... skips it. Its test files are judged by the test stage, not by the build.
+const goldenTest = "package golden\n\nimport (\n\t\"testing\"\n\n\t\"example.com/fixture/lib\"\n)\n\nfunc TestValue(t *testing.T) {\n\tif lib.Value() != 1 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+
+func TestBuildNamingATestOnlyPackageBuildsTheOthersAndPasses(t *testing.T) {
+	dir := module(t, map[string]string{"lib/lib.go": libStandalone, "golden/golden_test.go": goldenTest})
+	for _, patterns := range [][]string{{"./golden", "./lib"}, {"./golden"}} {
+		if output, ok, err := runners.Build(ctx(), dir, patterns...); err != nil || !ok {
+			t.Errorf("%v: got %q, %v, %v", patterns, output, ok, err)
+		}
+	}
+}
+
+func TestBuildNamingATestOnlyPackageStillFailsABrokenProductionPackage(t *testing.T) {
+	dir := module(t, map[string]string{"lib/lib.go": libUsingHelper, "lib/lib_test.go": libTestHelper, "golden/golden_test.go": goldenTest})
+	output, ok, err := runners.Build(ctx(), dir, "./golden", "./lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok || !strings.Contains(output, "undefined: helper") {
+		t.Errorf("got %q, %v", output, ok)
+	}
+}
+
+func TestBuildNamingAPackageThatDoesNotLoadFails(t *testing.T) {
+	cases := map[string]map[string]string{
+		"missing directory":       {"lib/lib.go": libStandalone},
+		"no Go files":             {"lib/lib.go": libStandalone, "missing/README": "not Go\n"},
+		"constraints exclude all": {"lib/lib.go": libStandalone, "missing/x.go": "//go:build never\n\npackage missing\n"},
+		"syntax error":            {"lib/lib.go": libStandalone, "missing/x.go": "package missing\n\nfunc {\n"},
+	}
+	for name, files := range cases {
+		dir := module(t, files)
+		output, ok, err := runners.Build(ctx(), dir, "./lib", "./missing")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if ok || !strings.Contains(output, "missing") {
+			t.Errorf("%s: a package that does not load must fail the build: %q, %v", name, output, ok)
+		}
+	}
+}
+
 func TestBuildBuildsAWorkspaceModuleUnderTheWorkspace(t *testing.T) {
 	dir := module(t, map[string]string{
 		"go.work":   "go 1.26\n\nuse (\n\t./ma\n\t./mb\n)\n",

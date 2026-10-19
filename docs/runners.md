@@ -35,7 +35,9 @@ A missing `go` binary is an error, never a skip.
 
 In diff mode (`run --changed`) it builds the changed packages and their importers, like `test`,
 because the importer is the package that stops compiling when a changed package loses an exported
-symbol. A change to `go.mod` widens the run to every package; with no changed Go package it is
+symbol. A test-only package among them (one with no production file, which `go build` refuses
+when it is named although `./...` skips it) is left out, since it has nothing to build and its test
+files are compiled by `test`; a named package that does not load still fails. A change to `go.mod` widens the run to every package; with no changed Go package it is
 skipped, saying so. Build output is cached by the Go build cache, so building everything would be
 cheap too; the narrowed set keeps it consistent with the other per-package engines.
 
