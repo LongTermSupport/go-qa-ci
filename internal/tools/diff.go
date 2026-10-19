@@ -22,12 +22,24 @@ func (e Executor) packagesOf(module string) (patterns []string, run bool) {
 	return patterns, len(patterns) > 0
 }
 
+// measuredOf is the package patterns whose statements coverage counts in module, and whether
+// there is anything to count. A full or widened run counts the packages it tests (no patterns); a
+// narrowed run counts only the changed packages, so a change is not judged on the gaps of
+// importers it never touched, and counts nothing in a module that holds only importers.
+func (e Executor) measuredOf(module string) (patterns []string, measure bool) {
+	if !e.Ctx.Diff.Narrow() {
+		return nil, true
+	}
+	patterns = e.Ctx.Diff.Changed[module]
+	return patterns, len(patterns) > 0
+}
+
 // runNarrowed narrows a step of a diff-mode run, or reports that the step is not narrowed:
 //
 //   - file-scoped detectors (fmt, suppression, ast-grep, stages that take {files}) run on the
 //     changed files, and are skipped when there are none;
 //   - per-package engines (golangci, analyzers, build, test, coverage) run on the changed packages and
-//     their importers; deadcode and mutants, which are whole-program, run when any package is
+//     their importers, and coverage counts the statements of the changed packages alone; deadcode and mutants, which are whole-program, run when any package is
 //     affected;
 //   - vuln and mod judge the whole module, not a package: a changed Go file can call a vulnerable
 //     function of a module already required, or import one go.mod does not yet list, so they run

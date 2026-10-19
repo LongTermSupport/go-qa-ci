@@ -69,7 +69,7 @@ plus the working tree (so a committed change on a branch is covered).
 | `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
-| `coverage` (narrowed)                                                     | the module-wide `fail_under_statements` threshold is applied to the affected packages only, so the result can differ from the full run's |
+| `coverage` (narrowed)                                                     | counts the statements of the changed packages only; importers are tested, not counted, so the result can differ from the full run's     |
 | `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module)  |
 
 A changed file under a `testdata` directory runs the tests of the package that owns the directory

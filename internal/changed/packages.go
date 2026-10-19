@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -22,6 +23,8 @@ type goPackage struct {
 	module     string
 	pattern    string
 	imports    []string
+	// testOnly is a package with no production file: it has tests and no statements to count.
+	testOnly bool
 }
 
 // packageSet is every package of the workspace's modules, keyed by import path and by its
@@ -35,6 +38,8 @@ type packageSet struct {
 type listed struct {
 	ImportPath      string
 	Dir             string
+	GoFiles         []string
+	CgoFiles        []string
 	Imports         []string
 	TestImports     []string
 	XTestImports    []string
@@ -49,7 +54,7 @@ func listPackages(ctx context.Context, root string, modules []string) (packageSe
 	for _, module := range modules {
 		dir := filepath.Join(root, filepath.FromSlash(module))
 		var stdout, stderr bytes.Buffer
-		cmd := exec.CommandContext(ctx, "go", "list", "-json=ImportPath,Dir,Imports,TestImports,XTestImports,EmbedFiles,TestEmbedFiles,XTestEmbedFiles", "./...")
+		cmd := exec.CommandContext(ctx, "go", "list", "-json=ImportPath,Dir,GoFiles,CgoFiles,Imports,TestImports,XTestImports,EmbedFiles,TestEmbedFiles,XTestEmbedFiles", "./...")
 		cmd.Dir = dir
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -75,6 +80,7 @@ func listPackages(ctx context.Context, root string, modules []string) (packageSe
 				module:     module,
 				pattern:    "./" + rel,
 				imports:    slices.Concat(entry.Imports, entry.TestImports, entry.XTestImports),
+				testOnly:   len(entry.GoFiles) == 0 && len(entry.CgoFiles) == 0,
 			}
 			if rel == "." {
 				pkg.pattern = "."
@@ -97,14 +103,15 @@ func displayModule(module string) string {
 }
 
 // affectedBy returns, per module, the patterns of the packages containing the changed Go files and
-// of every package that imports one of them, directly or not. A changed file whose directory is
-// no package is returned as orphan: it was deleted with its package, or is excluded by build
+// of every package that imports one of them, directly or not. changed holds the first kind alone,
+// less test-only packages, which have no statements of their own. A changed file whose directory
+// is no package is returned as orphan: it was deleted with its package, or is excluded by build
 // constraints, and either way the importers cannot be known.
 //
 // Files that are no Go source of the package still decide its result: an embedded file changes the
 // package and so its importers; a file under testdata changes only the tests of the package that
 // owns the directory. Both are mapped to their package; a file that belongs to none is ignored.
-func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected map[string][]string, orphan string) {
+func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected, changed map[string][]string, orphan string) {
 	importers := map[string][]string{}
 	for importPath, pkg := range s.byImport {
 		for _, imported := range pkg.imports {
@@ -117,7 +124,7 @@ func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected map[strin
 	for _, file := range goFiles {
 		pkg, ok := s.byDir[path.Dir(file)]
 		if !ok {
-			return nil, file
+			return nil, nil, file
 		}
 		queue = append(queue, pkg.importPath)
 	}
@@ -129,6 +136,9 @@ func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected map[strin
 			direct = append(direct, pkg.importPath)
 		}
 	}
+	changed = s.byModule(slices.DeleteFunc(slices.Concat(direct, queue), func(importPath string) bool {
+		return s.byImport[importPath].testOnly
+	}))
 	seen := map[string]bool{}
 	for _, importPath := range direct {
 		seen[importPath] = true
@@ -142,15 +152,22 @@ func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected map[strin
 		seen[importPath] = true
 		queue = append(queue, importers[importPath]...)
 	}
-	affected = map[string][]string{}
-	for importPath := range seen {
+	return s.byModule(slices.Collect(maps.Keys(seen))), changed, ""
+}
+
+// byModule groups the patterns of the packages with the given import paths by module, sorted and
+// without repeats.
+func (s packageSet) byModule(importPaths []string) map[string][]string {
+	patterns := map[string][]string{}
+	for _, importPath := range importPaths {
 		pkg := s.byImport[importPath]
-		affected[pkg.module] = append(affected[pkg.module], pkg.pattern)
+		patterns[pkg.module] = append(patterns[pkg.module], pkg.pattern)
 	}
-	for module := range affected {
-		slices.Sort(affected[module])
+	for module := range patterns {
+		slices.Sort(patterns[module])
+		patterns[module] = slices.Compact(patterns[module])
 	}
-	return affected, ""
+	return patterns
 }
 
 // testdataOwner is the package whose directory holds the testdata directory that contains file.

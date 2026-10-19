@@ -50,6 +50,9 @@ type Plan struct {
 	// Packages maps a module directory to the package patterns ("./a/b", relative to the module)
 	// of the changed packages and their importers.
 	Packages map[string][]string
+	// Changed maps a module directory to the patterns of the changed packages alone, without
+	// their importers: the code a narrowed coverage measurement judges.
+	Changed map[string][]string
 }
 
 // Narrow reports whether the run is limited to the changed files and packages. A nil plan is the
@@ -148,11 +151,11 @@ func Compute(ctx context.Context, opts Options) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	affected, orphan := packages.affectedBy(goFiles, otherFiles)
+	affected, direct, orphan := packages.affectedBy(goFiles, otherFiles)
 	if orphan != "" {
 		plan.Widened = orphan + " changed outside any package that still exists"
 		return plan, nil
 	}
-	plan.Packages = affected
+	plan.Packages, plan.Changed = affected, direct
 	return plan, nil
 }

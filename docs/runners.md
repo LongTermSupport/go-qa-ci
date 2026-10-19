@@ -89,6 +89,9 @@ installed, as every test needing a pinned tool does) proves the gate; the fakes 
 - `--diff <base>` is passed to gremlins as given. gremlins documents it as "diff branch or commit";
   whether it compares with the tip of the ref or with the merge base was not verified, so the
   README does not promise a merge base for `mutants.base`.
-- In a `--changed` run, `coverage` applies the module-wide `fail_under_statements` threshold to the
-  affected packages only, so a narrowed result can differ from the full run's.
+- In a `--changed` run, `coverage` tests the changed packages and their importers, whose tests may
+  reach the changed code, but `-coverpkg` names only the changed packages, so the module-wide
+  `fail_under_statements` threshold judges the code that changed and not the gaps of importers it
+  never touched. A test-only package has no statements and is not counted; a module that holds only
+  importers is not judged. A narrowed result can still differ from the full run's.
 - The `licences` runner of the design brief is not built.
