@@ -358,6 +358,56 @@ func TestAGoToolIsReinstalledWhenTheGoToolchainChanges(t *testing.T) {
 	}
 }
 
+// A Go tool's directory is named after the go version that built it, and Ensure puts that
+// directory on PATH. A version string carrying the PATH list separator (Fedora's go reports
+// go1.26.10-X:nodwarf5; a devel toolchain reports a date with colons and spaces) once made a
+// directory no lookup could find: the tool was installed, and the gate still said it was missing.
+func TestAGoToolIsFoundOnPathWhateverTheGoVersionContains(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{
+		"go1.26.10-X:nodwarf5",
+		"devel go1.27-0123abcd Tue Oct 13 12:00:00 2026 +0000",
+	} {
+		t.Run(version, func(t *testing.T) {
+			f := goodFixture(t)
+			t.Setenv("PATH", os.Getenv("PATH"))
+			f.store.GoVersion = func() (string, error) { return version, nil }
+			// The test binary stands in for the built tool: an executable PATH lookup accepts.
+			f.store.GoInstall = func(_ context.Context, _, gobin string) error {
+				return os.Symlink(exe, filepath.Join(gobin, "deadcode"))
+			}
+			if ensureErr := f.store.Ensure(t.Context(), "deadcode"); ensureErr != nil {
+				t.Fatal(ensureErr)
+			}
+			found, lookErr := exec.LookPath("deadcode")
+			if lookErr != nil {
+				t.Fatalf("the installed tool is not on PATH: %v", lookErr)
+			}
+			if !strings.HasPrefix(found, f.store.Dir) {
+				t.Errorf("deadcode resolved to %s, want the copy under %s", found, f.store.Dir)
+			}
+		})
+	}
+}
+
+// A store directory that itself holds the PATH list separator (a GOQA_TOOLS_DIR with a colon)
+// cannot be sanitised away, so Ensure refuses it rather than putting a broken entry on PATH.
+func TestEnsureRefusesAToolDirectoryThatCannotBeAPathEntry(t *testing.T) {
+	f := goodFixture(t)
+	f.store.Dir = filepath.Join(f.store.Dir, "a"+string(os.PathListSeparator)+"b")
+	t.Setenv("PATH", "/usr/bin")
+	err := f.store.Ensure(t.Context(), "ast-grep")
+	if err == nil || !strings.Contains(err.Error(), "PATH") {
+		t.Fatalf("got %v, want a refusal naming PATH", err)
+	}
+	if got := os.Getenv("PATH"); got != "/usr/bin" {
+		t.Errorf("PATH changed on refusal: %q", got)
+	}
+}
+
 func TestAGoToolNeedsToKnowTheGoVersion(t *testing.T) {
 	f := goodFixture(t)
 	f.store.GoVersion = func() (string, error) { return "", errors.New("no go") }
