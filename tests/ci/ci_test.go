@@ -187,7 +187,62 @@ func TestWorkflowsInstallActionlintAndGitleaksFromTheLock(t *testing.T) {
 // patchedGoDirective is the first Go release carrying every standard library advisory fix that
 // govulncheck reports against this module's own code; a lower toolchain turns the vuln runner red.
 // The go directive, not a toolchain line, is what actions/setup-go reads from go.mod.
-const patchedGoDirective = "go 1.26.9"
+const patchedGoDirective = "go 1.26.10"
+
+// needsGo reports whether a run script calls the go command, directly or through
+// scripts/install-tools.sh (which builds go-qa with it).
+func needsGo(run string) bool {
+	for line := range strings.SplitSeq(run, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "go ") || strings.Contains(line, "scripts/install-tools.sh") {
+			return true
+		}
+	}
+	return false
+}
+
+// A job that runs go before actions/setup-go gets the runner image's Go, which is older than the
+// go directive: with GOTOOLCHAIN=local the build refuses, and without it the toolchain is fetched
+// outside the pinned setup step.
+func TestEveryWorkflowSetsUpGoBeforeRunningIt(t *testing.T) {
+	workflows, err := os.OpenRoot(filepath.Join("..", "..", ".github", "workflows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := workflows.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	entries, err := fs.ReadDir(workflows.FS(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		data, readErr := workflows.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		var w workflow
+		if yamlErr := yaml.Unmarshal(data, &w); yamlErr != nil {
+			t.Fatal(yamlErr)
+		}
+		for name, j := range w.Jobs {
+			setUp := false
+			for i, s := range j.Steps {
+				if strings.HasPrefix(s.Uses, "actions/setup-go@") {
+					setUp = true
+					if s.With["go-version-file"] != "go.mod" {
+						t.Errorf("%s job %s: setup-go must read the toolchain from go.mod, got %v", entry.Name(), name, s.With)
+					}
+				}
+				if !setUp && needsGo(s.Run) {
+					t.Errorf("%s job %s step %d runs go before an actions/setup-go step", entry.Name(), name, i)
+				}
+			}
+		}
+	}
+}
 
 func TestEverySetupGoStepReadsTheToolchainFromGoMod(t *testing.T) {
 	w, _ := readWorkflow(t)

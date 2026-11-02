@@ -39,6 +39,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
       - name: Install gitleaks (version and sha256 from tools.lock)
         run: scripts/install-tools.sh --print-path gitleaks >> "${GITHUB_PATH}"
       - run: scripts/secret-scan.sh --history
