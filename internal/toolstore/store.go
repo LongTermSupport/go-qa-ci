@@ -34,7 +34,7 @@ const (
 
 // Store is the directory the pinned tools are installed into. Dir/<name>/<version>/<name> is a
 // release tool; a Go tool's version directory also names the Go that built it
-// (<version>+<goversion>), so a toolchain change reinstalls it. The Download, GoInstall and
+// (<version>+<goversion>, made path-safe), so a toolchain change reinstalls it. The Download, GoInstall and
 // GoVersion fields are the seams the tests replace.
 type Store struct {
 	// Dir holds the tools; it must be absolute.
@@ -93,7 +93,21 @@ func (s *Store) dir(tool Tool) (string, error) {
 		}
 		key += "+" + goVersion
 	}
-	return filepath.Join(s.Dir, tool.Name, key), nil
+	return filepath.Join(s.Dir, tool.Name, pathSafe(key)), nil
+}
+
+// pathSafe makes a version key one directory name that is also a usable PATH entry: anything but
+// letters, digits and ._+- (a go version can carry ':' and spaces, as go1.26.10-X:nodwarf5 does)
+// becomes '_'.
+func pathSafe(key string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', strings.ContainsRune("._+-", r):
+			return r
+		default:
+			return '_'
+		}
+	}, key)
 }
 
 // Resolve is the path of the installed pinned copy of name.
@@ -167,7 +181,12 @@ func (s *Store) Ensure(ctx context.Context, names ...string) error {
 		if !ok {
 			return fmt.Errorf("%s is not installed after installing it", name)
 		}
-		dirs = append(dirs, filepath.Dir(path))
+		dir := filepath.Dir(path)
+		if strings.ContainsRune(dir, os.PathListSeparator) {
+			return fmt.Errorf("%s is installed in %s, which holds the PATH list separator %q and so cannot be put on PATH; set %s to a directory without it",
+				name, dir, os.PathListSeparator, DirEnv)
+		}
+		dirs = append(dirs, dir)
 	}
 	dirs = append(dirs, os.Getenv("PATH"))
 	if err := os.Setenv("PATH", strings.Join(dirs, string(os.PathListSeparator))); err != nil {
