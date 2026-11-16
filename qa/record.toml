@@ -3,7 +3,7 @@
 # "Configuration exceptions"). Each entry names the hazard accepted and the scope it is accepted in.
 
 [ratchet]
-high_water = 3
+high_water = 2
 decided_by = "repository-owner"
 decided_on = 2026-10-14
 reason = "adopting the ceiling at the three configuration exceptions the toolchain's own gate needs"
@@ -21,15 +21,6 @@ review_by = 2026-11-13
 rule = "golangci.yml::exclusions.rules::gosec/G204"
 path = ".golangci.yml"
 justification = "gosec G204 guards against command injection through a shell or an attacker-chosen program; every launch here is an argument vector with a constant or resolved tool path and no shell. Scope: the seven non-test files that launch the tools (named in .golangci.yml) and the test files, which run git, go and the built test binary the same way; every other file is held to the rule."
-decided_by = "repository-owner"
-added_by_model = "claude-sonnet-5-5"
-decided_on = 2026-10-14
-review_by = 2026-11-13
-
-[[exception]]
-rule = "golangci.yml::exclusions.rules::gosec/G306"
-path = ".golangci.yml"
-justification = "gosec G306 guards against a file written readable by other users; one test installs an executable stub (owner only) in a private temporary directory, which must be executable. Scope: tests/scripts/secret_scan_test.go only."
 decided_by = "repository-owner"
 added_by_model = "claude-sonnet-5-5"
 decided_on = 2026-10-14

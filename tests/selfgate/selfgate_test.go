@@ -245,16 +245,15 @@ func TestOverlayHoldsOnlyDocumentedExceptions(t *testing.T) {
 		got[fmt.Sprint(rule["text"])+" "+fmt.Sprint(rule["path"])] = fmt.Sprint(rule["linters"])
 	}
 	want := map[string]string{
-		"G204 " + g204ProductionFiles:              "[gosec]",
-		"G204 _test\\.go$":                         "[gosec]",
-		"G306 tests/scripts/secret_scan_test\\.go": "[gosec]",
+		"G204 " + g204ProductionFiles: "[gosec]",
+		"G204 _test\\.go$":            "[gosec]",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("overlay exclusion rules %v, want exactly %v", got, want)
 	}
 
 	docs := readRepoFile(t, repoPath("docs", "record.md"))
-	for _, exception := range []string{"G204", "G306"} {
+	for _, exception := range []string{"G204"} {
 		if !strings.Contains(string(docs), "gosec `"+exception+"`") {
 			t.Errorf("docs/record.md does not list the %s configuration exception", exception)
 		}

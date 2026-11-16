@@ -53,7 +53,6 @@ func TestOwnConfigurationExceptionsAreSeenByTheDetector(t *testing.T) {
 	for _, rule := range []string{
 		"golangci.yml::govet.disable::fieldalignment",
 		"golangci.yml::exclusions.rules::gosec/G204",
-		"golangci.yml::exclusions.rules::gosec/G306",
 	} {
 		if !seen[rule] {
 			t.Errorf("the detector does not see the configuration exception %s", rule)
