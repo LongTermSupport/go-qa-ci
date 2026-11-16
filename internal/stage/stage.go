@@ -15,6 +15,7 @@
 //	shebangs = ["bash", "sh"]                 # or files whose #! line names one of these
 //	exclude = ["vendor/**"]
 //	dir = "web"                               # working directory, relative to the root
+//	packages = ["./internal/x/..."]           # in a diff-mode run, run only when one is affected
 //	output = "findings"                       # status (the exit code) | findings (JSON on stdout)
 //	rules = ["node", "scan.js", "--rules"]    # prints the rules the stage reports, as JSON
 package stage
@@ -80,6 +81,12 @@ type Stage struct {
 	Dir string `toml:"dir"`
 	// Output is how the stage reports; empty means status.
 	Output Output `toml:"output"`
+	// Packages are Go package patterns, relative to the module at Dir, for a stage that runs whole
+	// over Go code: a narrowed diff-mode run runs the stage only when one of the packages it
+	// affects (a changed package or an importer of one) matches. "./a" matches that package,
+	// "./a/..." it and every package under it, "." the module's root package. Without it, a
+	// stage that takes no {files} runs on every diff-mode run.
+	Packages []string `toml:"packages"`
 	// Rules is a command printing the rules the stage reports, as a JSON list of
 	// {"id", "description", "doc"?}, for the listing and the documentation check.
 	Rules []string `toml:"rules"`
@@ -114,6 +121,7 @@ func (s Stage) Problems() []string {
 		problems = append(problems, fmt.Sprintf("%s: dir %q must be a relative path inside the root", label, s.Dir))
 	}
 	problems = append(problems, s.commandProblems(label)...)
+	problems = append(problems, s.packageProblems(label)...)
 	for _, patterns := range [][]string{s.Files, s.Exclude} {
 		for _, pattern := range patterns {
 			if err := glob.Valid(pattern); err != nil {
@@ -171,6 +179,66 @@ func (s Stage) commandProblems(label string) []string {
 		problems = append(problems, fmt.Sprintf("%s: it selects no files; give `files` globs or `shebangs`", label))
 	}
 	return problems
+}
+
+// packageProblems checks every packages entry is a pattern inside the module, and that the stage
+// does not also take {files}, which narrows it by the changed files instead.
+func (s Stage) packageProblems(label string) []string {
+	var problems []string
+	for _, pattern := range s.Packages {
+		if !validPackagePattern(pattern) {
+			problems = append(problems, fmt.Sprintf("%s: packages entry %q must be a package pattern inside the module, written like ./internal/x or ./internal/x/...", label, pattern))
+		}
+	}
+	if len(s.Packages) > 0 && (s.TakesFiles(false) || s.TakesFiles(true)) {
+		problems = append(problems, fmt.Sprintf("%s: `packages` and `{files}` do not combine: a stage that takes files is narrowed to the changed files", label))
+	}
+	return problems
+}
+
+func validPackagePattern(pattern string) bool {
+	if pattern == "." || pattern == "./..." {
+		return true
+	}
+	rel, found := strings.CutPrefix(pattern, "./")
+	if !found {
+		return false
+	}
+	rel = strings.TrimSuffix(rel, "/...")
+	return rel != "" && filepath.IsLocal(rel) && path.Clean(rel) == rel && !strings.Contains(rel, "...")
+}
+
+// Module is the stage's module directory, as a modules entry or "" for the root, which its
+// packages entries are relative to.
+func (s Stage) Module() string {
+	module := path.Clean(filepath.ToSlash(s.Dir))
+	if module == "." {
+		return ""
+	}
+	return module
+}
+
+// ReachedBy reports whether one of the affected package patterns (as a diff-mode plan spells them:
+// "." or "./a/b", relative to the module) matches one of the stage's packages entries.
+func (s Stage) ReachedBy(affected []string) bool {
+	for _, pattern := range s.Packages {
+		for _, pkg := range affected {
+			if packageMatches(pattern, pkg) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func packageMatches(pattern, pkg string) bool {
+	rel := strings.TrimPrefix(strings.TrimPrefix(pkg, "."), "/")
+	want, tree := strings.CutSuffix(strings.TrimPrefix(strings.TrimPrefix(pattern, "."), "/"), "...")
+	if !tree {
+		return rel == want
+	}
+	want = strings.TrimSuffix(want, "/")
+	return want == "" || rel == want || strings.HasPrefix(rel, want+"/")
 }
 
 // SelectsFiles reports whether the stage chooses files.

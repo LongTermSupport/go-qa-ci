@@ -59,6 +59,17 @@ type Plan struct {
 // full run.
 func (p *Plan) Narrow() bool { return p != nil && p.Widened == "" }
 
+// AffectedIn is the affected package patterns of one module, named as a stage's directory is
+// ("" for the root, otherwise a clean slash-separated path), whatever spelling the modules entry has.
+func (p *Plan) AffectedIn(module string) []string {
+	for dir, patterns := range p.Packages {
+		if clean := path.Clean(dir); clean == module || clean == "." && module == "" {
+			return patterns
+		}
+	}
+	return nil
+}
+
 // GoFiles are the existing changed Go source files.
 func (p *Plan) GoFiles() []string {
 	return slices.DeleteFunc(slices.Clone(p.Scope), func(file string) bool { return !strings.HasSuffix(file, ".go") })

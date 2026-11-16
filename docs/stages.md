@@ -19,6 +19,7 @@ files = ["**/*.sh"]                       # globs from the root choosing the fil
 shebangs = ["bash", "sh"]                 # or files whose #! line names one of these
 exclude = ["vendor/**"]
 dir = "web"                               # working directory, relative to the root
+packages = ["./internal/x/..."]           # in diff mode, run only when one of these is affected
 output = "findings"                       # status (the exit code) | findings (JSON on stdout)
 rules = ["node", "scan.js", "--rules"]    # prints the rules the stage reports, as JSON
 
@@ -52,6 +53,18 @@ is never run with nothing to check. A stage that selects files is declared with 
 With `-p <path>` the run is limited to that scope: the chosen files are those inside it, and
 `files_command` runs instead of `command` when the stage has one. A stage with no `files_command`
 runs whole.
+
+## Diff mode
+
+In a narrowed `--changed` run, a stage whose command takes `{files}` runs on the changed files it
+chooses, and is skipped when there are none. A stage that runs whole over Go code (a second build
+tag's lint, vet or tests) declares `packages` instead: Go package patterns relative to the module
+at `dir` (the root when unset; `dir` must then be the root or a `modules` entry). `./a` is that
+package, `./a/...` it and every package under it, `.` the module's root package. The stage runs
+whole when a package the change affects matches one of them (a changed package or one that
+imports it, directly or not, as the per-package engines judge), and otherwise is skipped with
+`no changed package reaches <patterns>`. A full or widened run runs it as always. A stage with
+neither runs whole on every diff-mode run. `packages` and `{files}` do not combine.
 
 ## Output
 
