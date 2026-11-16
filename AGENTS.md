@@ -63,14 +63,13 @@ Project-record exceptions (prefer fixing the code; an exception names its hazard
 
 - `golangci.yml::govet.disable::fieldalignment` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
 - `golangci.yml::exclusions.rules::gosec/G204` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
-- `golangci.yml::exclusions.rules::gosec/G306` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
 
 Record budget (`go-qa record list`):
 
-- exceptions: 3 of 10
+- exceptions: 2 of 10
 - per rule: at most 3 (busiest `golangci.yml::exclusions.rules::gosec/g204` with 1)
 - policy-level (glob): 0 of 0
-- ratchet: high_water 3
+- ratchet: high_water 2
 - review horizon: 180 days
 
 <!-- END go-qa-ci generated defences -->

@@ -9,28 +9,6 @@ import (
 	"testing"
 )
 
-// gitleaksStub is a stand-in gitleaks that records its arguments (and, for a directory scan, the
-// contents of the files it would scan) and exits with STUB_EXIT, so the wrapper's own behaviour is
-// tested without the real binary.
-const gitleaksStub = `#!/bin/sh
-printf '%s\n' "$*" >> "$STUB_LOG"
-if [ "$1" = dir ]; then
-	for last; do :; done
-	find "$last" -type f -exec cat {} + >> "$STUB_LOG"
-fi
-exit "${STUB_EXIT:-0}"
-`
-
-// writeStub installs an executable stand-in tool named name in dir. It is the one place the
-// scripts tests write an executable file, which is why gosec G306 is configured away for this file
-// alone (qa/golangci-overlay.yml).
-func writeStub(t *testing.T, dir, name, body string) {
-	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o700); err != nil {
-		t.Fatal(err)
-	}
-}
-
 type secretRun struct {
 	out  string
 	code int
@@ -51,7 +29,7 @@ func runSecretScan(t *testing.T, repo string, withStub bool, stubExit string, ar
 	writeFile(t, logPath, "")
 	path := bin // an empty directory: no gitleaks anywhere on PATH
 	if withStub {
-		writeStub(t, bin, "gitleaks", gitleaksStub)
+		installStub(t, bin)
 		path = bin + ":/usr/bin:/bin"
 	}
 	bash, err := exec.LookPath("bash")

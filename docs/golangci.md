@@ -66,8 +66,8 @@ its allow-list is specific to a project; this repository adds its own in the ove
 
 ## Configuration exceptions
 
-This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in test files) and `gosec G306` (one test
-file). Each is listed in `docs/record.md` as a configuration exception, and the suppression
+This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in
+test files). It is listed in `docs/record.md` as a configuration exception, and the suppression
 detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
 disabling of the `govet` `fieldalignment` analyzer.
 
@@ -84,7 +84,7 @@ CI runs `go-qa run --ci` over this repository (job `self-gate`). The configurati
 go-qa with is derived from the bundled baseline, not kept separately:
 
 - `configs/golangci.yml` is the baseline (embedded in the binary).
-- `qa/golangci-overlay.yml` is the minimal overlay: the `depguard` allow-list and the two
+- `qa/golangci-overlay.yml` is the minimal overlay: the `depguard` allow-list and the
   configuration exceptions above. The merge adds the overlay's keys to the baseline and does not
   override a value the baseline sets, but the baseline leaves `gosec.excludes` and
   `linters.exclusions.rules` unset, so an overlay could still weaken it through those keys; only the
@@ -100,10 +100,10 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- Two Rules are not fully active on the toolchain's own source: `gosec::G204` (switched off in the
+- One Rule is not fully active on the toolchain's own source: `gosec::G204` (switched off in the
   seven files that launch the tools and in test files, a configuration exception; every other file is
-  held to it) and `gosec::G306` (one test file). Both are in the record with
-  a justification (docs/record.md), but the Rule is not held on this repository.
+  held to it). It is in the record with a justification (docs/record.md), but the Rule is not held
+  on this repository.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the

@@ -150,12 +150,10 @@ the configuration file.
 | Detector rule          | Scope                                           | Hazard                                                                         | Why it does not apply                                                                                                   |
 | ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | gosec `G204`           | the seven files that launch the tools, and test files | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
-| gosec `G306`           | `tests/scripts/secret_scan_test.go` only        | a file written more permissive than 0600 can be read or altered by other users | the file is a test stub that must be executable (0700, owner only), written into a private per-test temporary directory |
 | govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
 
 The entries are `golangci.yml::exclusions.rules::gosec/G204` (two exclusions, both in the entry's
-scope), `golangci.yml::exclusions.rules::gosec/G306` and `golangci.yml::govet.disable::fieldalignment`,
-all against `.golangci.yml`. Their review dates are the owner's to re-decide (the entries were
+scope) and `golangci.yml::govet.disable::fieldalignment`, both against `.golangci.yml`. Their review dates are the owner's to re-decide (the entries were
 written by a model, whose tier gives a 30-day horizon); a lapsed one fails `gqaci.record.expired`.
 
 ### Deciders
