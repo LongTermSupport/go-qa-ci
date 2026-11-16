@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"strings"
+
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 )
 
@@ -44,6 +46,8 @@ func (e Executor) measuredOf(module string) (patterns []string, measure bool) {
 //   - vuln and mod judge the whole module, not a package: a changed Go file can call a vulnerable
 //     function of a module already required, or import one go.mod does not yet list, so they run
 //     whenever any package is affected and are skipped only when no Go package changed;
+//   - stages that declare packages run whole when an affected package matches one, and are
+//     skipped, saying so, when none does;
 //   - the repo-wide defences (record, docs, summary) are not narrowed.
 func (e Executor) runNarrowed(step pipeline.Step) (outcome pipeline.Outcome, handled bool) {
 	plan := e.Ctx.Diff
@@ -60,8 +64,13 @@ func (e Executor) runNarrowed(step pipeline.Step) (outcome pipeline.Outcome, han
 	case "record", "docs", "summary":
 		return pipeline.Outcome{}, false
 	}
-	if s, found := e.stageNamed(step.Name); found && s.TakesFiles(true) {
+	s, found := e.stageNamed(step.Name)
+	switch {
+	case !found:
+	case s.TakesFiles(true):
 		return e.onFiles(step, plan.Scope, "no changed files"), true
+	case len(s.Packages) > 0 && !s.ReachedBy(plan.AffectedIn(s.Module())):
+		return pipeline.Skipped("no changed package reaches " + strings.Join(s.Packages, ", ")), true
 	}
 	return pipeline.Outcome{}, false
 }

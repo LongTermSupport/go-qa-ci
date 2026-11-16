@@ -10,7 +10,9 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/faketool"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
+	"github.com/LongTermSupport/go-qa-ci/internal/stage"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
 
@@ -297,5 +299,66 @@ func TestDiffBuildPassesWhenATestOnlyImporterOfTheChangedPackageIsAffected(t *te
 	exec, stderr := narrowed(t, root)
 	if out := exec.Run(stepNamed(t, "build")); out.Kind != pipeline.KindPassed {
 		t.Fatalf("a test-only importer has nothing to build and must not fail the build: %+v\n%s", out, stderr)
+	}
+}
+
+// midStage is a whole-run stage over the importer and what is under it, declared by the packages
+// whose change runs it.
+func midStage() stage.Stage {
+	return stage.Stage{
+		Name: "midcheck", Phase: "runners", Says: "Check mid with a build tag", Fix: "Fix what it reports",
+		Command: []string{"midcheck", "./mid/..."}, Packages: []string{"./mid/..."},
+	}
+}
+
+// narrowedWithStage is narrowed with s declared, and the step that runs s.
+func narrowedWithStage(t *testing.T, root string, s stage.Stage) (tools.Executor, pipeline.Step, *bytes.Buffer) {
+	t.Helper()
+	exec, stderr := narrowed(t, root)
+	exec.Ctx.Config.Stages = []stage.Stage{s}
+	steps, err := tools.Select([]string{s.Name}, exec.Ctx.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exec, steps[0], stderr
+}
+
+func TestDiffRunsAPackagesStageWhenAPackageItImportsChanged(t *testing.T) {
+	log := faketool.Install(t, "midcheck", faketool.Spec{})
+	root := diffProject(t, nil)
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	exec, step, stderr := narrowedWithStage(t, root, midStage())
+	if out := exec.Run(step); out.Kind != pipeline.KindPassed {
+		t.Fatalf("a change to a package mid imports must run the stage: %+v\n%s", out, stderr)
+	}
+	if calls := faketool.Calls(t, log); len(calls) != 1 || !strings.HasSuffix(calls[0], "\t./mid/...") {
+		t.Errorf("the stage must run its whole command once: calls = %q", calls)
+	}
+}
+
+func TestDiffSkipsAPackagesStageWhenNoChangedPackageReachesIt(t *testing.T) {
+	log := faketool.Install(t, "midcheck", faketool.Spec{})
+	root := diffProject(t, nil)
+	put(t, root, map[string]string{"other/other.go": otherSource + "\n// changed\n"})
+	exec, step, stderr := narrowedWithStage(t, root, midStage())
+	out := exec.Run(step)
+	if out.Kind != pipeline.KindSkipped || out.Reason != "no changed package reaches ./mid/..." {
+		t.Fatalf("an unrelated change must skip the stage, saying why: %+v\n%s", out, stderr)
+	}
+	if calls := faketool.Calls(t, log); len(calls) != 0 {
+		t.Errorf("the stage ran: %q", calls)
+	}
+}
+
+func TestDiffRunsAPackagesStageOnAWidenedRun(t *testing.T) {
+	log := faketool.Install(t, "midcheck", faketool.Spec{})
+	root := diffProject(t, nil)
+	put(t, root, map[string]string{"go.mod": goModEdited})
+	exec, step, stderr := narrowedWithStage(t, root, midStage())
+	if out := exec.Run(step); out.Kind != pipeline.KindPassed {
+		t.Fatalf("a widened run must run the stage: %+v\n%s", out, stderr)
+	}
+	if calls := faketool.Calls(t, log); len(calls) != 1 {
+		t.Errorf("calls = %q", calls)
 	}
 }

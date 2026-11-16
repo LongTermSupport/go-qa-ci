@@ -171,3 +171,57 @@ func TestAStageDocumentsItselfWithTheCorrectConstruction(t *testing.T) {
 		t.Errorf("the directory is missing:\n%s", withDir)
 	}
 }
+
+func TestPackagePatternsAreModuleRelativeAndDoNotCombineWithFiles(t *testing.T) {
+	s := parse(t, "name = \"x\"\nphase = \"detectors\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"tool\"]\n"+
+		"packages = [\".\", \"./...\", \"./a/b\", \"./a/...\", \"a/b\", \"./../up\", \"./a/...x\", \"./a/\", \"\"]\n")
+	problems := strings.Join(s.Problems(), "\n")
+	for _, bad := range []string{`"a/b"`, `"./../up"`, `"./a/...x"`, `"./a/"`, `""`} {
+		if !strings.Contains(problems, "packages entry "+bad) {
+			t.Errorf("packages entry %s is not reported:\n%s", bad, problems)
+		}
+	}
+	for _, good := range []string{`"."`, `"./..."`, `"./a/b"`, `"./a/..."`} {
+		if strings.Contains(problems, "packages entry "+good) {
+			t.Errorf("packages entry %s is reported:\n%s", good, problems)
+		}
+	}
+	withFiles := parse(t, "name = \"x\"\nphase = \"detectors\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"tool\", \"{files}\"]\n"+
+		"files = [\"*.go\"]\npackages = [\"./...\"]\n")
+	if problems := strings.Join(withFiles.Problems(), "\n"); !strings.Contains(problems, "`packages` and `{files}`") {
+		t.Errorf("a stage taking files and packages is not reported:\n%s", problems)
+	}
+}
+
+func TestAStageIsReachedByAnAffectedPackageItsPatternsMatch(t *testing.T) {
+	tests := []struct {
+		patterns []string
+		affected []string
+		want     bool
+	}{
+		{[]string{"./a/..."}, []string{"./a"}, true},
+		{[]string{"./a/..."}, []string{"./a/b/c"}, true},
+		{[]string{"./a/..."}, []string{"./ab"}, false},
+		{[]string{"./a"}, []string{"./a/b"}, false},
+		{[]string{"./a"}, []string{"./other", "./a"}, true},
+		{[]string{"./..."}, []string{"."}, true},
+		{[]string{"."}, []string{"."}, true},
+		{[]string{"."}, []string{"./a"}, false},
+		{[]string{"./a/...", "./b"}, []string{"./b"}, true},
+		{[]string{"./a/..."}, nil, false},
+	}
+	for _, tc := range tests {
+		s := stage.Stage{Packages: tc.patterns}
+		if got := s.ReachedBy(tc.affected); got != tc.want {
+			t.Errorf("patterns %q, affected %q: reached = %v, want %v", tc.patterns, tc.affected, got, tc.want)
+		}
+	}
+}
+
+func TestAStageModuleIsItsDirectory(t *testing.T) {
+	for dir, want := range map[string]string{"": "", ".": "", "tools": "tools", "tools/": "tools", "./tools/qa": "tools/qa"} {
+		if got := (stage.Stage{Dir: dir}).Module(); got != want {
+			t.Errorf("dir %q: module %q, want %q", dir, got, want)
+		}
+	}
+}

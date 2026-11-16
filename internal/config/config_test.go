@@ -322,20 +322,34 @@ func TestStagesAndResolversAreLoaded(t *testing.T) {
 	}
 }
 
+func TestAPackagesStageMayLiveInAModulesEntry(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "tools/go.mod", "module example.com/tools\n\ngo 1.26\n")
+	writeFile(t, dir, config.DefaultPath, "modules = [\"./tools\"]\n[[stage]]\nname = \"x\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\"]\ndir = \"tools\"\npackages = [\"./lint/...\"]\n")
+	got, err := config.Load(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Stages) != 1 || len(got.Stages[0].Packages) != 1 {
+		t.Errorf("stages = %+v", got.Stages)
+	}
+}
+
 func TestLoadRejectsBadStagesAndResolvers(t *testing.T) {
 	tests := map[string]struct {
 		content string
 		wantSub []string
 	}{
-		"unknown stage key":     {shellStage + "colour = \"red\"\n", []string{"stage.colour"}},
-		"unknown resolver key":  {"[[resolver]]\nmatches = \"a\"\ntext = \"t\"\nextra = 1\n", []string{"resolver.extra"}},
-		"stage without phase":   {"[[stage]]\nname = \"x\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\"]\n", []string{"stage `x`", "unknown phase"}},
-		"stage declared twice":  {shellStage + shellStage, []string{"stage `shellcheck` is declared twice"}},
-		"stage without files":   {"[[stage]]\nname = \"x\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\", \"{files}\"]\n", []string{"selects no files"}},
-		"stage escaping dir":    {shellStage + "dir = \"../up\"\n", []string{"dir \"../up\""}},
-		"resolver bad glob":     {"[[resolver]]\nmatches = \"[\"\ntext = \"t\"\n", []string{"resolver `[`", "invalid glob"}},
-		"resolver without text": {"[[resolver]]\nmatches = \"a*\"\ntext = \" \"\n", []string{"resolver `a*` has no text"}},
-		"resolver no matches":   {"[[resolver]]\ntext = \"t\"\n", []string{"resolver has no `matches`"}},
+		"unknown stage key":         {shellStage + "colour = \"red\"\n", []string{"stage.colour"}},
+		"unknown resolver key":      {"[[resolver]]\nmatches = \"a\"\ntext = \"t\"\nextra = 1\n", []string{"resolver.extra"}},
+		"stage without phase":       {"[[stage]]\nname = \"x\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\"]\n", []string{"stage `x`", "unknown phase"}},
+		"stage declared twice":      {shellStage + shellStage, []string{"stage `shellcheck` is declared twice"}},
+		"stage without files":       {"[[stage]]\nname = \"x\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\", \"{files}\"]\n", []string{"selects no files"}},
+		"stage escaping dir":        {shellStage + "dir = \"../up\"\n", []string{"dir \"../up\""}},
+		"packages outside a module": {"[[stage]]\nname = \"x\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\ncommand = [\"x\"]\ndir = \"web\"\npackages = [\"./...\"]\n", []string{"stage `x`", "dir \"web\" is not a Go module"}},
+		"resolver bad glob":         {"[[resolver]]\nmatches = \"[\"\ntext = \"t\"\n", []string{"resolver `[`", "invalid glob"}},
+		"resolver without text":     {"[[resolver]]\nmatches = \"a*\"\ntext = \" \"\n", []string{"resolver `a*` has no text"}},
+		"resolver no matches":       {"[[resolver]]\ntext = \"t\"\n", []string{"resolver has no `matches`"}},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

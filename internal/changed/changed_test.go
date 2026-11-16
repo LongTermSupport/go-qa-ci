@@ -336,3 +336,16 @@ func TestDescribeNamesModeAndScope(t *testing.T) {
 		t.Errorf("description %q", clean)
 	}
 }
+
+func TestAffectedInFindsAModuleWhateverSpellingItsEntryHas(t *testing.T) {
+	plan := &changed.Plan{Packages: map[string][]string{"": {"."}, "./tools/": {"./lint"}}}
+	if got := plan.AffectedIn(""); len(got) != 1 || got[0] != "." {
+		t.Errorf("root: %q", got)
+	}
+	if got := plan.AffectedIn("tools"); len(got) != 1 || got[0] != "./lint" {
+		t.Errorf("tools: %q", got)
+	}
+	if got := plan.AffectedIn("web"); got != nil {
+		t.Errorf("a module with nothing affected: %q", got)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -207,6 +208,9 @@ func (c Config) stageProblems() []string {
 			problems = append(problems, fmt.Sprintf("stage `%s` is declared twice", s.Name))
 		}
 		names[s.Name] = true
+		if len(s.Packages) > 0 && !c.isModule(s.Module()) {
+			problems = append(problems, fmt.Sprintf("stage `%s`: `packages` are relative to a Go module, and dir %q is not a Go module (the root or a modules entry)", s.Name, s.Dir))
+		}
 	}
 	for _, r := range c.Resolvers {
 		if strings.TrimSpace(r.Matches) == "" {
@@ -219,6 +223,11 @@ func (c Config) stageProblems() []string {
 		}
 	}
 	return problems
+}
+
+// isModule reports whether dir, cleaned and "" for the root, is the root module or a modules entry.
+func (c Config) isModule(dir string) bool {
+	return dir == "" || slices.ContainsFunc(c.Modules, func(module string) bool { return path.Clean(filepath.ToSlash(module)) == dir })
 }
 
 func isFile(path string) bool {
