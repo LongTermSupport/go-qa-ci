@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/faketool"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/toolstore"
 )
 
@@ -293,7 +293,7 @@ func TestEnsureInstallsWhatIsMissingAndPutsThePinnedCopyFirstOnPath(t *testing.T
 	if err := f.store.Ensure(t.Context(), "ast-grep"); err != nil {
 		t.Fatal(err)
 	}
-	found, err := exec.LookPath("ast-grep")
+	found, err := launch.Find("ast-grep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +382,7 @@ func TestAGoToolIsFoundOnPathWhateverTheGoVersionContains(t *testing.T) {
 			if ensureErr := f.store.Ensure(t.Context(), "deadcode"); ensureErr != nil {
 				t.Fatal(ensureErr)
 			}
-			found, lookErr := exec.LookPath("deadcode")
+			found, lookErr := launch.Find("deadcode")
 			if lookErr != nil {
 				t.Fatalf("the installed tool is not on PATH: %v", lookErr)
 			}

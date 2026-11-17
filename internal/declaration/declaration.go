@@ -36,8 +36,8 @@ type Gap struct {
 
 // Level is the declaration for one of the two levels of 9.1.
 type Level struct {
-	Conforms bool  `toml:"conforms"`
 	Gaps     []Gap `toml:"gap"`
+	Conforms bool  `toml:"conforms"`
 }
 
 // Declaration is the content of defence-before-fix.toml.

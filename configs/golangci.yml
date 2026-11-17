@@ -39,9 +39,6 @@ linters:
       check-blank: true
     govet:
       enable-all: true
-      disable:
-        # Struct layout is a performance concern, not a defect class this baseline defends against.
-        - fieldalignment
     nolintlint:
       # An unused or unexplained inline directive fails, so a suppression cannot outlive its reason.
       require-explanation: true

@@ -17,32 +17,32 @@ import (
 
 // Tool is one catalogue entry.
 type Tool struct {
+	// Enabled reports whether the configuration switches the tool on.
+	Enabled func(config.Tools) bool
 	// Name is the name used with `-t` and in the configuration.
 	Name string
 	// Phase is the phase the tool runs in.
 	Phase pipeline.Phase
-	// Enabled reports whether the configuration switches the tool on.
-	Enabled func(config.Tools) bool
 }
 
 // Catalogue returns every tool in execution order.
 func Catalogue() []Tool {
 	return []Tool{
-		{"fmt", pipeline.PhaseFormat, func(t config.Tools) bool { return t.Fmt }},
-		{"record", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Record }},
-		{"suppression", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Suppression }},
-		{"summary", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Summary }},
-		{"docs", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Docs }},
-		{"ast-grep", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.AstGrep }},
-		{"golangci", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Golangci }},
-		{"analyzers", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Analyzers }},
-		{"deadcode", pipeline.PhaseDetectors, func(t config.Tools) bool { return t.Deadcode }},
-		{"vuln", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Vuln }},
-		{"mod", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Mod }},
-		{"build", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Build }},
-		{"test", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Test }},
-		{"coverage", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Coverage }},
-		{"mutants", pipeline.PhaseRunners, func(t config.Tools) bool { return t.Mutants }},
+		{Name: "fmt", Phase: pipeline.PhaseFormat, Enabled: func(t config.Tools) bool { return t.Fmt }},
+		{Name: "record", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Record }},
+		{Name: "suppression", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Suppression }},
+		{Name: "summary", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Summary }},
+		{Name: "docs", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Docs }},
+		{Name: "ast-grep", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.AstGrep }},
+		{Name: "golangci", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Golangci }},
+		{Name: "analyzers", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Analyzers }},
+		{Name: "deadcode", Phase: pipeline.PhaseDetectors, Enabled: func(t config.Tools) bool { return t.Deadcode }},
+		{Name: "vuln", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Vuln }},
+		{Name: "mod", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Mod }},
+		{Name: "build", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Build }},
+		{Name: "test", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Test }},
+		{Name: "coverage", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Coverage }},
+		{Name: "mutants", Phase: pipeline.PhaseRunners, Enabled: func(t config.Tools) bool { return t.Mutants }},
 	}
 }
 
@@ -173,21 +173,21 @@ func indexOf(catalogue []Tool, name string) int {
 type Context struct {
 	// Root is the project root.
 	Root string
-	// Config is the effective configuration.
-	Config config.Config
 	// Scope is the paths the run is limited to, relative to Root; empty means the whole project.
 	Scope []string
-	// CI reports CI mode: autofix, then fail if the working tree changed.
-	CI bool
-	// Fix reports whether the format phase may modify files.
-	Fix bool
+	// Selected names the tools of the run, in order; the test and coverage steps share one test
+	// run when both are among them.
+	Selected []string
 	// Today is the date deadlines are measured against.
 	Today date.Date
 	// Diff is the plan of a diff-mode run (`run --changed`); nil for a full run.
 	Diff *changed.Plan
-	// Selected names the tools of the run, in order; the test and coverage steps share one test
-	// run when both are among them.
-	Selected []string
+	// Config is the effective configuration.
+	Config config.Config
+	// CI reports CI mode: autofix, then fail if the working tree changed.
+	CI bool
+	// Fix reports whether the format phase may modify files.
+	Fix bool
 }
 
 // Pending is the executor for a step no engine is built for. It fails every step, saying

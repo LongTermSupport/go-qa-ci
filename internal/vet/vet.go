@@ -13,13 +13,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/relpath"
 )
 
@@ -69,8 +69,7 @@ func Self() (Tool, error) {
 // directory of the module that holds it: `go build -C moduleDir`) into a vet tool. cleanup removes it and is always safe to call.
 func Build(ctx context.Context, moduleDir, pkg string) (tool Tool, cleanup func(), err error) {
 	noop := func() {}
-	goBinary, err := exec.LookPath("go")
-	if err != nil {
+	if _, err = launch.Find("go"); err != nil {
 		return Tool{}, noop, errNoGo
 	}
 	dir, err := os.MkdirTemp("", tempPrefix)
@@ -83,7 +82,11 @@ func Build(ctx context.Context, moduleDir, pkg string) (tool Tool, cleanup func(
 		}
 	}
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, goBinary, "build", "-C", moduleDir, "-o", filepath.Join(dir, driverName), pkg)
+	cmd, err := launch.Command(ctx, "go", "build", "-C", moduleDir, "-o", filepath.Join(dir, driverName), pkg)
+	if err != nil {
+		cleanup()
+		return Tool{}, noop, fmt.Errorf("building the analyzer driver %s: %w", pkg, err)
+	}
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		cleanup()
@@ -106,7 +109,10 @@ func Resolve(ctx context.Context, moduleDir, driverPkg string) (tool Tool, clean
 // carrying what the tool said on standard error.
 func (t Tool) run(ctx context.Context, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, t.Path, args...)
+	cmd, err := launch.Command(ctx, t.Path, args...)
+	if err != nil {
+		return "", fmt.Errorf("%s %s: %w", filepath.Base(t.Path), strings.Join(args, " "), err)
+	}
 	cmd.Env = append(os.Environ(), t.Env...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -158,15 +164,17 @@ func (t Tool) Help(ctx context.Context, name string) (string, error) {
 // relative to dir. Code that does not compile is an error: nothing was analysed. Given package
 // patterns it vets only those packages.
 func (t Tool) Vet(ctx context.Context, dir string, packages ...string) ([]finding.Finding, error) {
-	goBinary, err := exec.LookPath("go")
-	if err != nil {
+	if _, err := launch.Find("go"); err != nil {
 		return nil, errNoGo
 	}
 	var stdout, stderr bytes.Buffer
 	if len(packages) == 0 {
 		packages = []string{"./..."}
 	}
-	cmd := exec.CommandContext(ctx, goBinary, append([]string{"vet", "-vettool=" + t.Path, "-json"}, packages...)...)
+	cmd, err := launch.Command(ctx, "go", append([]string{"vet", "-vettool=" + t.Path, "-json"}, packages...)...)
+	if err != nil {
+		return nil, fmt.Errorf("go vet -json in %s: %w", dir, err)
+	}
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), t.Env...)
 	cmd.Stdout = &stdout

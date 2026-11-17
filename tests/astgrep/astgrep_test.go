@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
@@ -247,7 +247,7 @@ func TestTheDetectorFailsARuleTestThatDoesNotHold(t *testing.T) {
 
 func TestTheDetectorFailsWithTheReasonWithoutTheBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	if _, err := exec.LookPath(astgrep.Binary); err == nil {
+	if _, err := launch.Find(astgrep.Binary); err == nil {
 		t.Fatal("ast-grep is still on PATH")
 	}
 	outcome, stderr := detect(t, project(t, nil), config.Default(), astgrep.Pack{})

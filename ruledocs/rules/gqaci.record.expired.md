@@ -3,6 +3,7 @@
 ## What it flags
 
 A record exception whose `review_by` date is before today (UTC). An entry due today still passes.
+An exception marked `permanent = true` has no review date and is never flagged.
 
 ## Why
 
@@ -15,6 +16,10 @@ Re-read the justification against today's code. If the hazard is still accepted,
 entry: set a fresh `decided_on` and a `review_by` inside the horizon of the author's tier. If the
 code no longer needs it, delete the entry. Better still, fix the code the rule flags and remove the
 exception.
+
+Mark the entry `permanent = true` (dropping `review_by`) only when the exception is inherent to the
+code and will never be outgrown, with the justification saying why, and only as a configured
+decider: renewing a date by making it permanent to silence this finding is not a fix.
 
 ## Suppression
 

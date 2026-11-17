@@ -94,10 +94,10 @@ type Listing struct {
 type Input struct {
 	// Root is the project root.
 	Root string
-	// Config is the effective configuration.
-	Config config.Config
 	// Steps are the gate's steps in execution order, tools and project stages.
 	Steps []Step
+	// Config is the effective configuration.
+	Config config.Config
 }
 
 // owners maps a built-in identifier prefix to the tool that raises it. The bundled analyzers are deliberately absent: they are listed with the analyzers of the vet tool,

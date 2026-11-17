@@ -14,9 +14,6 @@ const DefaultPath = "qa/go-qa.toml"
 // Config is the effective configuration after the defaults are overridden. The README
 // "Configuration" section states every default; a test keeps the two equal.
 type Config struct {
-	// Record is the project record location and its anti-bloat policy: `record = "<path>"` or a
-	// [record] table.
-	Record RecordPolicy `toml:"record"`
 	// DocsDir holds project-authored rule pages (<id>.md).
 	DocsDir string `toml:"docs_dir"`
 	// ScanExclude lists globs, relative to the root, excluded from the source scans.
@@ -25,20 +22,23 @@ type Config struct {
 	Modules []string `toml:"modules"`
 	// Summary configures the generated agent summary region.
 	Summary Summary `toml:"summary"`
-	// Tools holds one switch per tool.
-	Tools Tools `toml:"tools"`
-	// AstGrep configures the ast-grep detector.
-	AstGrep AstGrep `toml:"ast_grep"`
 	// Analyzers configures the analyzers detector.
 	Analyzers Analyzers `toml:"analyzers"`
-	// Coverage configures the coverage gate.
-	Coverage Coverage `toml:"coverage"`
 	// Mutants configures mutation testing.
 	Mutants Mutants `toml:"mutants"`
 	// Stages are the project's own defences and runners, run in the phase each names.
 	Stages []stage.Stage `toml:"stage"`
 	// Resolvers document identifiers no listing names, such as the codes of a linter a stage runs.
 	Resolvers []Resolver `toml:"resolver"`
+	// Record is the project record location and its anti-bloat policy: `record = "<path>"` or a
+	// [record] table.
+	Record RecordPolicy `toml:"record"`
+	// Coverage configures the coverage gate.
+	Coverage Coverage `toml:"coverage"`
+	// Tools holds one switch per tool.
+	Tools Tools `toml:"tools"`
+	// AstGrep configures the ast-grep detector.
+	AstGrep AstGrep `toml:"ast_grep"`
 }
 
 // Resolver is a [[resolver]] entry: the documentation of every identifier matching a glob.
@@ -73,6 +73,12 @@ func (a Analyzers) BuildDir(root string) string {
 type RecordPolicy struct {
 	// Path of the project record, relative to the root.
 	Path string `toml:"path"`
+	// Deciders are the people who sign the ratchet, mark entries human and co-sign.
+	Deciders []string `toml:"deciders"`
+	// HistoryBase is the git ref whose merge base supplies the previous record.
+	HistoryBase string `toml:"history_base"`
+	// Trust maps authoring models to tiers and sets each tier's limits.
+	Trust Trust `toml:"trust"`
 	// MaxTotal caps the number of exceptions.
 	MaxTotal int `toml:"max_total"`
 	// MaxPerRule caps the exceptions for one rule id.
@@ -81,12 +87,6 @@ type RecordPolicy struct {
 	MaxPolicy int `toml:"max_policy"`
 	// MaxReviewDays is the longest decided_on to review_by gap, for any tier.
 	MaxReviewDays int `toml:"max_review_days"`
-	// Deciders are the people who sign the ratchet, mark entries human and co-sign.
-	Deciders []string `toml:"deciders"`
-	// HistoryBase is the git ref whose merge base supplies the previous record.
-	HistoryBase string `toml:"history_base"`
-	// Trust maps authoring models to tiers and sets each tier's limits.
-	Trust Trust `toml:"trust"`
 }
 
 // Trust is the [record.trust] table.
@@ -112,10 +112,10 @@ type TierLimits struct {
 
 // Cosign is a rule category whose exceptions need a human decider when written below MinTier.
 type Cosign struct {
-	// Rules are rule id globs.
-	Rules []string `toml:"rules"`
 	// MinTier is the lowest tier that may decide alone.
 	MinTier Tier `toml:"min_tier"`
+	// Rules are rule id globs.
+	Rules []string `toml:"rules"`
 }
 
 // Summary configures the agent summary region.

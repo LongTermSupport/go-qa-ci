@@ -37,10 +37,10 @@ type Finding struct {
 	Rule string
 	// Path is the file, relative to the project root.
 	Path string
-	// Line is 1-based; 0 means the finding has no line.
-	Line int
 	// Message says what is wrong.
 	Message string
+	// Line is 1-based; 0 means the finding has no line.
+	Line int
 }
 
 // String renders the finding compiler-style, with the identifier in the first line.

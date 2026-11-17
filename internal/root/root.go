@@ -7,15 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 // Discover returns the root for dir: the directory of the go.work file when a workspace is active,
 // otherwise the directory of the enclosing go.mod.
 func Discover(ctx context.Context, dir string) (string, error) {
-	cmd := exec.CommandContext(ctx, "go", "env", "-json", "GOWORK", "GOMOD")
+	cmd, err := launch.Command(ctx, "go", "env", "-json", "GOWORK", "GOMOD")
+	if err != nil {
+		return "", fmt.Errorf("go env in %s: %w", dir, err)
+	}
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

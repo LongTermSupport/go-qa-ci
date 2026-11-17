@@ -27,12 +27,12 @@ const (
 // Tool is one pinned tool.
 type Tool struct {
 	Name    string
-	Kind    Kind
 	Version string
 	// Package is the Go package of a KindGo tool.
 	Package string
 	// SHA256 is the pinned checksum of a KindRelease tool's archive; empty when the lock has none.
 	SHA256 string
+	Kind   Kind
 }
 
 // Lock is the parsed tools.lock.

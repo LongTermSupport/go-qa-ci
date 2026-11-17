@@ -38,15 +38,15 @@ func run(args ...string) (code int, stdout, stderr string) {
 func TestBasics(t *testing.T) {
 	tests := []struct {
 		name       string
-		args       []string
-		wantCode   int
 		wantOut    string
 		wantErrSub string
+		args       []string
+		wantCode   int
 	}{
-		{"version", []string{"--version"}, 0, cli.Version + "\n", ""},
-		{"unknown subcommand", []string{"bogus"}, 2, "", "unknown subcommand"},
-		{"no arguments", nil, 2, "", "usage"},
-		{"unknown global flag", []string{"--nope", "tools"}, 2, "", "nope"},
+		{"version", cli.Version + "\n", "", []string{"--version"}, 0},
+		{"unknown subcommand", "", "unknown subcommand", []string{"bogus"}, 2},
+		{"no arguments", "", "usage", nil, 2},
+		{"unknown global flag", "", "nope", []string{"--nope", "tools"}, 2},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

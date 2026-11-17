@@ -7,19 +7,19 @@ import (
 
 func TestVerbsMapEachArgumentToItsVerb(t *testing.T) {
 	cases := []struct {
-		format string
 		want   map[int]verb
+		format string
 	}{
-		{"%v", map[int]verb{0: {letter: 'v'}}},
-		{"%d %s", map[int]verb{0: {letter: 'd'}, 1: {letter: 's'}}},
-		{"100%% %v", map[int]verb{0: {letter: 'v'}}},
-		{"%+v %#v", map[int]verb{0: {letter: 'v'}, 1: {letter: 'v', sharp: true}}},
-		{"%-10.3s|%v", map[int]verb{0: {letter: 's'}, 1: {letter: 'v'}}},
-		{"%*d %v", map[int]verb{0: {letter: 'd'}, 1: {letter: 'd'}, 2: {letter: 'v'}}},
-		{"%[2]v %[1]s", map[int]verb{1: {letter: 'v'}, 0: {letter: 's'}}},
-		{"%[1]s %[1]v", map[int]verb{0: {letter: 'v'}}},
-		{"%", map[int]verb{}},
-		{"%!", map[int]verb{0: {letter: '!'}}},
+		{map[int]verb{0: {letter: 'v'}}, "%v"},
+		{map[int]verb{0: {letter: 'd'}, 1: {letter: 's'}}, "%d %s"},
+		{map[int]verb{0: {letter: 'v'}}, "100%% %v"},
+		{map[int]verb{0: {letter: 'v'}, 1: {letter: 'v', sharp: true}}, "%+v %#v"},
+		{map[int]verb{0: {letter: 's'}, 1: {letter: 'v'}}, "%-10.3s|%v"},
+		{map[int]verb{0: {letter: 'd'}, 1: {letter: 'd'}, 2: {letter: 'v'}}, "%*d %v"},
+		{map[int]verb{1: {letter: 'v'}, 0: {letter: 's'}}, "%[2]v %[1]s"},
+		{map[int]verb{0: {letter: 'v'}}, "%[1]s %[1]v"},
+		{map[int]verb{}, "%"},
+		{map[int]verb{0: {letter: '!'}}, "%!"},
 	}
 	for _, tc := range cases {
 		got := verbsByArg(tc.format)

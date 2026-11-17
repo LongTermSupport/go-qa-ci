@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/relpath"
 )
 
@@ -54,7 +54,10 @@ func listPackages(ctx context.Context, root string, modules []string) (packageSe
 	for _, module := range modules {
 		dir := filepath.Join(root, filepath.FromSlash(module))
 		var stdout, stderr bytes.Buffer
-		cmd := exec.CommandContext(ctx, "go", "list", "-json=ImportPath,Dir,GoFiles,CgoFiles,Imports,TestImports,XTestImports,EmbedFiles,TestEmbedFiles,XTestEmbedFiles", "./...")
+		cmd, err := launch.Command(ctx, "go", "list", "-json=ImportPath,Dir,GoFiles,CgoFiles,Imports,TestImports,XTestImports,EmbedFiles,TestEmbedFiles,XTestEmbedFiles", "./...")
+		if err != nil {
+			return packageSet{}, fmt.Errorf("go list in %s: %w", displayModule(module), err)
+		}
 		cmd.Dir = dir
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr

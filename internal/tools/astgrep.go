@@ -18,13 +18,15 @@ import (
 
 // astGrepPlan is what one run of the ast-grep detector covers.
 type astGrepPlan struct {
-	// project is the sgconfig.yml project; hasProject is false when there is none.
-	project    astgrep.Project
-	hasProject bool
+	// project is the sgconfig.yml project.
+	project astgrep.Project
 	// inventory holds the project's rules.
 	inventory astgrep.Inventory
-	// bundled is the pack, and useBundled whether this run scans with it.
-	bundled    astgrep.Pack
+	// bundled is the pack.
+	bundled astgrep.Pack
+	// hasProject is false when there is no sgconfig.yml project.
+	hasProject bool
+	// useBundled is whether this run scans with the bundled pack.
 	useBundled bool
 }
 

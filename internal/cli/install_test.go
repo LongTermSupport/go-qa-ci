@@ -19,10 +19,10 @@ import (
 type fakeChain struct {
 	pinned    []string
 	installed map[string]bool
-	ensured   [][]string
-	installs  [][]string
 	failWith  error
 	events    *[]string
+	ensured   [][]string
+	installs  [][]string
 }
 
 func newChain(pinned ...string) *fakeChain {

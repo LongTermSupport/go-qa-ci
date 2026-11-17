@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 // changedFiles lists, sorted and without duplicates, the files changed against HEAD (or, with a
@@ -45,7 +46,10 @@ func changedFiles(ctx context.Context, dir, base string) ([]string, error) {
 // git runs git in dir and returns its standard output; a failure carries git's own message.
 func git(ctx context.Context, dir string, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd, err := launch.Command(ctx, "git", args...)
+	if err != nil {
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

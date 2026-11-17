@@ -12,8 +12,8 @@ import (
 // (race detector, shuffled, uncached, counting statements) feeds both verdicts and the coverage
 // figure describes the very run the test step vouched for.
 type Measurements struct {
-	mu       sync.Mutex
 	byModule map[string]runners.Coverage
+	mu       sync.Mutex
 }
 
 // NewMeasurements returns an empty store.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/astgreptest"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 func TestMain(m *testing.M) {
@@ -21,12 +22,8 @@ func TestMain(m *testing.M) {
 
 func TestInstalledStandInRecordsArgumentsPrintsOutputAndExitsWithTheCode(t *testing.T) {
 	argsFile := astgreptest.Install(t, "[]", 1)
-	path, err := exec.LookPath(astgrep.Binary)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var stdout bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), path, "scan", "--json=compact")
+	cmd := launchtest.Command(t, astgrep.Binary, "scan", "--json=compact")
 	cmd.Stdout = &stdout
 	runErr := cmd.Run()
 	var exitErr *exec.ExitError
@@ -43,14 +40,10 @@ func TestInstalledStandInRecordsArgumentsPrintsOutputAndExitsWithTheCode(t *test
 
 func TestScanOnlyStandInLetsTheRuleTestsPass(t *testing.T) {
 	astgreptest.InstallScanOnly(t, "[]", 1)
-	path, err := exec.LookPath(astgrep.Binary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := exec.CommandContext(t.Context(), path, "test").Run(); err != nil {
+	if err := launchtest.Command(t, astgrep.Binary, "test").Run(); err != nil {
 		t.Errorf("test subcommand failed: %v", err)
 	}
-	scan := exec.CommandContext(t.Context(), path, "scan")
+	scan := launchtest.Command(t, astgrep.Binary, "scan")
 	var exitErr *exec.ExitError
 	if runErr := scan.Run(); !errors.As(runErr, &exitErr) || exitErr.ExitCode() != 1 {
 		t.Errorf("scan run error = %v", runErr)

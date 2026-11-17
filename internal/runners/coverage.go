@@ -31,13 +31,13 @@ func (e *TestsFailedError) Error() string {
 
 // Coverage is the statement coverage of a module.
 type Coverage struct {
+	// Uncovered lists the functions no test reaches, as "file:line: name".
+	Uncovered []string
 	// Total is the percentage of statements covered.
 	Total float64
 	// Statements is the number of coverable statements counted. Zero means the measured packages
 	// hold no statement at all, so Total (which go then reports as 0.0%) measures nothing.
 	Statements int
-	// Uncovered lists the functions no test reaches, as "file:line: name".
-	Uncovered []string
 }
 
 // MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)

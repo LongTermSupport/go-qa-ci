@@ -84,8 +84,8 @@ const (
 
 // Outcome is the result of one step.
 type Outcome struct {
-	Kind   Kind
 	Reason string
+	Kind   Kind
 }
 
 // Passed is the outcome of a step that passed.
@@ -104,8 +104,8 @@ type Executor interface {
 
 // Result pairs a step with its outcome.
 type Result struct {
-	Step    Step
 	Outcome Outcome
+	Step    Step
 }
 
 // Report is the outcome of a pipeline run.

@@ -17,11 +17,11 @@ import (
 // gate ignores.
 type rawFinding struct {
 	File    string `json:"file"`
-	Line    int    `json:"line"`
-	Column  int    `json:"column"`
 	Rule    string `json:"rule"`
 	Message string `json:"message"`
 	Note    string `json:"note"`
+	Line    int    `json:"line"`
+	Column  int    `json:"column"`
 }
 
 // Rule is a rule a stage reports.

@@ -15,8 +15,8 @@ import (
 
 type step struct {
 	Run  string         `yaml:"run"`
-	Uses string         `yaml:"uses"`
 	With map[string]any `yaml:"with"`
+	Uses string         `yaml:"uses"`
 }
 
 type job struct {
@@ -187,7 +187,7 @@ func TestWorkflowsInstallActionlintAndGitleaksFromTheLock(t *testing.T) {
 // patchedGoDirective is the first Go release carrying every standard library advisory fix that
 // govulncheck reports against this module's own code; a lower toolchain turns the vuln runner red.
 // The go directive, not a toolchain line, is what actions/setup-go reads from go.mod.
-const patchedGoDirective = "go 1.26.10"
+const patchedGoDirective = "go 1.26.11"
 
 // needsGo reports whether a run script calls the go command, directly or through
 // scripts/install-tools.sh (which builds go-qa with it).

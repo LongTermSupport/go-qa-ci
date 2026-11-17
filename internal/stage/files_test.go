@@ -1,12 +1,12 @@
 package stage_test
 
 import (
-	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 func write(t *testing.T, root, rel, text string) {
@@ -70,7 +70,7 @@ func TestAMalformedGlobIsAnError(t *testing.T) {
 
 func git(t *testing.T, root string, args ...string) {
 	t.Helper()
-	cmd := exec.CommandContext(context.Background(), "git", args...)
+	cmd := launchtest.Command(t, "git", args...)
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
