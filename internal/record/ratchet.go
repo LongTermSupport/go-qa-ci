@@ -20,10 +20,10 @@ func Ceiling(r Record) int {
 
 // RatchetVerdict is the outcome of reviewing the ratchet.
 type RatchetVerdict struct {
-	// Findings are the gqaci.record.ratchet violations.
-	Findings []finding.Finding
 	// LowerTo is set when the record shrank: high_water should be lowered to this count.
 	LowerTo *int
+	// Findings are the gqaci.record.ratchet violations.
+	Findings []finding.Finding
 }
 
 // ReviewRatchet applies the ratchet, a toolchain default that serves TOOLING-SPEC 6.4: the record may not hold entries without a

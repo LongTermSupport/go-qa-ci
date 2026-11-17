@@ -25,8 +25,8 @@ const ReleasePlatform = "linux/amd64"
 // release says where a [release] tool's linux/amd64 archive is and which member is the binary.
 type release struct {
 	url    func(version string) string
-	zipped bool
 	member func(version string) string
+	zipped bool
 }
 
 func constant(s string) func(string) string { return func(string) string { return s } }

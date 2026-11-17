@@ -12,9 +12,9 @@ import (
 // stageRules remembers what the rules commands of the project stages printed, so that resolving
 // many identifiers runs them once.
 type stageRules struct {
-	once  sync.Once
-	rules []stage.Rule
 	err   error
+	rules []stage.Rule
+	once  sync.Once
 }
 
 // stageRules are the rules every stage's rules command prints, in stage order. A command that

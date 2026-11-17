@@ -250,9 +250,9 @@ func (p RecordPolicy) negativeProblems() []string {
 		}
 	}
 	for _, t := range []struct {
-		name   string
 		limits TierLimits
-	}{{"human", p.Trust.Human}, {"high", p.Trust.High}, {"medium", p.Trust.Medium}, {"low", p.Trust.Low}} {
+		name   string
+	}{{p.Trust.Human, "human"}, {p.Trust.High, "high"}, {p.Trust.Medium, "medium"}, {p.Trust.Low, "low"}} {
 		if d := t.limits.MaxReviewDays; d != nil && *d < 0 {
 			problems = append(problems, fmt.Sprintf("record.trust.%s.max_review_days (%d) must not be negative", t.name, *d))
 		}

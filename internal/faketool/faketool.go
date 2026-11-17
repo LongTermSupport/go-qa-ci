@@ -29,10 +29,10 @@ type Spec struct {
 	// Stdout and Stderr are printed as given.
 	Stdout string
 	Stderr string
-	// Code is the exit code.
-	Code int
 	// Log is the file every invocation appends one "dir<TAB>arguments" line to.
 	Log string
+	// Code is the exit code.
+	Code int
 }
 
 func envName(name string) string {

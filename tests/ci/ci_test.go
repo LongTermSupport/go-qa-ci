@@ -15,8 +15,8 @@ import (
 
 type step struct {
 	Run  string         `yaml:"run"`
-	Uses string         `yaml:"uses"`
 	With map[string]any `yaml:"with"`
+	Uses string         `yaml:"uses"`
 }
 
 type job struct {

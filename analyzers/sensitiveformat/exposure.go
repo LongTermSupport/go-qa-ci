@@ -14,9 +14,9 @@ const (
 // for %v and %s but GoString only for %#v, and never LogValue; slog calls LogValue and Error but
 // never String, because the handler decides the encoding and a JSON handler marshals the fields.
 type sink struct {
+	redactedBy  func(*types.MethodSet) bool
 	destination string
 	methods     string
-	redactedBy  func(*types.MethodSet) bool
 	// nested says whether the sink calls the methods of a value reached through a field, element
 	// or key. fmt does; slog resolves only the top-level value.
 	nested bool

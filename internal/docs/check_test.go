@@ -25,16 +25,16 @@ func TestAuditPagesFlagsEachDefect(t *testing.T) {
 	tests := []struct {
 		name  string
 		pages map[string]string
-		ids   []string
 		want  string
+		ids   []string
 	}{
-		{"clean", map[string]string{"a.rule": good}, []string{"a.rule"}, ""},
-		{"missing page", map[string]string{"b.rule": strings.ReplaceAll(good, "a.rule", "b.rule")}, []string{"a.rule", "b.rule"}, "no bundled page"},
-		{"orphan bundled page", map[string]string{"a.rule": good, "b.rule": good}, []string{"a.rule"}, "documents no built-in"},
-		{"wrong first line", map[string]string{"a.rule": "# other\n\n## How to fix correctly\n\nDo this.\n"}, []string{"a.rule"}, "first line"},
-		{"no fix section", map[string]string{"a.rule": "# a.rule\n\nText.\n"}, []string{"a.rule"}, "How to fix correctly"},
-		{"section only in prose", map[string]string{"a.rule": "# a.rule\n\nSee How to fix correctly.\n"}, []string{"a.rule"}, "How to fix correctly"},
-		{"empty section", map[string]string{"a.rule": "# a.rule\n\n## How to fix correctly\n\n## Next\n"}, []string{"a.rule"}, "empty"},
+		{"clean", map[string]string{"a.rule": good}, "", []string{"a.rule"}},
+		{"missing page", map[string]string{"b.rule": strings.ReplaceAll(good, "a.rule", "b.rule")}, "no bundled page", []string{"a.rule", "b.rule"}},
+		{"orphan bundled page", map[string]string{"a.rule": good, "b.rule": good}, "documents no built-in", []string{"a.rule"}},
+		{"wrong first line", map[string]string{"a.rule": "# other\n\n## How to fix correctly\n\nDo this.\n"}, "first line", []string{"a.rule"}},
+		{"no fix section", map[string]string{"a.rule": "# a.rule\n\nText.\n"}, "How to fix correctly", []string{"a.rule"}},
+		{"section only in prose", map[string]string{"a.rule": "# a.rule\n\nSee How to fix correctly.\n"}, "How to fix correctly", []string{"a.rule"}},
+		{"empty section", map[string]string{"a.rule": "# a.rule\n\n## How to fix correctly\n\n## Next\n"}, "empty", []string{"a.rule"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -61,14 +61,14 @@ type Record struct {
 
 // Ratchet is the committed ceiling on the entry count.
 type Ratchet struct {
-	// HighWater is the maximum number of exceptions.
-	HighWater int
 	// DecidedBy is the human who set the ceiling.
 	DecidedBy string
 	// DecidedOn is when the ceiling was last raised or adopted.
 	DecidedOn date.Date
 	// Reason says why the ceiling is at this value.
 	Reason string
+	// HighWater is the maximum number of exceptions.
+	HighWater int
 }
 
 // Exception is one decided exception.
@@ -87,12 +87,12 @@ type Exception struct {
 	DecidedOn date.Date
 	// ReviewBy is when it must be re-decided or removed; zero when absent.
 	ReviewBy date.Date
-	// Policy marks a deliberately broad (glob) exception.
-	Policy bool
 	// Covers is what the exception licenses.
 	Covers Covers
 	// Line is the 1-based line of the entry's header in the file; 0 for an entry not read from a file.
 	Line int
+	// Policy marks a deliberately broad (glob) exception.
+	Policy bool
 }
 
 // EffectiveCovers is Covers, with the unset value read as the default, CoversSuppressions.
@@ -109,10 +109,10 @@ type rawRecord struct {
 }
 
 type rawRatchet struct {
-	HighWater int    `toml:"high_water"`
 	DecidedBy string `toml:"decided_by"`
 	DecidedOn any    `toml:"decided_on"`
 	Reason    string `toml:"reason"`
+	HighWater int    `toml:"high_water"`
 }
 
 type rawException struct {
@@ -123,8 +123,8 @@ type rawException struct {
 	AddedByModel  *string `toml:"added_by_model"`
 	DecidedOn     any     `toml:"decided_on"`
 	ReviewBy      any     `toml:"review_by"`
-	Policy        bool    `toml:"policy"`
 	Covers        string  `toml:"covers"`
+	Policy        bool    `toml:"policy"`
 }
 
 // Load reads the record at path. A missing file is an empty record; a file that cannot be read or

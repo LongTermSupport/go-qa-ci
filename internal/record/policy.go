@@ -18,10 +18,10 @@ type Input struct {
 	Record Record
 	// Path is the record's path as the project configures it; findings show it.
 	Path string
-	// Policy is the [record] table of the configuration.
-	Policy config.RecordPolicy
 	// Today is the date reviews and deadlines are measured against; the caller supplies the clock.
 	Today date.Date
+	// Policy is the [record] table of the configuration.
+	Policy config.RecordPolicy
 }
 
 // Review applies the anti-bloat controls, the toolchain defaults that serve TOOLING-SPEC 6.4: provenance, trust tiers, review

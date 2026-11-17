@@ -11,8 +11,8 @@ import (
 
 type secretRun struct {
 	out  string
-	code int
 	log  string
+	code int
 }
 
 // runSecretScan runs scripts/secret-scan.sh in repo. withStub puts the stub gitleaks first on PATH;

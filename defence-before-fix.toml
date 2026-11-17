@@ -26,7 +26,7 @@ record = "docs/defences.md"
 
 [[project.gap]]
 clause = "4.3"
-summary = "suppression routes not covered: ast-grep ignores outside Go, linter settings outside the closed table, a -c configuration, go:build ignore, unconditional t.Skip, the baseline's fieldalignment switch-off"
+summary = "suppression routes not covered: ast-grep ignores outside Go, linter settings outside the closed table, a -c configuration, go:build ignore, unconditional t.Skip, the bundled baseline configuration (not scanned)"
 record = "docs/suppression.md"
 
 [[project.gap]]

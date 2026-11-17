@@ -9,24 +9,24 @@ import (
 
 // ListedRatchet is the ratchet as the listing shows it.
 type ListedRatchet struct {
-	HighWater int    `json:"high_water"`
 	DecidedBy string `json:"decided_by"`
 	DecidedOn string `json:"decided_on,omitempty"`
 	Reason    string `json:"reason"`
+	HighWater int    `json:"high_water"`
 }
 
 // ListedException is one exception as the listing shows it.
 type ListedException struct {
-	Number        int    `json:"number"`
 	Rule          string `json:"rule"`
 	Path          string `json:"path"`
 	Covers        Covers `json:"covers"`
-	Policy        bool   `json:"policy"`
 	DecidedBy     string `json:"decided_by,omitempty"`
 	AddedByModel  string `json:"added_by_model,omitempty"`
 	DecidedOn     string `json:"decided_on,omitempty"`
 	ReviewBy      string `json:"review_by,omitempty"`
 	Justification string `json:"justification"`
+	Number        int    `json:"number"`
+	Policy        bool   `json:"policy"`
 }
 
 type listing struct {

@@ -61,15 +61,14 @@ Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, a
 
 Project-record exceptions (prefer fixing the code; an exception names its hazard and scope):
 
-- `golangci.yml::govet.disable::fieldalignment` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
 - `golangci.yml::exclusions.rules::gosec/G204` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
 
 Record budget (`go-qa record list`):
 
-- exceptions: 2 of 10
+- exceptions: 1 of 10
 - per rule: at most 3 (busiest `golangci.yml::exclusions.rules::gosec/g204` with 1)
 - policy-level (glob): 0 of 0
-- ratchet: high_water 2
+- ratchet: high_water 1
 - review horizon: 180 days
 
 <!-- END go-qa-ci generated defences -->

@@ -107,14 +107,14 @@ func consumer(t *testing.T, config string) string {
 }
 
 type result struct {
-	code     int
 	out, err string
+	code     int
 }
 
 func run(args ...string) result {
 	var out, errOut bytes.Buffer
 	code := cli.Run(args, &out, &errOut)
-	return result{code, out.String(), errOut.String()}
+	return result{out.String(), errOut.String(), code}
 }
 
 const nestedConfig = "[analyzers]\nmodule = \"qa\"\ndriver = \"./driver\"\n"

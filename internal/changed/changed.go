@@ -40,11 +40,6 @@ type Options struct {
 type Plan struct {
 	// Base is the ref compared against; empty means HEAD.
 	Base string
-	// Files are the changed files, relative to the root and slash-separated, deleted ones
-	// included.
-	Files []string
-	// Scope are the changed files that still exist: what a file-scoped detector can read.
-	Scope []string
 	// Widened is why the run covers the whole project; empty for a narrowed run.
 	Widened string
 	// Packages maps a module directory to the package patterns ("./a/b", relative to the module)
@@ -53,6 +48,11 @@ type Plan struct {
 	// Changed maps a module directory to the patterns of the changed packages alone, without
 	// their importers: the code a narrowed coverage measurement judges.
 	Changed map[string][]string
+	// Files are the changed files, relative to the root and slash-separated, deleted ones
+	// included.
+	Files []string
+	// Scope are the changed files that still exist: what a file-scoped detector can read.
+	Scope []string
 }
 
 // Narrow reports whether the run is limited to the changed files and packages. A nil plan is the

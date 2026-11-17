@@ -34,13 +34,13 @@ func (l *listFlag) Set(v string) error {
 
 // runOptions are the parsed flags of the run subcommand.
 type runOptions struct {
+	base     string
 	tools    listFlag
 	paths    listFlag
 	ci       bool
 	noFix    bool
 	failFast bool
 	changed  bool
-	base     string
 }
 
 // parseRun parses the run flags; when ok is false the caller returns code.

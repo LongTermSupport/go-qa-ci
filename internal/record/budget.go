@@ -10,13 +10,13 @@ import (
 
 // Budget is the record's size against its anti-bloat caps (TOOLING-SPEC 6.3).
 type Budget struct {
-	// Total is the number of exceptions; MaxTotal is its cap.
-	Total    int `json:"total"`
-	MaxTotal int `json:"max_total"`
 	// BusiestRule is the rule with most exceptions and BusiestCount how many it has; MaxPerRule is the cap.
 	BusiestRule  string `json:"busiest_rule"`
 	BusiestCount int    `json:"busiest_count"`
 	MaxPerRule   int    `json:"max_per_rule"`
+	// Total is the number of exceptions; MaxTotal is its cap.
+	Total    int `json:"total"`
+	MaxTotal int `json:"max_total"`
 	// Policy counts the broad (glob) exceptions; MaxPolicy is its cap.
 	Policy    int `json:"policy"`
 	MaxPolicy int `json:"max_policy"`

@@ -61,8 +61,8 @@ func newFixture(t *testing.T) fixture {
 
 // scanOptions varies one scanner invocation.
 type scanOptions struct {
-	env   []string // extra environment entries
 	stdin string
+	env   []string // extra environment entries
 }
 
 // withoutDenylistEnv drops any inherited denylist variable so only the options decide the route.

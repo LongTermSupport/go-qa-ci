@@ -107,8 +107,7 @@ go-qa does not claim conformance with 4.3; these routes are not covered:
 - A configuration passed with `-c` or from outside the root, `//go:build ignore`, and `t.Skip`
   without a condition are not covered.
 - The configuration the bundled baseline supplies when a project has none is not scanned; the
-  baseline disables the `govet` `fieldalignment` analyzer. This repository records that exception
-  against its own `.golangci.yml`.
+  baseline itself switches off no check and excludes no finding.
 - Only files under the root are scanned; vendored and `testdata` trees are skipped by design.
 - Every `linters.exclusions.rules` entry with neither `linters` nor `text` (a path-only or
   source-only rule) is the same rule, `exclusions.rules::*`, so one record entry licenses any

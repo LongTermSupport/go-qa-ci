@@ -150,10 +150,9 @@ the configuration file.
 | Detector rule          | Scope                                           | Hazard                                                                         | Why it does not apply                                                                                                   |
 | ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | gosec `G204`           | the seven files that launch the tools, and test files | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
-| govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
 
-The entries are `golangci.yml::exclusions.rules::gosec/G204` (two exclusions, both in the entry's
-scope) and `golangci.yml::govet.disable::fieldalignment`, both against `.golangci.yml`. Their review dates are the owner's to re-decide (the entries were
+The entry is `golangci.yml::exclusions.rules::gosec/G204` (two exclusions, both in the entry's
+scope), against `.golangci.yml`. Its review date is the owner's to re-decide (the entry was
 written by a model, whose tier gives a 30-day horizon); a lapsed one fails `gqaci.record.expired`.
 
 ### Deciders

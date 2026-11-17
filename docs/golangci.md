@@ -60,7 +60,7 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
 `configs/golangci.yml` is the golangci-lint v2 configuration for a project with none of its own:
 the `standard` linters plus a stated set (bodyclose, errorlint, gosec, gocritic, revive, wrapcheck
 and others), `errcheck` with type assertions and blank assignments checked, `govet` with every
-analyzer except `fieldalignment`, `nolintlint` requiring a specific, explained, used directive, and
+analyzer, `fieldalignment` included, `nolintlint` requiring a specific, explained, used directive, and
 no cap on the number of issues. It carries no exclusion. `depguard` is not in the baseline because
 its allow-list is specific to a project; this repository adds its own in the overlay below.
 
@@ -68,8 +68,7 @@ its allow-list is specific to a project; this repository adds its own in the ove
 
 This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in
 test files). It is listed in `docs/record.md` as a configuration exception, and the suppression
-detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`; so is the baseline's
-disabling of the `govet` `fieldalignment` analyzer.
+detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`.
 
 Contributors: the tests of `internal/cli`, `internal/golangci`, `internal/tools` and
 `internal/defences` run the real `golangci-lint`, so `go test ./...` fails with
