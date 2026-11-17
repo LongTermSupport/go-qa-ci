@@ -14,17 +14,20 @@ import (
 )
 
 type step struct {
-	Run  string         `yaml:"run"`
-	With map[string]any `yaml:"with"`
-	Uses string         `yaml:"uses"`
+	With map[string]any    `yaml:"with"`
+	Env  map[string]string `yaml:"env"`
+	Run  string            `yaml:"run"`
+	Uses string            `yaml:"uses"`
 }
 
 type job struct {
-	Steps []step `yaml:"steps"`
+	Env   map[string]string `yaml:"env"`
+	Steps []step            `yaml:"steps"`
 }
 
 type workflow struct {
-	Jobs map[string]job `yaml:"jobs"`
+	Jobs map[string]job    `yaml:"jobs"`
+	Env  map[string]string `yaml:"env"`
 }
 
 func readWorkflow(t *testing.T) (workflow, string) {
@@ -184,10 +187,17 @@ func TestWorkflowsInstallActionlintAndGitleaksFromTheLock(t *testing.T) {
 	}
 }
 
-// patchedGoDirective is the first Go release carrying every standard library advisory fix that
+// patchedToolchain is the first Go release carrying every standard library advisory fix that
 // govulncheck reports against this module's own code; a lower toolchain turns the vuln runner red.
-// The go directive, not a toolchain line, is what actions/setup-go reads from go.mod.
-const patchedGoDirective = "go 1.26.11"
+// It is go.mod's toolchain line, which actions/setup-go (v6 on) installs unless the step runs
+// with GOTOOLCHAIN=local, when it reads the go directive instead.
+const patchedToolchain = "toolchain go1.26.11"
+
+// consumerGoFloor is go.mod's go directive: the oldest Go a consumer may build go-qa with. A
+// consumer building under GOTOOLCHAIN=local with its distribution's Go cannot build a module whose
+// go directive is above that Go, and the directive of a dependency raises the consumer's own. So a
+// security release is taken through the toolchain line, never the go directive.
+const consumerGoFloor = "go 1.26.10"
 
 // needsGo reports whether a run script calls the go command, directly or through
 // scripts/install-tools.sh (which builds go-qa with it).
@@ -263,15 +273,78 @@ func TestEverySetupGoStepReadsTheToolchainFromGoMod(t *testing.T) {
 	}
 }
 
-func TestGoModRequiresThePatchedGo(t *testing.T) {
+// goModLines are go.mod's lines.
+func goModLines(t *testing.T) []string {
+	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		if line == patchedGoDirective {
+	return strings.Split(string(data), "\n")
+}
+
+func TestGoModNamesThePatchedToolchain(t *testing.T) {
+	for _, line := range goModLines(t) {
+		if line == patchedToolchain {
 			return
 		}
 	}
-	t.Errorf("go.mod must contain %q so CI and consumers build with the patched standard library", patchedGoDirective)
+	t.Errorf("go.mod must contain %q so CI builds with the patched standard library", patchedToolchain)
+}
+
+func TestGoDirectiveStaysAtTheConsumerFloor(t *testing.T) {
+	for _, line := range goModLines(t) {
+		if strings.HasPrefix(line, "go ") {
+			if line != consumerGoFloor {
+				t.Errorf("go.mod's go directive is %q, want %q: a higher one raises every consumer's and fails their local-toolchain builds", line, consumerGoFloor)
+			}
+			return
+		}
+	}
+	t.Error("go.mod has no go directive")
+}
+
+// A setup-go step that runs with GOTOOLCHAIN=local installs the go directive's release, not the
+// toolchain line's, and CI then judges the module with the unpatched standard library.
+func TestNoSetupGoStepRunsWithALocalToolchain(t *testing.T) {
+	workflows, err := os.OpenRoot(filepath.Join("..", "..", ".github", "workflows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if closeErr := workflows.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	}()
+	entries, err := fs.ReadDir(workflows.FS(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		data, readErr := workflows.ReadFile(entry.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		var w workflow
+		if yamlErr := yaml.Unmarshal(data, &w); yamlErr != nil {
+			t.Fatal(yamlErr)
+		}
+		for name, j := range w.Jobs {
+			for i, s := range j.Steps {
+				if !strings.HasPrefix(s.Uses, "actions/setup-go@") {
+					continue
+				}
+				value := w.Env["GOTOOLCHAIN"]
+				if v, ok := j.Env["GOTOOLCHAIN"]; ok {
+					value = v
+				}
+				if v, ok := s.Env["GOTOOLCHAIN"]; ok {
+					value = v
+				}
+				if value == "local" {
+					t.Errorf("%s job %s step %d: setup-go runs with GOTOOLCHAIN=local, so it ignores go.mod's toolchain line", entry.Name(), name, i)
+				}
+			}
+		}
+	}
 }

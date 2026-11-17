@@ -22,6 +22,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every go command runs with the Go setup-go installed, never a fetched one. setup-go itself runs
+# with GOTOOLCHAIN=auto, because under local it installs the go directive's release (the consumer
+# floor) instead of go.mod's toolchain line (the patched release CI judges with).
 env:
   GOTOOLCHAIN: local
 
@@ -37,6 +40,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+        env:
+          GOTOOLCHAIN: auto
       # ast-grep and gremlins: their tests run the real binary, and a test that cannot run fails.
       - name: Install golangci-lint, ast-grep and gremlins (versions from tools.lock)
         run: scripts/install-tools.sh --print-path golangci-lint ast-grep gremlins >> "${GITHUB_PATH}"
@@ -59,6 +64,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+        env:
+          GOTOOLCHAIN: auto
       - name: Install the pinned tools (versions from tools.lock)
         run: scripts/install-tools.sh --print-path >> "${GITHUB_PATH}"
       - run: go install ./cmd/go-qa
@@ -76,6 +83,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+        env:
+          GOTOOLCHAIN: auto
       - name: Install actionlint (version and sha256 from tools.lock)
         run: scripts/install-tools.sh --print-path actionlint >> "${GITHUB_PATH}"
       - run: actionlint
