@@ -35,6 +35,9 @@ type Coverage struct {
 	Uncovered []string
 	// Total is the percentage of statements covered.
 	Total float64
+	// Statements is the number of coverable statements counted. Zero means the measured packages
+	// hold no statement at all, so Total (which go then reports as 0.0%) measures nothing.
+	Statements int
 }
 
 // MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)
@@ -94,7 +97,55 @@ func testAndMeasure(ctx context.Context, dir, profile string, measured, packages
 	if err != nil {
 		return "", false, Coverage{}, err
 	}
+	cov.Statements, err = profileStatements(profile)
+	if err != nil {
+		return "", false, Coverage{}, err
+	}
 	return tests.Combined(), true, cov, nil
+}
+
+// profileStatements is the number of coverable statements the profile at path holds.
+func profileStatements(path string) (count int, err error) {
+	dir, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return 0, fmt.Errorf("opening the coverage directory: %w", err)
+	}
+	defer func() {
+		if closeErr := dir.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("closing the coverage directory: %w", closeErr)
+		}
+	}()
+	data, err := dir.ReadFile(filepath.Base(path))
+	if err != nil {
+		return 0, fmt.Errorf("reading the coverage profile: %w", err)
+	}
+	return CountProfileStatements(string(data))
+}
+
+// CountProfileStatements is the number of coverable statements a coverage profile holds, each
+// block counted once: a profile written with -coverpkg lists a block again for every test binary
+// that ran it.
+func CountProfileStatements(profile string) (int, error) {
+	blocks := map[string]int{}
+	for line := range strings.Lines(profile) {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "mode:") {
+			continue
+		}
+		if len(fields) != 3 {
+			return 0, fmt.Errorf("unreadable coverage profile line %q", strings.TrimSpace(line))
+		}
+		n, err := strconv.Atoi(fields[1])
+		if err != nil || n < 0 {
+			return 0, fmt.Errorf("unreadable statement count in coverage profile line %q", strings.TrimSpace(line))
+		}
+		blocks[fields[0]] = n
+	}
+	total := 0
+	for _, n := range blocks {
+		total += n
+	}
+	return total, nil
 }
 
 // ParseCoverFunc reads `go tool cover -func` output: the total line gives the percentage, and a

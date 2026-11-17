@@ -62,6 +62,60 @@ func TestCoverageNamesFailingTests(t *testing.T) {
 	}
 }
 
+// docOnly declares a package with no statement of its own; testOnlyPassing and testOnlyFailing
+// are its tests.
+const (
+	docOnly         = "// Package fixture holds only tests.\npackage fixture\n"
+	testOnlyPassing = "package fixture\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {\n\tif 1+1 != 2 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"
+	testOnlyFailing = "package fixture\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {\n\tt.Fatal(\"deliberate failure\")\n}\n"
+)
+
+// A scope with no coverable statement has nothing to fall short of the threshold: it passes, not
+// "0.0% is below".
+func TestCoverageOfAScopeWithNoStatementsHasNothingToJudge(t *testing.T) {
+	for _, shared := range []bool{false, true} {
+		exec, stderr := executorFor(t, "")
+		if shared {
+			exec.Shared = tools.NewMeasurements()
+		}
+		project(t, exec, map[string]string{"go.mod": fixtureMod, "doc.go": docOnly, "f_test.go": testOnlyPassing})
+		steps := []string{"coverage"}
+		if shared {
+			steps = []string{"test", "coverage"}
+		}
+		for _, name := range steps {
+			if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+				t.Errorf("shared %v, %s: got %+v, %q", shared, name, out, stderr)
+			}
+		}
+	}
+}
+
+// The tests of a scope with no coverable statement still run, and a failing one still fails the
+// coverage step.
+func TestCoverageOfAScopeWithNoStatementsStillFailsAFailingTest(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	project(t, exec, map[string]string{"go.mod": fixtureMod, "doc.go": docOnly, "f_test.go": testOnlyFailing})
+	out := exec.Run(stepNamed(t, "coverage"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "error[coverage]") || !strings.Contains(stderr.String(), "deliberate failure") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
+// Only a scope with no statement at all is exempt: a package with none beside one with statements
+// below the threshold is still judged on those statements, and fails.
+func TestCoverageOfAScopeWithSomeStatementsBelowTheThresholdStillFails(t *testing.T) {
+	exec, stderr := executorFor(t, "")
+	project(t, exec, map[string]string{
+		"go.mod": fixtureMod, "f.go": libSource, "f_test.go": passingTest,
+		"empty/doc.go": "// Package empty holds only tests.\npackage empty\n", "empty/e_test.go": strings.Replace(testOnlyPassing, "package fixture", "package empty", 1),
+	})
+	out := exec.Run(stepNamed(t, "coverage"))
+	if out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "statement coverage 50.0% is below fail_under_statements = 80") {
+		t.Errorf("got %+v, %q", out, stderr)
+	}
+}
+
 // countingTest appends a line to runs.log each time it executes, so a test can count how many go
 // test runs a sequence of steps cost.
 const countingTest = "package fixture\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestUsed(t *testing.T) {\n" +
