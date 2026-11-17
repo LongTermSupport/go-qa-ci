@@ -13,9 +13,9 @@ import (
 const goodWhy = "Tests assert on panics deliberately; a panic is the failure signal in test code."
 
 type result struct {
-	code int
 	out  string
 	err  string
+	code int
 }
 
 func exec(args ...string) result {

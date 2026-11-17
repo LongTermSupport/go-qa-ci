@@ -26,7 +26,7 @@ record = "docs/defences.md"
 
 [[project.gap]]
 clause = "4.3"
-summary = "suppression routes not covered: ast-grep ignores outside Go, linter settings outside the closed table, a -c configuration, go:build ignore, unconditional t.Skip, the baseline's fieldalignment switch-off"
+summary = "suppression routes not covered: ast-grep ignores outside Go, linter settings outside the closed table, a -c configuration, go:build ignore, unconditional t.Skip, the bundled baseline configuration (not scanned)"
 record = "docs/suppression.md"
 
 [[project.gap]]
@@ -85,5 +85,5 @@ record = "docs/CONFORMANCE.md"
 
 [[artefact.gap]]
 clause = "8.2"
-summary = "mutation testing is switched off on the toolchain's own source, gosec G204 (seven launcher files and test files) is configured away there, and only the golangci-lint rules are proven active there by a test"
+summary = "mutation testing is switched off on the toolchain's own source, gosec G204 is configured away there in the one file that starts processes (internal/launch/launch.go), and only the golangci-lint rules are proven active there by a test"
 record = "docs/golangci.md"

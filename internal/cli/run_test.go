@@ -19,8 +19,8 @@ import (
 type recorder struct {
 	failing []string
 	skipped []string
-	ctx     tools.Context
 	ran     []string
+	ctx     tools.Context
 }
 
 func (r *recorder) factory(ctx tools.Context, _ io.Writer) pipeline.Executor {

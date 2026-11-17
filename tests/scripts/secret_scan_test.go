@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 type secretRun struct {
 	out  string
-	code int
 	log  string
+	code int
 }
 
 // runSecretScan runs scripts/secret-scan.sh in repo. withStub puts the stub gitleaks first on PATH;
@@ -32,11 +34,7 @@ func runSecretScan(t *testing.T, repo string, withStub bool, stubExit string, ar
 		installStub(t, bin)
 		path = bin + ":/usr/bin:/bin"
 	}
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.CommandContext(t.Context(), bash, append([]string{script}, args...)...)
+	cmd := launchtest.Command(t, "bash", append([]string{script}, args...)...)
 	cmd.Dir = repo
 	cmd.Env = append(os.Environ(), "PATH="+path, "STUB_LOG="+logPath, "STUB_EXIT="+stubExit)
 	out, runErr := cmd.CombinedOutput()

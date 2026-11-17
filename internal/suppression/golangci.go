@@ -92,10 +92,10 @@ func items(n *yaml.Node) []*yaml.Node {
 // listRoute is a setting holding a list of things that are switched off or exempted; each item is
 // one suppression.
 type listRoute struct {
-	keys []string
 	name string
 	// keep selects the items that silence something and maps them to the detail; nil keeps all.
 	keep func(string) (string, bool)
+	keys []string
 }
 
 func removals(item string) (string, bool) {
@@ -122,10 +122,10 @@ var listRoutes = []listRoute{
 
 // scalarRoute is a single setting that silences something when its value is not the strict one.
 type scalarRoute struct {
-	keys []string
 	name string
 	// fires reports whether the value silences something.
 	fires func(string) bool
+	keys  []string
 	// detail puts the value in the rule identifier, so that each value is its own decision.
 	detail bool
 }

@@ -18,10 +18,10 @@ type Input struct {
 	Record Record
 	// Path is the record's path as the project configures it; findings show it.
 	Path string
-	// Policy is the [record] table of the configuration.
-	Policy config.RecordPolicy
 	// Today is the date reviews and deadlines are measured against; the caller supplies the clock.
 	Today date.Date
+	// Policy is the [record] table of the configuration.
+	Policy config.RecordPolicy
 }
 
 // Review applies the anti-bloat controls, the toolchain defaults that serve TOOLING-SPEC 6.4: provenance, trust tiers, review
@@ -59,7 +59,7 @@ func reviewEntry(in Input, index int, e Exception) []finding.Finding {
 	if problems := entryProblems(in, e); len(problems) > 0 {
 		findings = append(findings, in.finding(finding.RecordInvalid, e.Line, label+" "+strings.Join(problems, "; ")))
 	}
-	if !e.ReviewBy.IsZero() && e.ReviewBy.Before(in.Today) {
+	if !e.Permanent && !e.ReviewBy.IsZero() && e.ReviewBy.Before(in.Today) {
 		findings = append(findings, in.finding(finding.RecordExpired, e.Line, fmt.Sprintf(
 			"%s was due for review on %s; re-decide it (fresh decided_on and review_by, justification re-checked) or remove it and fix the code",
 			label, e.ReviewBy)))
@@ -82,6 +82,7 @@ func entryProblems(in Input, e Exception) []string {
 		}
 	}
 	problems = append(problems, dateProblems(in, e, tier)...)
+	problems = append(problems, permanenceProblems(in.Policy, e, decidedBy)...)
 	if e.Policy && !glob.IsGlob(e.Path) {
 		problems = append(problems, "is marked policy = true but names a single file; drop the marker")
 	}
@@ -97,7 +98,7 @@ func missingFields(e Exception, decidedBy, model string) []string {
 		{"decided_by", decidedBy == ""},
 		{"added_by_model", model == ""},
 		{"decided_on", e.DecidedOn.IsZero()},
-		{"review_by", e.ReviewBy.IsZero()},
+		{"review_by (or permanent = true)", e.ReviewBy.IsZero() && !e.Permanent},
 	} {
 		if field.absent {
 			missing = append(missing, field.name)
@@ -123,6 +124,23 @@ func trustProblems(policy config.RecordPolicy, rule, model, decidedBy string, ti
 		}
 	}
 	return nil
+}
+
+// permanenceProblems judges a permanent exception. It has no review date, so the tier's horizon,
+// the one control that brings a model-written entry back to a person, never applies to it; a
+// configured decider must sign it instead, whichever tier wrote it.
+func permanenceProblems(policy config.RecordPolicy, e Exception, decidedBy string) []string {
+	if !e.Permanent {
+		return nil
+	}
+	var problems []string
+	if !e.ReviewBy.IsZero() {
+		problems = append(problems, fmt.Sprintf("has both permanent = true and a review_by (%s); a permanent exception has no review date, so drop one of them", e.ReviewBy))
+	}
+	if decidedBy != "" && !policy.IsDecider(decidedBy) {
+		problems = append(problems, fmt.Sprintf("is marked permanent = true but decided_by `%s` is not one of the configured deciders; only a configured decider can make an exception permanent%s", decidedBy, policy.DecidersHint()))
+	}
+	return problems
 }
 
 func dateProblems(in Input, e Exception, tier config.Tier) []string {

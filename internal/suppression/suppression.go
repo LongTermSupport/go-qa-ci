@@ -48,13 +48,13 @@ type Suppression struct {
 	Rule string
 	// Path is the file, relative to the root and slash-separated.
 	Path string
-	// Line is 1-based; 0 when the format has no usable line.
-	Line int
 	// Route is how the suppression is expressed.
 	Route Route
 	// Bare says why the suppression is not acceptable even when recorded: it names no rule, or
 	// gives no reason. Empty when it is acceptable.
 	Bare string
+	// Line is 1-based; 0 when the format has no usable line.
+	Line int
 }
 
 // String renders the suppression compactly: rule@path:line, with " bare" when Bare is set.
@@ -171,8 +171,8 @@ func skipped(name string, entry fs.DirEntry, exclude []string) bool {
 // file cannot be read as what its name says. An unparseable file is a result of the scan, not a
 // failure of it.
 type fileScan struct {
-	found   []Suppression
 	problem string
+	found   []Suppression
 }
 
 func unparseable(err error) fileScan { return fileScan{problem: err.Error()} }

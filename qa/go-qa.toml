@@ -7,8 +7,9 @@
 deciders = ["repository-owner"]
 
 [record.trust.models]
-# Entries written by this model family are medium trust: 30-day review, at most three entries.
+# Entries written by these model families are medium trust: 30-day review, at most three entries.
 claude-sonnet = "medium"
+claude-opus = "medium"
 
 [summary]
 file = "AGENTS.md"

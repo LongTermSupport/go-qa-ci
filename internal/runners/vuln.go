@@ -38,11 +38,11 @@ type frame struct {
 	Module   string `json:"module"`
 	Version  string `json:"version"`
 	Package  string `json:"package"`
-	Function string `json:"function"`
 	Position *struct {
 		Filename string `json:"filename"`
 		Line     int    `json:"line"`
 	} `json:"position"`
+	Function string `json:"function"`
 }
 
 // reached reports whether the finding is symbol level: the vulnerable function is called.

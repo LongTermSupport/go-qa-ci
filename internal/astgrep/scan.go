@@ -12,12 +12,12 @@ type Match struct {
 	Rule string
 	// Path is the file as ast-grep printed it.
 	Path string
-	// Line and Column are 1-based.
-	Line, Column int
 	// Severity is error, warning, info or hint.
 	Severity string
 	// Message and Note are the rule's text, trimmed.
 	Message, Note string
+	// Line and Column are 1-based.
+	Line, Column int
 }
 
 // Blocking reports whether the match fails the detector: only error severity does.
@@ -29,8 +29,8 @@ type rawMatch struct {
 	File     string  `json:"file"`
 	RuleID   string  `json:"ruleId"`
 	Severity string  `json:"severity"`
-	Message  string  `json:"message"`
 	Note     *string `json:"note"`
+	Message  string  `json:"message"`
 	Range    struct {
 		Start struct {
 			Line   int `json:"line"`

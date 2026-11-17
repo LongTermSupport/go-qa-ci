@@ -53,8 +53,8 @@ func DefaultConfig() Config {
 var Analyzer = New(DefaultConfig())
 
 type checker struct {
-	patterns  []string
 	redacting map[string]bool
+	patterns  []string
 }
 
 // New returns the analyzer configured with cfg. The configuration is also settable through the

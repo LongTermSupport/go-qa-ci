@@ -1,10 +1,10 @@
 package runners_test
 
 import (
-	"os/exec"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/runners"
 	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
@@ -20,7 +20,7 @@ var partlyKilled = map[string]string{
 // TestMutantsThresholdFailsARealGremlinsRun is the only test that can show the threshold reaches
 // gremlins: the fakes exit with whatever code they are told. It needs gremlins installed, and fails without it (internal/tooltest).
 func TestMutantsThresholdFailsARealGremlinsRun(t *testing.T) {
-	_, err := exec.LookPath("gremlins")
+	_, err := launch.Find("gremlins")
 	tooltest.Require(t, "gremlins", err)
 	dir := module(t, partlyKilled)
 	for _, tt := range []struct {

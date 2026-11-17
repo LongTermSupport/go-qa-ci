@@ -6,7 +6,7 @@ Active defences. Failures print these ids as listed, except for the code-prefixe
 - `gqaci.docs.orphan` (builtin, error): every project documentation page belongs to an identifier the project can see. Fix: Delete the page if its defence is gone. If the defence was renamed, rename the page to the identifier it now prints. If the defence should still run, restore it so that it is listed again. Docs: `go-qa rule-doc gqaci.docs.orphan`
 - `gqaci.record.budget` (builtin, error): the project record stays within its budgets. Fix: Remove exceptions by fixing the code they excuse, then prune them from the record. Do not raise a budget to make the gate pass: raising one is a decision for the owner, made in `qa/go-qa.toml` and signed through the ratchet. Docs: `go-qa rule-doc gqaci.record.budget`
 - `gqaci.record.expired` (builtin, error): no project-record exception is past its review date. Fix: Re-read the justification against today's code. If the hazard is still accepted, re-decide the entry: set a fresh `decided_on` and a `review_by` inside the horizon of the author's tier. If the code no longer needs it, delete the entry. Better still, fix the code the rule flags and remove the exception. Docs: `go-qa rule-doc gqaci.record.expired`
-- `gqaci.record.invalid` (builtin, error): every project-record exception is well formed, attributed and justified. Fix: Edit the entry so that it states a decision. Name the hazard the rule guards against, say why it does not apply here, and give the scope (one file, or the glob and why it is that wide). Fill in `decided_by`, `added_by_model` (`human` or a model id with a configured prefix), `decided_on` and a `review_by` inside the horizon. If you cannot write an honest justification, delete the entry and fix the code the rule flags instead. Docs: `go-qa rule-doc gqaci.record.invalid`
+- `gqaci.record.invalid` (builtin, error): every project-record exception is well formed, attributed and justified. Fix: Edit the entry so that it states a decision. Name the hazard the rule guards against, say why it does not apply here, and give the scope (one file, or the glob and why it is that wide). Fill in `decided_by`, `added_by_model` (`human` or a model id with a configured prefix), `decided_on` and a `review_by` inside the horizon, or, for an exception inherent to the code, `permanent = true` with no `review_by` and a configured decider as `decided_by`. If you cannot write an honest justification, delete the entry and fix the code the rule flags instead. Docs: `go-qa rule-doc gqaci.record.invalid`
 - `gqaci.record.ratchet` (builtin, error): the project record grows only by a signed decision. Fix: If the record shrank, lower `high_water` to the count (outside CI `go-qa run` does it for you; in CI commit the lowered value). To raise the ceiling, a configured decider updates `decided_by`, sets `decided_on` to today and writes a `reason` naming why the raise is needed. If `history_base` does not resolve, set it to a ref that exists and fetch enough history for it. Docs: `go-qa rule-doc gqaci.record.ratchet`
 - `gqaci.record.stale` (builtin, error): every project-record exception still covers something. Fix: Delete the exception from the record (`go-qa record prune <number>` removes it and lowers the ratchet ceiling). If the suppression moved, update `path` to its new location and re-read the justification to confirm it still holds. Docs: `go-qa rule-doc gqaci.record.stale`
 - `gqaci.rules.unnamed` (builtin, error): every project ast-grep rule has an id. Fix: Give the rule an `id` that is stable and meaningful (not derived from its position), and add a page named after it in the project documentation directory. Docs: `go-qa rule-doc gqaci.rules.unnamed`
@@ -61,15 +61,15 @@ Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, a
 
 Project-record exceptions (prefer fixing the code; an exception names its hazard and scope):
 
-- `golangci.yml::govet.disable::fieldalignment` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
-- `golangci.yml::exclusions.rules::gosec/G204` at `.golangci.yml` (review by 2026-11-13, added by claude-sonnet-5-5)
+- `golangci.yml::exclusions.rules::gosec/G204` at `.golangci.yml` (permanent, added by claude-opus-5-5)
 
 Record budget (`go-qa record list`):
 
-- exceptions: 2 of 10
+- exceptions: 1 of 10
 - per rule: at most 3 (busiest `golangci.yml::exclusions.rules::gosec/g204` with 1)
 - policy-level (glob): 0 of 0
-- ratchet: high_water 2
+- permanent (no review date): 1
+- ratchet: high_water 1
 - review horizon: 180 days
 
 <!-- END go-qa-ci generated defences -->

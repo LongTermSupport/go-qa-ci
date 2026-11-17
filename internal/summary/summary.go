@@ -59,7 +59,10 @@ func Render(l defences.Listing) string {
 	}
 	for _, e := range l.Record {
 		review := "no review date"
-		if e.ReviewBy != "" {
+		switch {
+		case e.Permanent:
+			review = "permanent"
+		case e.ReviewBy != "":
 			review = "review by " + e.ReviewBy
 		}
 		model := e.AddedByModel

@@ -14,8 +14,6 @@ import (
 // Executor runs the steps of one run. A step no engine is built for fails with Pending's
 // reason, so it is never reported as passing.
 type Executor struct {
-	// Ctx is the project and invocation the run belongs to.
-	Ctx Context
 	// Stderr receives the findings and diagnostics of the steps.
 	Stderr io.Writer
 	// Pack is the bundled ast-grep rule pack; nil means the pack shipped inside the binary.
@@ -23,6 +21,8 @@ type Executor struct {
 	// Shared, when set, makes the test step measure coverage in the same run and hand it to the
 	// coverage step; nil means each step runs on its own.
 	Shared *Measurements
+	// Ctx is the project and invocation the run belongs to.
+	Ctx Context
 }
 
 // Run executes one step; in a narrowed diff-mode run the step first narrows to what changed.

@@ -56,12 +56,12 @@ func (s Source) String() string {
 
 // Doc is a resolved page.
 type Doc struct {
-	// Source is where the page came from.
-	Source Source
 	// Path is the project page's path relative to the root; empty for a bundled page.
 	Path string
 	// Text is the markdown.
 	Text string
+	// Source is where the page came from.
+	Source Source
 }
 
 // Resolver resolves identifiers for one project.
@@ -70,13 +70,13 @@ type Resolver struct {
 	Root string
 	// DocsDir holds the project pages, relative to Root with forward slashes.
 	DocsDir string
+	// rules caches what the stages' rules commands print; nil means every lookup runs them again.
+	rules *stageRules
 	// Stages are the project stages: each resolves under its name, and its rules command may ship
 	// documentation for the rules it prints.
 	Stages []stage.Stage
 	// Patterns are the configured [[resolver]] entries, consulted last.
 	Patterns []config.Resolver
-	// rules caches what the stages' rules commands print; nil means every lookup runs them again.
-	rules *stageRules
 }
 
 // ForConfig is the resolver for the project at root as cfg describes it, project stages and

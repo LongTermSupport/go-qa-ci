@@ -47,6 +47,35 @@ func TestLoadRulesRunsTheRulesCommandInTheStageDirectory(t *testing.T) {
 	}
 }
 
+func TestAProgramPathIsResolvedAgainstTheStageDirectory(t *testing.T) {
+	log := faketool.Install(t, "web-rules", faketool.Spec{Stdout: `[{"id":"web-rule","description":"finds things"}]`})
+	root := project(t)
+	if err := os.Mkdir(filepath.Join(root, "web", "bin"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	fake := filepath.Join(filepath.Dir(log), "web-rules")
+	if err := os.Symlink(fake, filepath.Join(root, "web", "bin", "web-rules")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "")
+	rules, err := stagerun.LoadRules(context.Background(), root, stageWithRules("./bin/web-rules", "--list"))
+	if err != nil || len(rules) != 1 {
+		t.Fatalf("rules = %+v, %v", rules, err)
+	}
+	if calls := faketool.Calls(t, log); len(calls) != 1 {
+		t.Errorf("calls = %q", calls)
+	}
+}
+
+// A stage's command is the project's own committed configuration, so a project may hand a shell a
+// command string there, as it may name any other program.
+func TestAStageMayHandAShellACommandString(t *testing.T) {
+	rules, err := stagerun.LoadRules(context.Background(), project(t), stageWithRules("sh", "-c", "echo []"))
+	if err != nil || len(rules) != 0 {
+		t.Errorf("rules = %v, err = %v", rules, err)
+	}
+}
+
 func TestAStageWithoutARulesCommandReportsNoRules(t *testing.T) {
 	rules, err := stagerun.LoadRules(context.Background(), project(t), stageWithRules())
 	if err != nil || len(rules) != 0 {

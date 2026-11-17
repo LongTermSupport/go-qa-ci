@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 // Output is what a finished program printed and how it exited.
@@ -27,14 +29,14 @@ func (o Output) Combined() string {
 
 // Locate finds a required program on PATH.
 func Locate(binary string) error {
-	if _, err := exec.LookPath(binary); err != nil {
+	if _, err := launch.Find(binary); err != nil {
 		return fmt.Errorf("%s not found on PATH: install the pinned version; it is a required tool and its absence is never a pass", binary)
 	}
 	return nil
 }
 
-// Capture runs name in dir and returns its output and exit code; err is set only when the process
-// could not be run at all.
+// Capture runs name (a program on PATH, or an absolute path) in dir through launch and returns its
+// output and exit code; err is set only when the process could not be run at all.
 func Capture(ctx context.Context, dir, name string, args ...string) (Output, error) {
 	return CaptureEnv(ctx, dir, nil, name, args...)
 }
@@ -42,7 +44,10 @@ func Capture(ctx context.Context, dir, name string, args ...string) (Output, err
 // CaptureEnv is Capture with extra KEY=value entries added to the environment of the program.
 func CaptureEnv(ctx context.Context, dir string, env []string, name string, args ...string) (Output, error) {
 	var out, errOut bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd, err := launch.Command(ctx, name, args...)
+	if err != nil {
+		return Output{}, fmt.Errorf("running %s: %w", name, err)
+	}
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)

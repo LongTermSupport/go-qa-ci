@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/runners"
 )
 
@@ -41,8 +41,6 @@ type Store struct {
 	Dir string
 	// Lock is the pin set.
 	Lock Lock
-	// Platform is "GOOS/GOARCH"; release archives exist for ReleasePlatform only.
-	Platform string
 	// Log receives one line for each tool installed.
 	Log io.Writer
 	// Download writes the body of the https URL to w.
@@ -51,6 +49,8 @@ type Store struct {
 	GoInstall func(ctx context.Context, pkg, gobin string) error
 	// GoVersion is the version of the go command that builds the Go tools.
 	GoVersion func() (string, error)
+	// Platform is "GOOS/GOARCH"; release archives exist for ReleasePlatform only.
+	Platform string
 	// MaxArchiveBytes caps a release download; zero means DefaultMaxArchiveBytes.
 	MaxArchiveBytes int64
 }
@@ -316,7 +316,7 @@ func httpDownload(ctx context.Context, url string, w io.Writer) error {
 }
 
 func goInstall(ctx context.Context, pkg, gobin string) error {
-	goBinary, err := exec.LookPath("go")
+	goBinary, err := launch.Find("go")
 	if err != nil {
 		return fmt.Errorf("the go command is needed to build %s: %w", pkg, err)
 	}
@@ -385,7 +385,7 @@ func goVersion() func() (string, error) {
 func queryGoVersion() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	goBinary, err := exec.LookPath("go")
+	goBinary, err := launch.Find("go")
 	if err != nil {
 		return "", fmt.Errorf("the go command is needed to build the Go tools: %w", err)
 	}

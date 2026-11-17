@@ -31,10 +31,10 @@ func (e *TestsFailedError) Error() string {
 
 // Coverage is the statement coverage of a module.
 type Coverage struct {
-	// Total is the percentage of statements covered.
-	Total float64
 	// Uncovered lists the functions no test reaches, as "file:line: name".
 	Uncovered []string
+	// Total is the percentage of statements covered.
+	Total float64
 }
 
 // MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)

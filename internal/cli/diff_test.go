@@ -2,17 +2,18 @@ package cli_test
 
 import (
 	"os"
-	goexec "os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	full := append([]string{"-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"}, args...)
-	cmd := goexec.CommandContext(t.Context(), "git", full...)
+	cmd := launchtest.Command(t, "git", full...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
@@ -145,15 +146,16 @@ func TestRunChangedWidensWhenTheExplicitConfigFileChanges(t *testing.T) {
 
 func TestRunChangedWidensOnTheRuleSourcesTheConfigurationNames(t *testing.T) {
 	cases := []struct {
-		name, config, changed, want string
-		extra                       map[string]string
+		name                  string
+		extra                 map[string]string
+		config, changed, want string
 	}{
-		{"sgconfig.yml", "", "sgconfig.yml", "widened: sgconfig.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n"}},
-		{"an ast-grep rule directory", "", "rules/r.yml", "widened: rules/r.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n", "rules/r.yml": "id: r\n"}},
-		{"an ast-grep test directory", "", "rule-tests/r-test.yml", "widened: rule-tests/r-test.yml changed", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\ntestConfigs:\n  - testDir: rule-tests\n", "rule-tests/r-test.yml": "id: r\n"}},
-		{"the documentation directory", "docs_dir = \"pages\"\n", "pages/x.md", "widened: pages/x.md changed", map[string]string{"pages/x.md": "# x\n"}},
-		{"the analyzer module", "[analyzers]\nmodule = \"tools/rules\"\ndriver = \"./driver\"\n", "tools/rules/notes.txt", "widened: tools/rules/notes.txt changed", map[string]string{"tools/rules/go.mod": "module example.com/rules\n", "tools/rules/r.go": "package rules\n"}},
-		{"the driver package of the root module", "[analyzers]\ndriver = \"./internal/qa/driver/...\"\n", "internal/qa/driver/notes.txt", "widened: internal/qa/driver/notes.txt changed", map[string]string{"internal/qa/driver/main.go": "package main\n"}},
+		{"sgconfig.yml", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n"}, "", "sgconfig.yml", "widened: sgconfig.yml changed"},
+		{"an ast-grep rule directory", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\n", "rules/r.yml": "id: r\n"}, "", "rules/r.yml", "widened: rules/r.yml changed"},
+		{"an ast-grep test directory", map[string]string{"sgconfig.yml": "ruleDirs: [rules]\ntestConfigs:\n  - testDir: rule-tests\n", "rule-tests/r-test.yml": "id: r\n"}, "", "rule-tests/r-test.yml", "widened: rule-tests/r-test.yml changed"},
+		{"the documentation directory", map[string]string{"pages/x.md": "# x\n"}, "docs_dir = \"pages\"\n", "pages/x.md", "widened: pages/x.md changed"},
+		{"the analyzer module", map[string]string{"tools/rules/go.mod": "module example.com/rules\n", "tools/rules/r.go": "package rules\n"}, "[analyzers]\nmodule = \"tools/rules\"\ndriver = \"./driver\"\n", "tools/rules/notes.txt", "widened: tools/rules/notes.txt changed"},
+		{"the driver package of the root module", map[string]string{"internal/qa/driver/main.go": "package main\n"}, "[analyzers]\ndriver = \"./internal/qa/driver/...\"\n", "internal/qa/driver/notes.txt", "widened: internal/qa/driver/notes.txt changed"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

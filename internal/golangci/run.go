@@ -12,6 +12,7 @@ import (
 
 	"github.com/LongTermSupport/go-qa-ci/configs"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/relpath"
 )
 
@@ -35,7 +36,7 @@ type Runner struct {
 
 // Locate finds golangci-lint on PATH. A missing binary is an error, never a skipped check.
 func Locate() (Runner, error) {
-	path, err := exec.LookPath(binary)
+	path, err := launch.Find(binary)
 	if err != nil {
 		return Runner{}, fmt.Errorf("%s not found on PATH: install the pinned version; it is a required tool and its absence is never a pass", binary)
 	}
@@ -162,7 +163,10 @@ func configArgs(configPath string) []string {
 // process could not be run at all.
 func (r Runner) run(ctx context.Context, dir string, args []string) (stdout, stderr string, code int, err error) {
 	var out, errOut bytes.Buffer
-	cmd := exec.CommandContext(ctx, r.Binary, args...)
+	cmd, err := launch.Command(ctx, r.Binary, args...)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("running %s: %w", binary, err)
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &out
 	cmd.Stderr = &errOut

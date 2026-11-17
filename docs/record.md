@@ -18,10 +18,13 @@ justification = "the hazard accepted, and the scope it is accepted in"
 decided_by = "example-owner"
 added_by_model = "human"       # or the model id that wrote the entry
 decided_on = 2026-01-15
-review_by = 2026-04-15
+review_by = 2026-04-15         # or permanent = true, never both
 policy = false                 # true marks a deliberately broad (glob) exception
 covers = "suppressions"        # or "findings"
 ```
+
+An exception carries either a `review_by` date or `permanent = true` (see "Permanent exceptions"
+below).
 
 Unknown keys, malformed dates and an unknown `covers` value are errors (exit 2), never ignored.
 `covers = "suppressions"` licenses a suppression written in the source or configuration;
@@ -78,7 +81,10 @@ Deadlines are measured against the current UTC day.
 
 Beyond the structural checks above, an exception is invalid when:
 
-- it lacks `decided_by`, `added_by_model`, `decided_on` or `review_by`;
+- it lacks `decided_by`, `added_by_model` or `decided_on`, or has neither `review_by` nor
+  `permanent = true`;
+- it has both `permanent = true` and a `review_by`;
+- it is marked `permanent = true` but `decided_by` is not one of `deciders`;
 - its `added_by_model` maps to no tier: `human` is reserved, any other value must start with a
   prefix listed in `[record.trust.models]` (case-insensitive, longest prefix wins);
 - it is marked `human` but `decided_by` is not one of `deciders`;
@@ -93,7 +99,30 @@ Beyond the structural checks above, an exception is invalid when:
 ### gqaci.record.expired
 
 An exception whose `review_by` is before today fails until it is re-decided (fresh `decided_on`
-and `review_by`) or removed. An entry due today still passes.
+and `review_by`) or removed. An entry due today still passes. A permanent exception has no
+`review_by` and is never reported.
+
+### Permanent exceptions
+
+A review date suits an exception that the code may outgrow. Some exceptions are inherent to the
+code instead: the one file whose purpose is to start processes will always be flagged by a rule
+against starting processes. Such an exception is marked `permanent = true` in place of
+`review_by`, and its justification records why it is inherent. It is still a decision:
+
+- it needs `rule`, `path`, `justification`, `decided_by`, `decided_on` and `added_by_model`, and
+  passes every check above that does not concern the review date;
+- **trust tiers:** no tier's `max_review_days` (nor the record-wide one) applies, because there is
+  no review date. That horizon is the control that returns a model-written exception to a person,
+  so in its place `decided_by` must be a configured decider, whichever tier wrote the entry. There
+  is no per-tier switch for permanent exceptions: a project that wants none simply never signs one;
+- **budgets and the ratchet:** it counts like any other exception toward `max_total`,
+  `max_per_rule`, `max_policy`, its tier's `max_count` and the ratchet's `high_water`;
+- **output:** `record list` marks it `permanent` (and `review_by never (permanent)`), `--json`
+  gives `"permanent": true` with no `review_by`, `record explain` says so, and the budget and the
+  agent summary show it as permanent and count the permanent entries.
+
+Revisit a permanent exception when the code it excuses changes shape; removing it is the same
+`record prune` as any other.
 
 ### gqaci.record.budget
 
@@ -147,14 +176,14 @@ a project-level exception that the suppression detector requires to be recorded 
 recorded rule is the one the detector prints (docs/suppression.md), and the record entry's path is
 the configuration file.
 
-| Detector rule          | Scope                                           | Hazard                                                                         | Why it does not apply                                                                                                   |
-| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| gosec `G204`           | the seven files that launch the tools, and test files | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
-| govet `fieldalignment` | whole module (disabled in the bundled baseline) | padding bytes wasted in memory-heavy structs                                   | struct layout is not a defect class this toolchain defends against, and the module holds no memory-heavy struct         |
+| Detector rule | Scope                                                   | Hazard                                                         | Why it does not apply                                                                                                                                                       |
+| ------------- | ------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| gosec `G204`  | `internal/launch/launch.go` only (no test file is excluded) | command injection through a shell or an attacker-chosen program | every launch in code and tests goes through that file: an argument vector only, a shell handed a command string refused, a bare name found on PATH or an absolute path, context-bound |
 
-The entries are `golangci.yml::exclusions.rules::gosec/G204` (two exclusions, both in the entry's
-scope) and `golangci.yml::govet.disable::fieldalignment`, both against `.golangci.yml`. Their review dates are the owner's to re-decide (the entries were
-written by a model, whose tier gives a 30-day horizon); a lapsed one fails `gqaci.record.expired`.
+The entry is `golangci.yml::exclusions.rules::gosec/G204` (one exclusion), against
+`.golangci.yml`. It is permanent (see "Permanent exceptions"): starting processes is the purpose of
+that file, so the rule will always flag it, and no review date would change that. It is signed by
+the decider `repository-owner`.
 
 ### Deciders
 
