@@ -258,7 +258,9 @@ func (e Executor) coverageProblem(module, dir string, threshold int, measured, p
 			return "", fmt.Errorf("measuring: %w", err)
 		}
 	}
-	if cov.Total >= float64(threshold) {
+	// A scope with no coverable statement has nothing to fall short: go reports its total as 0.0%,
+	// which measures nothing. Its tests have still run, and a failing one was reported above.
+	if cov.Statements == 0 || cov.Total >= float64(threshold) {
 		return "", nil
 	}
 	message := fmt.Sprintf("statement coverage %.1f%% is below fail_under_statements = %d", cov.Total, threshold)

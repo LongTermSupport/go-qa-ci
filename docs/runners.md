@@ -94,4 +94,9 @@ installed, as every test needing a pinned tool does) proves the gate; the fakes 
   `fail_under_statements` threshold judges the code that changed and not the gaps of importers it
   never touched. A test-only package has no statements and is not counted; a module that holds only
   importers is not judged. A narrowed result can still differ from the full run's.
+- In any run, a scope whose counted packages hold no coverable statement at all (a package of
+  tests and a doc file, say) has nothing to judge: `go tool cover` reports its total as 0.0%,
+  which measures nothing, so `coverage` passes it. Only the zero count is exempt: a scope with
+  any statement is judged against the threshold as usual, and its tests still run, so a failing
+  test still fails `coverage`.
 - The `licences` runner of the design brief is not built.

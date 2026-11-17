@@ -45,7 +45,38 @@ func TestMeasureCoverageCountsStatementsAcrossPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Total != 50 || len(got.Uncovered) != 1 || !strings.HasSuffix(got.Uncovered[0], "Never") {
+	if got.Total != 50 || got.Statements != 2 || len(got.Uncovered) != 1 || !strings.HasSuffix(got.Uncovered[0], "Never") {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestCountProfileStatementsCountsEachBlockOnce(t *testing.T) {
+	profile := "mode: atomic\nm/f.go:3.20,3.30 1 1\nm/f.go:5.21,5.31 2 0\nm/f.go:3.20,3.30 1 0\n"
+	if got, err := runners.CountProfileStatements(profile); err != nil || got != 3 {
+		t.Errorf("got %d, %v", got, err)
+	}
+	if got, err := runners.CountProfileStatements("mode: atomic\n"); err != nil || got != 0 {
+		t.Errorf("an empty profile: got %d, %v", got, err)
+	}
+	for _, bad := range []string{"mode: atomic\nm/f.go:3.20,3.30 1\n", "mode: atomic\nm/f.go:3.20,3.30 x 1\n", "mode: atomic\nm/f.go:3.20,3.30 -1 1\n"} {
+		if _, err := runners.CountProfileStatements(bad); err == nil {
+			t.Errorf("%q was read", bad)
+		}
+	}
+}
+
+// A package that declares itself in a doc file and holds only tests has no statement to cover:
+// go reports its total as 0.0%, and Statements says that nothing was counted.
+func TestMeasureCoverageCountsNoStatementsInAPackageThatHasNone(t *testing.T) {
+	dir := module(t, map[string]string{
+		"doc.go":    "// Package fixture holds only tests.\npackage fixture\n",
+		"f_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {\n\tif 1+1 != 2 {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n",
+	})
+	got, err := runners.MeasureCoverage(ctx(), dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Statements != 0 || got.Total != 0 {
 		t.Errorf("got %+v", got)
 	}
 }
