@@ -176,13 +176,14 @@ a project-level exception that the suppression detector requires to be recorded 
 recorded rule is the one the detector prints (docs/suppression.md), and the record entry's path is
 the configuration file.
 
-| Detector rule          | Scope                                           | Hazard                                                                         | Why it does not apply                                                                                                   |
-| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| gosec `G204`           | the seven files that launch the tools, and test files | command injection through a shell or a variable program name                   | every launch is an argument vector, never a shell; program names are constants or resolved tool paths                   |
+| Detector rule | Scope                                                   | Hazard                                                         | Why it does not apply                                                                                                                                                       |
+| ------------- | ------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| gosec `G204`  | `internal/launch/launch.go` only (no test file is excluded) | command injection through a shell or an attacker-chosen program | every launch in code and tests goes through that file: an argument vector only, a shell handed a command string refused, a bare name found on PATH or an absolute path, context-bound |
 
-The entry is `golangci.yml::exclusions.rules::gosec/G204` (two exclusions, both in the entry's
-scope), against `.golangci.yml`. Its review date is the owner's to re-decide (the entry was
-written by a model, whose tier gives a 30-day horizon); a lapsed one fails `gqaci.record.expired`.
+The entry is `golangci.yml::exclusions.rules::gosec/G204` (one exclusion), against
+`.golangci.yml`. It is permanent (see "Permanent exceptions"): starting processes is the purpose of
+that file, so the rule will always flag it, and no review date would change that. It is signed by
+the decider `repository-owner`.
 
 ### Deciders
 

@@ -23,11 +23,30 @@ func Capture(ctx context.Context, root string, s stage.Stage, argv []string) (ru
 	if len(argv) == 0 {
 		return runners.Output{}, fmt.Errorf("stage `%s` has an empty command", s.Name)
 	}
-	out, err := runners.Capture(ctx, Dir(root, s), argv[0], argv[1:]...)
+	dir := Dir(root, s)
+	program, err := programIn(dir, argv[0])
+	if err != nil {
+		return runners.Output{}, fmt.Errorf("stage `%s`: %w", s.Name, err)
+	}
+	out, err := runners.Capture(ctx, dir, program, argv[1:]...)
 	if err != nil {
 		return runners.Output{}, fmt.Errorf("stage `%s`: %w", s.Name, err)
 	}
 	return out, nil
+}
+
+// programIn is the program a stage command names, as launch takes it: a bare name stays a name to
+// find on PATH, and a path (`./scripts/lint.sh`) is resolved against the stage directory, the
+// directory it is written relative to, into an absolute path.
+func programIn(dir, program string) (string, error) {
+	if filepath.IsAbs(program) || !strings.ContainsRune(program, '/') && !strings.ContainsRune(program, filepath.Separator) {
+		return program, nil
+	}
+	abs, err := filepath.Abs(filepath.Join(dir, filepath.FromSlash(program)))
+	if err != nil {
+		return "", fmt.Errorf("resolving %s: %w", program, err)
+	}
+	return abs, nil
 }
 
 // LoadRules are the rules the stage reports, from its rules command; a stage without one reports

@@ -5,12 +5,12 @@ import (
 	"debug/buildinfo"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/cli"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 	"github.com/LongTermSupport/go-qa-ci/internal/vet"
 )
 
@@ -18,7 +18,7 @@ import (
 func buildGoQA(t *testing.T) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "go-qa")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", binary, ".")
+	build := launchtest.Command(t, "go", "build", "-o", binary, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
@@ -28,7 +28,7 @@ func buildGoQA(t *testing.T) string {
 func runBinary(t *testing.T, binary, dir string, env []string, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	cmd := exec.CommandContext(t.Context(), binary, args...)
+	cmd := launchtest.Command(t, binary, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdout = &out

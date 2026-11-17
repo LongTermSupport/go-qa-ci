@@ -3,12 +3,12 @@ package runners_test
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/faketool"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +42,7 @@ func module(t *testing.T, files map[string]string) string {
 func ctx() context.Context { return context.Background() }
 
 func TestMissingProgramIsAnErrorNeverASkip(t *testing.T) {
-	goPath, err := exec.LookPath("go")
+	goPath, err := launch.Find("go")
 	if err != nil {
 		t.Fatal(err)
 	}

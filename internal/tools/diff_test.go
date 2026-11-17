@@ -3,13 +3,13 @@ package tools_test
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 	"github.com/LongTermSupport/go-qa-ci/internal/tools"
 )
@@ -34,7 +34,7 @@ const (
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	full := append([]string{"-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"}, args...)
-	cmd := exec.CommandContext(t.Context(), "git", full...)
+	cmd := launchtest.Command(t, "git", full...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)

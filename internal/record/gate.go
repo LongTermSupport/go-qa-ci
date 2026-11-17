@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/date"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 // GateReport is the outcome of the record gate.
@@ -209,7 +209,10 @@ func recordAt(root, rev, recordPath string) (Record, bool) {
 // git runs git in dir and returns its standard output; ok is false when git cannot be run or exits
 // non-zero, which for history lookups means the history is not there.
 func git(dir string, args ...string) (string, bool) {
-	cmd := exec.CommandContext(context.Background(), "git", args...)
+	cmd, err := launch.Command(context.Background(), "git", args...)
+	if err != nil {
+		return "", false
+	}
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

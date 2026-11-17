@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/runners"
 )
 
@@ -316,7 +316,7 @@ func httpDownload(ctx context.Context, url string, w io.Writer) error {
 }
 
 func goInstall(ctx context.Context, pkg, gobin string) error {
-	goBinary, err := exec.LookPath("go")
+	goBinary, err := launch.Find("go")
 	if err != nil {
 		return fmt.Errorf("the go command is needed to build %s: %w", pkg, err)
 	}
@@ -385,7 +385,7 @@ func goVersion() func() (string, error) {
 func queryGoVersion() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	goBinary, err := exec.LookPath("go")
+	goBinary, err := launch.Find("go")
 	if err != nil {
 		return "", fmt.Errorf("the go command is needed to build the Go tools: %w", err)
 	}

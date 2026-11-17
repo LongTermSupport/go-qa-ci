@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 const plantedTerm = "zzplanted-term"
@@ -84,7 +86,7 @@ func scan(t *testing.T, repo, denylist string, args ...string) (string, int) {
 // git runs git in dir; every call site passes constant arguments.
 func git(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "git", args...)
+	cmd := launchtest.Command(t, "git", args...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
@@ -108,7 +110,7 @@ func assertLeaksNothing(t *testing.T, out string, code int, location string) {
 // scanWith runs the scanner script directly with the given mode arguments.
 func scanWith(t *testing.T, repo string, opts scanOptions, args ...string) (string, int) {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), scanScript(t), args...)
+	cmd := launchtest.Command(t, scanScript(t), args...)
 	cmd.Dir = repo
 	cmd.Env = append(withoutDenylistEnv(), opts.env...)
 	cmd.Stdin = strings.NewReader(opts.stdin)

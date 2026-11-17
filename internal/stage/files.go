@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/glob"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 	"github.com/LongTermSupport/go-qa-ci/internal/root"
 )
 
@@ -181,7 +182,10 @@ func walk(handle *os.Root) ([]string, error) {
 // insideWorkTree reports whether dir is inside a git work tree. A missing git binary is an error,
 // not a reason to treat ignored files as files to check.
 func insideWorkTree(dir string) (bool, error) {
-	cmd := exec.CommandContext(context.Background(), "git", "rev-parse", "--is-inside-work-tree")
+	cmd, err := launch.Command(context.Background(), "git", "rev-parse", "--is-inside-work-tree")
+	if err != nil {
+		return false, fmt.Errorf("git: %w; it is needed to honour .gitignore when choosing files", err)
+	}
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	var exitErr *exec.ExitError
@@ -196,7 +200,10 @@ func insideWorkTree(dir string) (bool, error) {
 }
 
 func git(dir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(context.Background(), "git", args...)
+	cmd, err := launch.Command(context.Background(), "git", args...)
+	if err != nil {
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

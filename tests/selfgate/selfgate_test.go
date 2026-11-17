@@ -214,9 +214,9 @@ func asMap(t *testing.T, v any) map[string]any {
 	return m
 }
 
-// g204ProductionFiles are the files that launch the fixed external tools the toolchain exists to
-// run: the only non-test sources gosec G204 is excluded in.
-const g204ProductionFiles = `^(internal/astgrep/run|internal/changed/git|internal/golangci/run|internal/record/gate|internal/runners/command|internal/stage/files|internal/vet/vet)\.go$`
+// g204LaunchFile is the one file that starts processes (package launch): the only file, test or
+// not, gosec G204 is excluded in. Every other launch goes through it.
+const g204LaunchFile = `^internal/launch/launch\.go$`
 
 // The overlay holds only the documented configuration exceptions plus the project's dependency
 // allow-list; each exception is named in docs/record.md for the suppression detector (M6).
@@ -245,8 +245,7 @@ func TestOverlayHoldsOnlyDocumentedExceptions(t *testing.T) {
 		got[fmt.Sprint(rule["text"])+" "+fmt.Sprint(rule["path"])] = fmt.Sprint(rule["linters"])
 	}
 	want := map[string]string{
-		"G204 " + g204ProductionFiles: "[gosec]",
-		"G204 _test\\.go$":            "[gosec]",
+		"G204 " + g204LaunchFile: "[gosec]",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("overlay exclusion rules %v, want exactly %v", got, want)

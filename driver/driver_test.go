@@ -2,7 +2,6 @@ package driver_test
 
 import (
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/LongTermSupport/go-qa-ci/driver"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 const serveEnv = "GQACI_DRIVER_TEST_SERVE"
@@ -36,7 +36,7 @@ func serve(t *testing.T, args ...string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), exe, args...)
+	cmd := launchtest.Command(t, exe, args...)
 	cmd.Env = append(os.Environ(), serveEnv+"=1")
 	out, err := cmd.Output()
 	if err != nil {

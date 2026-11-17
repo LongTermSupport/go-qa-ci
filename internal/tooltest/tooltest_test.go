@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
 
@@ -64,7 +65,7 @@ func requireIn(t *testing.T, tool, optOut string) (output string, failed bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), exe, "-test.run=^TestRequireHelper$", "-test.v")
+	cmd := launchtest.Command(t, exe, "-test.run=^TestRequireHelper$", "-test.v")
 	cmd.Env = append(os.Environ(), "TOOLTEST_HELPER_TOOL="+tool, tooltest.OptOutEnv+"="+optOut)
 	out, runErr := cmd.CombinedOutput()
 	var exitErr *exec.ExitError

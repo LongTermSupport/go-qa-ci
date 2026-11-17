@@ -2,13 +2,13 @@ package changed_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/changed"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 const module = "example.com/m"
@@ -28,7 +28,7 @@ func write(t *testing.T, dir, rel, content string) {
 func git(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	full := append([]string{"-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"}, args...)
-	cmd := exec.CommandContext(t.Context(), "git", full...)
+	cmd := launchtest.Command(t, "git", full...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)

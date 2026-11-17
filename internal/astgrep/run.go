@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch"
 )
 
 // Binary is the executable name. It is deliberately not `sg`, which on Linux is a different
@@ -25,7 +27,7 @@ type Runner struct {
 
 // Locate finds ast-grep on PATH.
 func Locate() (Runner, error) {
-	path, err := exec.LookPath(Binary)
+	path, err := launch.Find(Binary)
 	if err != nil {
 		return Runner{}, fmt.Errorf("%w: %s was not found on PATH", ErrNotInstalled, Binary)
 	}
@@ -84,7 +86,10 @@ func (r Runner) Test(ctx context.Context, dir string) (output string, passed boo
 // run executes the binary in dir; err is set only when it could not be run at all.
 func (r Runner) run(ctx context.Context, dir string, args []string) (stdout, stderr string, code int, err error) {
 	var out, errOut bytes.Buffer
-	cmd := exec.CommandContext(ctx, r.Path, args...)
+	cmd, err := launch.Command(ctx, r.Path, args...)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("running %s: %w", Binary, err)
+	}
 	cmd.Dir = dir
 	cmd.Stdout = &out
 	cmd.Stderr = &errOut

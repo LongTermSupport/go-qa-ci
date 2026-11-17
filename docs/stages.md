@@ -31,6 +31,11 @@ text = "See the ShellCheck wiki page for {id}."
 identifier (letters, digits, `-`, `_`, `.`), unique, not the name of a built-in tool, and outside the
 `gqaci.` namespace that belongs to the toolchain's own identifiers.
 
+`command`, `files_command` and `rules` are argument vectors, started without a shell. The program
+is the first element: a bare name is found on the search path, and a path (`./scripts/lint.sh`) is
+taken relative to `dir`. A shell handed a command string (`["sh", "-c", "..."]`, `bash -lc`, also
+behind `env`) is refused; put the commands in a script file and name the script instead.
+
 ## Phases and order
 
 Within a phase the built-in tools run first, in catalogue order, then the stages in declared order.

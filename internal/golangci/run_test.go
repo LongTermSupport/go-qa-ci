@@ -3,7 +3,6 @@ package golangci_test
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -12,6 +11,7 @@ import (
 	"github.com/LongTermSupport/go-qa-ci/configs"
 	"github.com/LongTermSupport/go-qa-ci/internal/finding"
 	"github.com/LongTermSupport/go-qa-ci/internal/golangci"
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 	"github.com/LongTermSupport/go-qa-ci/internal/tooltest"
 )
 
@@ -107,7 +107,7 @@ func TestBaselineIsAValidV2Configuration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(context.Background(), runner.Binary, "config", "verify", "--config", path)
+	cmd := launchtest.Command(t, runner.Binary, "config", "verify", "--config", path)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("config verify: %v\n%s", err, out)

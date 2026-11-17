@@ -66,9 +66,14 @@ its allow-list is specific to a project; this repository adds its own in the ove
 
 ## Configuration exceptions
 
-This repository's overlay configures away `gosec G204` (in the seven files that launch the tools and in
-test files). It is listed in `docs/record.md` as a configuration exception, and the suppression
-detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`.
+This repository's overlay configures away `gosec G204` in one file, `internal/launch/launch.go`.
+Package `internal/launch` is the only place go-qa starts a process: every launch in the code goes
+through it, and every launch in the tests goes through `internal/launch/launchtest`, which is built
+on it. Its contract is an argument vector only (a shell handed a command string is refused), a bare
+program name resolved with `exec.LookPath` or an absolute path the caller resolved, and a context
+bound to the process. No test file is excluded. The exception is listed in `docs/record.md`, and
+the suppression detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`,
+where it is a permanent exception: starting processes is that file's purpose.
 
 Contributors: the tests of `internal/cli`, `internal/golangci`, `internal/tools` and
 `internal/defences` run the real `golangci-lint`, so `go test ./...` fails with
@@ -99,10 +104,10 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- One Rule is not fully active on the toolchain's own source: `gosec::G204` (switched off in the
-  seven files that launch the tools and in test files, a configuration exception; every other file is
-  held to it). It is in the record with a justification (docs/record.md), but the Rule is not held
-  on this repository.
+- One Rule is not fully active on the toolchain's own source: `gosec::G204` is switched off in
+  `internal/launch/launch.go`, the one file that starts processes (a permanent configuration
+  exception; every other file, tests included, is held to it). It is in the record with a
+  justification (docs/record.md), but the Rule is not held in that file.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the

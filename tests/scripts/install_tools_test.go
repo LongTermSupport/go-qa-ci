@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/launch/launchtest"
 )
 
 // lockEntry is one `name = "value"` line of tools.lock.
@@ -118,7 +120,7 @@ func TestInstallToolsScriptCallsGoQaInstallTools(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), "bash", script, "--check", "ast-grep")
+	cmd := launchtest.Command(t, "bash", script, "--check", "ast-grep")
 	cmd.Env = append(os.Environ(), "GOQA_TOOLS_DIR="+t.TempDir())
 	out, runErr := cmd.CombinedOutput()
 	var exitErr *exec.ExitError
@@ -132,7 +134,7 @@ func TestInstallToolsScriptRefusesAnUnpinnedTool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), "bash", script, "--check", "not-a-pinned-tool")
+	cmd := launchtest.Command(t, "bash", script, "--check", "not-a-pinned-tool")
 	cmd.Env = append(os.Environ(), "GOQA_TOOLS_DIR="+t.TempDir())
 	out, runErr := cmd.CombinedOutput()
 	var exitErr *exec.ExitError
