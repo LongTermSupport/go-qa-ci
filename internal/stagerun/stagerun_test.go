@@ -67,10 +67,12 @@ func TestAProgramPathIsResolvedAgainstTheStageDirectory(t *testing.T) {
 	}
 }
 
-func TestAStageThatHandsAShellACommandStringIsRefused(t *testing.T) {
-	_, err := stagerun.LoadRules(context.Background(), project(t), stageWithRules("sh", "-c", "echo []"))
-	if err == nil || !strings.Contains(err.Error(), "command string") {
-		t.Errorf("err = %v", err)
+// A stage's command is the project's own committed configuration, so a project may hand a shell a
+// command string there, as it may name any other program.
+func TestAStageMayHandAShellACommandString(t *testing.T) {
+	rules, err := stagerun.LoadRules(context.Background(), project(t), stageWithRules("sh", "-c", "echo []"))
+	if err != nil || len(rules) != 0 {
+		t.Errorf("rules = %v, err = %v", rules, err)
 	}
 }
 

@@ -85,24 +85,13 @@ func TestCommandRefusesARelativePath(t *testing.T) {
 	}
 }
 
-func TestCommandRefusesAShellGivenACommandString(t *testing.T) {
+// A shell is an ordinary program: what it runs is the caller's argument vector, written in go-qa's
+// code or in the project's own configuration, never text from outside.
+func TestCommandRunsAShellLikeAnyOtherProgram(t *testing.T) {
 	for _, argv := range [][]string{
 		{"sh", "-c", "echo hi"},
-		{"bash", "-lc", "echo hi"},
-		{"/bin/bash", "-e", "-c", "echo hi"},
-		{"env", "FOO=1", "sh", "-c", "echo hi"},
-	} {
-		_, err := launch.Command(t.Context(), argv[0], argv[1:]...)
-		if err == nil || !strings.Contains(err.Error(), "command string") {
-			t.Errorf("Command(%q) = %v, want a refusal", argv, err)
-		}
-	}
-}
-
-func TestCommandAllowsAShellRunningAScriptFile(t *testing.T) {
-	for _, argv := range [][]string{
 		{"bash", "scripts/check.sh", "-c"},
-		{"sh", "-e", "check.sh"},
+		{"env", "FOO=1", "sh", "-c", "echo hi"},
 		{"git", "-c", "user.name=t", "status"},
 	} {
 		if _, err := launch.Command(t.Context(), argv[0], argv[1:]...); err != nil {
