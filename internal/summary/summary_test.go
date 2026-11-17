@@ -51,6 +51,23 @@ func TestRenderIsDelimitedAndNamesEveryDefenceWithItsPage(t *testing.T) {
 	}
 }
 
+func TestRenderShowsAPermanentExceptionAsPermanent(t *testing.T) {
+	listing := sample()
+	listing.Record = append(listing.Record, record.ListedException{
+		Number: 2, Rule: "govet", Path: "b.go", Covers: record.CoversSuppressions, AddedByModel: "example-model", Permanent: true,
+	})
+	listing.Budget.Total, listing.Budget.Permanent = 2, 1
+	region := summary.Render(listing)
+	for _, want := range []string{
+		"- `govet` at `b.go` (permanent, added by example-model)",
+		"- permanent (no review date): 1",
+	} {
+		if !strings.Contains(region, want) {
+			t.Errorf("region lacks %q:\n%s", want, region)
+		}
+	}
+}
+
 func TestRenderIsDeterministic(t *testing.T) {
 	first, second := summary.Render(sample()), summary.Render(sample())
 	if first != second {

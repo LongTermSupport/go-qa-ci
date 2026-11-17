@@ -16,7 +16,7 @@
 //	decided_by = "example-owner"
 //	added_by_model = "human"     # or the model id that wrote the entry
 //	decided_on = 2026-01-15
-//	review_by = 2026-04-15
+//	review_by = 2026-04-15       # or permanent = true, never both
 //	covers = "suppressions"      # or "findings"
 //
 // This package checks structure and wording; budgets, deadlines, trust tiers and the ratchet are
@@ -93,6 +93,8 @@ type Exception struct {
 	Line int
 	// Policy marks a deliberately broad (glob) exception.
 	Policy bool
+	// Permanent marks an exception inherent to the code: it has no review date and never expires.
+	Permanent bool
 }
 
 // EffectiveCovers is Covers, with the unset value read as the default, CoversSuppressions.
@@ -125,6 +127,7 @@ type rawException struct {
 	ReviewBy      any     `toml:"review_by"`
 	Covers        string  `toml:"covers"`
 	Policy        bool    `toml:"policy"`
+	Permanent     bool    `toml:"permanent"`
 }
 
 // Load reads the record at path. A missing file is an empty record; a file that cannot be read or
@@ -256,7 +259,7 @@ func convert(raw rawRecord, headers []int) (Record, error) {
 			Rule: r.Rule, Path: r.Path, Justification: r.Justification,
 			DecidedBy: r.DecidedBy, AddedByModel: r.AddedByModel,
 			DecidedOn: decidedOn, ReviewBy: reviewBy,
-			Policy: r.Policy, Covers: covers, Line: line,
+			Policy: r.Policy, Permanent: r.Permanent, Covers: covers, Line: line,
 		})
 	}
 	return rec, nil

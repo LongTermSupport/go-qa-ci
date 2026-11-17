@@ -27,6 +27,7 @@ type ListedException struct {
 	Justification string `json:"justification"`
 	Number        int    `json:"number"`
 	Policy        bool   `json:"policy"`
+	Permanent     bool   `json:"permanent"`
 }
 
 type listing struct {
@@ -44,7 +45,7 @@ func (r Record) listing() listing {
 	}
 	for i, e := range r.Exceptions {
 		out.Exceptions = append(out.Exceptions, ListedException{
-			Number: i + 1, Rule: e.Rule, Path: e.Path, Covers: e.EffectiveCovers(), Policy: e.Policy,
+			Number: i + 1, Rule: e.Rule, Path: e.Path, Covers: e.EffectiveCovers(), Policy: e.Policy, Permanent: e.Permanent,
 			DecidedBy: deref(e.DecidedBy), AddedByModel: deref(e.AddedByModel),
 			DecidedOn: e.DecidedOn.String(), ReviewBy: e.ReviewBy.String(),
 			Justification: e.Justification,
@@ -74,6 +75,9 @@ func (r Record) List() string {
 		if e.Policy {
 			out.WriteString("  policy")
 		}
+		if e.Permanent {
+			out.WriteString("  permanent")
+		}
 		out.WriteString("\n")
 		writeProvenance(&out, e)
 		fmt.Fprintf(&out, "    %s\n", e.Justification)
@@ -92,6 +96,9 @@ func writeProvenance(out *strings.Builder, e ListedException) {
 		if field.value != "" {
 			parts = append(parts, field.name+" "+field.value)
 		}
+	}
+	if e.Permanent && e.ReviewBy == "" {
+		parts = append(parts, "review_by never (permanent)")
 	}
 	if len(parts) > 0 {
 		fmt.Fprintf(out, "    %s\n", strings.Join(parts, ", "))
@@ -133,6 +140,9 @@ func (r Record) Explain(selector string) (string, error) {
 		fmt.Fprintf(&out, "exception #%d\n  rule:    %s\n  path:    %s\n  covers:  %s\n", e.Number, e.Rule, e.Path, e.Covers)
 		if e.Policy {
 			out.WriteString("  policy:  true (a deliberately broad exception)\n")
+		}
+		if e.Permanent {
+			out.WriteString("  permanent: true (inherent to the code; no review date)\n")
 		}
 		writeProvenance(&out, e)
 		fmt.Fprintf(&out, "  why:     %s\n", e.Justification)

@@ -20,6 +20,8 @@ type Budget struct {
 	// Policy counts the broad (glob) exceptions; MaxPolicy is its cap.
 	Policy    int `json:"policy"`
 	MaxPolicy int `json:"max_policy"`
+	// Permanent counts the exceptions with no review date; they count toward every cap above.
+	Permanent int `json:"permanent"`
 	// HighWater is the ratchet ceiling; -1 when the record has no ratchet.
 	HighWater int `json:"high_water"`
 	// MaxReviewDays is the longest review horizon for any tier.
@@ -46,6 +48,7 @@ func BudgetOf(rec Record, policy config.RecordPolicy) Budget {
 		Total: len(rec.Exceptions), MaxTotal: policy.MaxTotal,
 		BusiestRule: busiest, BusiestCount: count, MaxPerRule: policy.MaxPerRule,
 		Policy: countWhere(rec.Exceptions, func(e Exception) bool { return e.Policy }), MaxPolicy: policy.MaxPolicy,
+		Permanent: countWhere(rec.Exceptions, func(e Exception) bool { return e.Permanent }),
 		HighWater: highWater, MaxReviewDays: policy.MaxReviewDays,
 	}
 }
@@ -60,11 +63,13 @@ func (b Budget) Lines() []string {
 	if b.HighWater >= 0 {
 		ratchet = fmt.Sprintf("high_water %d", b.HighWater)
 	}
-	return []string{
+	lines := []string{
 		fmt.Sprintf("exceptions: %d of %d", b.Total, b.MaxTotal),
 		fmt.Sprintf("per rule: at most %d (%s)", b.MaxPerRule, perRule),
 		fmt.Sprintf("policy-level (glob): %d of %d", b.Policy, b.MaxPolicy),
-		"ratchet: " + ratchet,
-		fmt.Sprintf("review horizon: %d days", b.MaxReviewDays),
 	}
+	if b.Permanent > 0 {
+		lines = append(lines, fmt.Sprintf("permanent (no review date): %d", b.Permanent))
+	}
+	return append(lines, "ratchet: "+ratchet, fmt.Sprintf("review horizon: %d days", b.MaxReviewDays))
 }

@@ -4,8 +4,9 @@
 
 An exception in the project record (`qa/record.toml`) that is malformed or insufficiently
 justified: no rule or path, a glob path without `policy = true`, a missing or blank `decided_by`,
-`added_by_model`, `decided_on` or `review_by`, a model that maps to no trust tier, a human entry
-signed by someone who is not a configured decider, a review date outside the tier's horizon, or a
+`added_by_model` or `decided_on`, neither a `review_by` nor `permanent = true` (or both at once),
+a model that maps to no trust tier, a human or permanent entry signed by someone who is not a
+configured decider, a review date outside the tier's horizon, or a
 justification that is empty, shorter than 25 characters, a bare word such as `legacy`, or carries a
 placeholder (`todo`, `tbd`, `fixme`, `xxx`). Each finding names the entry's number, its rule and
 the line of its `[[exception]]` header.
@@ -20,7 +21,8 @@ justify is a hole that cannot be reviewed.
 Edit the entry so that it states a decision. Name the hazard the rule guards against, say why it
 does not apply here, and give the scope (one file, or the glob and why it is that wide). Fill in
 `decided_by`, `added_by_model` (`human` or a model id with a configured prefix), `decided_on` and a
-`review_by` inside the horizon. If you cannot write an honest justification, delete the entry and
+`review_by` inside the horizon, or, for an exception inherent to the code, `permanent = true` with
+no `review_by` and a configured decider as `decided_by`. If you cannot write an honest justification, delete the entry and
 fix the code the rule flags instead.
 
 ## Suppression
