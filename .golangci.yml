@@ -2,39 +2,31 @@
 # baseline configs/golangci.yml plus qa/golangci-overlay.yml, nothing else. golangci-lint cannot
 # merge files, so this file is the merged result and tests/selfgate fails when it is not exactly
 # that, or when any baseline linter, setting, formatter or cap is missing. Change the baseline or
-# the overlay, then mirror the change here.
+# the overlay, then mirror the change here. The reason each linter is on is in the baseline.
 version: "2"
 
 linters:
   default: standard
   enable:
     - bodyclose
-    - contextcheck
-    - durationcheck
-    - errchkjson
-    - errname
     - errorlint
     - exhaustive
-    - forcetypeassert
-    - gocognit
-    - gocritic
     - gosec
+    - gocritic
     - misspell
-    - nilerr
-    - nilnil
-    - noctx
     - nolintlint
     - predeclared
     - revive
-    - rowserrcheck
-    - sqlclosecheck
     - testifylint
-    - thelper
-    - tparallel
     - unconvert
     - unparam
     - usestdlibvars
-    - wrapcheck
+    - durationcheck
+    - errchkjson
+    - nilerr
+    - nilnil
+    - thelper
+    - gocognit
     # Overlay (qa/golangci-overlay.yml): everything above is the bundled baseline.
     - depguard
   settings:
@@ -63,7 +55,13 @@ linters:
       check-type-assertions: true
       check-blank: true
     govet:
-      enable-all: true
+      enable:
+        - atomicalign
+        - deepequalerrors
+        - nilness
+        - sortslice
+        - timeformat
+        - unusedwrite
     nolintlint:
       require-explanation: true
       require-specific: true

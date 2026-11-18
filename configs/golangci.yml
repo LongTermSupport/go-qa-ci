@@ -1,44 +1,48 @@
-# go-qa strict golangci-lint v2 baseline, used when the project has no .golangci.* file.
-# Choosing which linters are enabled or disabled is choosing the defence set (go-qa rules lists the
-# result); only exclusions of findings are suppressions, and this baseline carries none.
+# go-qa golangci-lint v2 baseline, used when the project has no .golangci.* file: golangci-lint's
+# standard set plus the linters below, each with the reason it is on. A check runs on all code, or
+# it is off for all code with a one-line reason beside it; this baseline carries no exclusion of
+# findings. Choosing which linters run is choosing the defence set (go-qa rules lists the result).
 version: "2"
 
 linters:
   default: standard
   enable:
-    - bodyclose
-    - contextcheck
-    - durationcheck
-    - errchkjson
-    - errname
-    - errorlint
-    - exhaustive
-    - forcetypeassert
-    - gocognit
-    - gocritic
-    - gosec
-    - misspell
-    - nilerr
-    - nilnil
-    - noctx
-    - nolintlint
-    - predeclared
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - testifylint
-    - thelper
-    - tparallel
-    - unconvert
-    - unparam
-    - usestdlibvars
-    - wrapcheck
+    # Linters at least one major Go project enables.
+    - bodyclose # an unclosed HTTP response body leaks the connection
+    - errorlint # comparing or asserting a wrapped error misses it; use errors.Is and errors.As
+    - exhaustive # a switch over an enum that misses a value hides a new case
+    - gosec # security defects: injection, weak crypto, unsafe file permissions
+    - gocritic # bug and performance patterns, default checks only
+    - misspell # misspelt English in comments and strings
+    - nolintlint # an inline directive must name its linter, give a reason and still be needed
+    - predeclared # shadowing a predeclared identifier (len, new, error) misleads the reader
+    - revive # golint's successor, default rules only
+    - testifylint # misuse of testify assertions that passes when it should fail
+    - unconvert # a conversion to the type the value already has
+    - unparam # a parameter that always receives the same value, or a result never used
+    - usestdlibvars # a literal where the standard library has a named constant
+    # Narrow bug patterns, each with few false positives.
+    - durationcheck # two durations multiplied together
+    - errchkjson # an encoding/json error that is dropped, or a type json cannot encode
+    - nilerr # returning nil after checking that an error is not nil
+    - nilnil # returning a nil value and a nil error together
+    - thelper # a test helper that does not call t.Helper first
+    # Complexity: gocognit is the one measure, because it scores what a reader has to hold in mind.
+    - gocognit # cognitive complexity of a function
   settings:
     errcheck:
       check-type-assertions: true
       check-blank: true
     govet:
-      enable-all: true
+      # vet's own defaults, plus the analyzers gopls runs by default. shadow and fieldalignment
+      # stay off: more noise than signal.
+      enable:
+        - atomicalign # a 64-bit atomic on a field that is not 64-bit aligned on 32-bit platforms
+        - deepequalerrors # reflect.DeepEqual on errors, which compares their internals
+        - nilness # a nil pointer dereference or a comparison that is always true or false
+        - sortslice # sort.Slice called on something that is not a slice
+        - timeformat # a time layout using 2006-02-01, which is almost always a typo
+        - unusedwrite # a write to a struct field that is never read
     nolintlint:
       # An unused or unexplained inline directive fails, so a suppression cannot outlive its reason.
       require-explanation: true

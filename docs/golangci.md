@@ -61,12 +61,29 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
 
 ## The bundled baseline
 
-`configs/golangci.yml` is the golangci-lint v2 configuration for a project with none of its own:
-the `standard` linters plus a stated set (bodyclose, errorlint, gosec, gocritic, revive, wrapcheck
-and others), `errcheck` with type assertions and blank assignments checked, `govet` with every
-analyzer, `fieldalignment` included, `nolintlint` requiring a specific, explained, used directive, and
-no cap on the number of issues. It carries no exclusion. `depguard` is not in the baseline because
-its allow-list is specific to a project; this repository adds its own in the overlay below.
+`configs/golangci.yml` is the golangci-lint v2 configuration for a project with none of its own.
+It follows Go's own opinions: a check runs on all code or is off, and a check that is more noise
+than signal is off. Each linter it enables carries the reason on its line.
+
+- `linters.default: standard` (errcheck, govet, ineffassign, staticcheck, unused), and no
+  `enable-all` anywhere.
+- Linters at least one major Go project enables: errorlint, bodyclose, exhaustive, misspell,
+  unconvert, usestdlibvars, predeclared, testifylint, nolintlint, unparam, gocritic (default checks
+  only), revive (default rules only), gosec.
+- Narrow bug patterns: nilerr, nilnil, errchkjson, durationcheck, thelper.
+- Complexity: gocognit, the only measure.
+- `govet`: vet's defaults plus the analyzers gopls runs by default (nilness, unusedwrite,
+  atomicalign, deepequalerrors, sortslice, timeformat); shadow and fieldalignment stay off.
+- `errcheck` with type assertions and blank assignments checked, `nolintlint` requiring a
+  specific, explained, used directive, and no cap on the number of issues.
+
+Off, because they are noisier than they are reliable or enforce a style Go does not ask for:
+wrapcheck, depguard, forcetypeassert, errname, noctx, contextcheck, tparallel, rowserrcheck,
+sqlclosecheck, dupword, goconst, exhaustruct, varnamelen, wsl, ireturn, err113,
+gochecknoglobals, paralleltest, testpackage, lll, mnd, godot, cyclop, gocyclo, funlen, nestif. A
+project that wants one enables it in its own configuration (`depguard` needs an allow-list specific
+to a project; this repository adds its own in the overlay below). The baseline carries no
+exclusion. `configs/golangci_test.go` holds the baseline to exactly this set.
 
 ## Switch-offs
 
