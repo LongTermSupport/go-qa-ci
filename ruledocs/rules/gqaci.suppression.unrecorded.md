@@ -4,8 +4,11 @@
 
 A suppression with no matching exception in the project record: a nolint, `#nosec`, ast-grep
 ignore or staticcheck `lint:ignore` directive; a hand-written generated-code header; a
-`staticcheck.conf` that removes or whitelists checks; or an exclusion or disabled rule in
-`.golangci.yml`, whose rule and path no record entry licenses. A Go or configuration file that cannot
+`staticcheck.conf` that narrows its checks list or whitelists names; or a setting in
+`.golangci.yml` that excludes findings in part of the code or weakens checks without naming one,
+whose rule and path no record entry licenses. A rule switched off for all code (a linter in
+`linters.disable`, or a rule in its linter's own switch-off list) is not a suppression and is not
+flagged. A Go or configuration file that cannot
 be parsed is reported under this identifier too, because what it silences cannot be verified.
 
 ## Why

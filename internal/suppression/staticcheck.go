@@ -1,6 +1,7 @@
 package suppression
 
 import (
+	"slices"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -16,8 +17,9 @@ const (
 // whitelistKeys are staticcheck.conf settings that soften checks without naming one to disable.
 var whitelistKeys = []string{"initialisms", "dot_import_whitelist", "http_status_code_whitelist"}
 
-// scanStaticcheckConf reads one staticcheck.conf: the checks it removes or narrows to, and the
-// whitelists that exempt names from checks.
+// scanStaticcheckConf reads one staticcheck.conf: a checks list narrowed to named checks, and the
+// whitelists that exempt names from checks. A check removed with `-XXXX` from the full or inherited
+// set is switched off for all code, which is choosing the defence set and no suppression.
 func scanStaticcheckConf(name string, data []byte) fileScan {
 	var conf map[string]any
 	if err := toml.Unmarshal(data, &conf); err != nil {
@@ -26,19 +28,12 @@ func scanStaticcheckConf(name string, data []byte) fileScan {
 	text := string(data)
 	var found []Suppression
 	if checks, ok := conf["checks"].([]any); ok {
-		line := keyLine(text, "checks")
-		keepsDefaults := false
-		for _, entry := range checks {
+		keepsDefaults := slices.ContainsFunc(checks, func(entry any) bool {
 			check, isString := entry.(string)
-			switch {
-			case !isString:
-			case check == checksAll || check == checksInherit:
-				keepsDefaults = true
-			case strings.HasPrefix(check, "-"):
-				found = append(found, Suppression{Rule: staticcheckConfRule + "checks::" + strings.TrimPrefix(check, "-"), Path: name, Line: line, Route: RouteStaticcheckConf})
-			}
-		}
+			return isString && (check == checksAll || check == checksInherit)
+		})
 		if !keepsDefaults {
+			line := keyLine(text, "checks")
 			found = append(found, Suppression{Rule: staticcheckConfRule + "checks", Path: name, Line: line, Route: RouteStaticcheckConf})
 		}
 	}

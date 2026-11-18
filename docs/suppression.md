@@ -37,7 +37,6 @@ carries it. `covers` is left at its default, `suppressions`.
 | gosec marker                        | `gosec::G104` (one per code named)                                                        |
 | `ast-grep` ignore comment           | the ast-grep rule id as written                                                           |
 | generated-code header               | `go::generated-header`                                                                    |
-| `staticcheck.conf`, a removed check | `staticcheck.conf::checks::SA1019`                                                        |
 | `staticcheck.conf`, a narrowed list | `staticcheck.conf::checks` (a `checks` list without `all` or `inherit`)                   |
 | `staticcheck.conf`, a whitelist     | `staticcheck.conf::initialisms`, `::dot_import_whitelist`, `::http_status_code_whitelist` |
 | golangci-lint configuration         | `golangci.yml::` plus the route below, whatever the file format                           |
@@ -55,16 +54,27 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                   | `issues.<key>::<value>`                                                |
 | `issues.new`, `new-from-rev`, `new-from-merge-base`, `new-from-patch`                                                                              | `issues.new`, `issues.new-from-rev::X`, and so on                      |
 | `run.tests: false`                                                                                                                                 | `run.tests`                                                            |
-| `errcheck.exclude-functions`, `gosec.excludes`, `govet.disable`, `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable` items | `<linter>.<setting>::X`                                                |
-| `staticcheck.checks` item starting with `-`                                                                                                        | `staticcheck.checks::<check>`                                          |
+| `errcheck.exclude-functions` items                                                                                                                 | `errcheck.exclude-functions::X`                                        |
 | `govet.disable-all`, `testifylint.disable-all`, `revive.ignore-generated-header` set to true                                                       | the setting name                                                       |
-| `revive` rule with `disabled: true` or a non-empty `exclude`                                                                                       | `revive.rules::<name>/disabled`, `revive.rules::<name>/exclude`        |
+| `revive` rule with a non-empty `exclude`                                                                                                           | `revive.rules::<name>/exclude`                                         |
 
-`linters.enable` and `linters.disable` are not in the table: which linters run is the defence set a
-project chooses (README: "Writing rules"), not an exclusion of findings, so disabling a linter
-needs no record entry. The choice stays visible, because `go-qa rules` and the generated summary
-list the linters that run. A check switched off inside a running linter (the `<linter>.<setting>`
-rows) and a `linters.default` other than `standard` or `all` do drop findings, and stay routes.
+### A switch-off for all code is not a suppression
+
+A check runs on all code, or it is off for all code with a one-line reason beside it in the
+configuration. Which checks run is the defence set a project chooses (README: "Writing rules"),
+not an exclusion of findings, so none of these needs a record entry and none is in the table:
+
+- a linter in `linters.disable` (or left out of `linters.enable`);
+- one rule in its linter's own switch-off list: `gosec.excludes`, `govet.disable`,
+  `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable`, a revive rule with
+  `disabled: true`, and a staticcheck check removed with `-XXXX` (in golangci-lint's
+  `staticcheck.checks` or in a `staticcheck.conf` whose list keeps `all` or `inherit`).
+
+Write the reason as a comment on the line, so a reader of the configuration sees why the check is
+off. What stays a route is what hides findings in part of the code (the exclusions, a revive
+`exclude`, `errcheck.exclude-functions`) or weakens checks without naming one (`*.disable-all`, a
+narrowed `linters.default` or staticcheck list, a severity below `error`, the staticcheck
+whitelists, the issue caps and `issues.new*`).
 
 A `<linters>` detail is the linters joined by `+`, or `*` for none. The record cannot bind an entry
 to one exclusion among several in a file: the path of the exception is the configuration file, so
