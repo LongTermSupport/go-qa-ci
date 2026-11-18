@@ -10,7 +10,10 @@ func TestStaticcheckConfRoutes(t *testing.T) {
 		text string
 		want []string
 	}{
-		{"disabled checks", "checks = [\"all\", \"-SA1019\", \"-ST1000\"]\n", []string{"staticcheck.conf::checks::SA1019@" + conf + ":1", "staticcheck.conf::checks::ST1000@" + conf + ":1"}},
+		// A check removed from the full set is switched off for all code: no record entry needed.
+		{"checks removed from the full set", "checks = [\"all\", \"-SA1019\", \"-ST1000\"]\n", nil},
+		{"checks removed from the inherited set", "checks = [\"inherit\", \"-SA1019\"]\n", nil},
+		{"a narrowed list that also removes a check", "checks = [\"SA1019\", \"-SA1000\"]\n", []string{"staticcheck.conf::checks@" + conf + ":1"}},
 		{"a check list that drops the rest", "checks = [\"SA1019\"]\n", []string{"staticcheck.conf::checks@" + conf + ":1"}},
 		{"inherited list", "checks = [\"inherit\", \"SA1019\"]\n", nil},
 		{"whitelists", "checks = [\"all\"]\ninitialisms = [\"ID\"]\ndot_import_whitelist = [\"x\"]\nhttp_status_code_whitelist = [\"200\"]\n", []string{
@@ -28,8 +31,8 @@ func TestStaticcheckConfRoutes(t *testing.T) {
 
 func TestStaticcheckConfInASubdirectoryAndUnparseable(t *testing.T) {
 	t.Parallel()
-	result := scan(t, map[string]string{"pkg/staticcheck.conf": "checks = [\"all\", \"-SA1019\"]\n", "other/staticcheck.conf": "checks = ["})
-	wantExactly(t, ruleLines(result), "staticcheck.conf::checks::SA1019@pkg/staticcheck.conf:1")
+	result := scan(t, map[string]string{"pkg/staticcheck.conf": "checks = [\"SA1019\"]\n", "other/staticcheck.conf": "checks = ["})
+	wantExactly(t, ruleLines(result), "staticcheck.conf::checks@pkg/staticcheck.conf:1")
 	if len(result.Unparseable) != 1 || result.Unparseable[0].Path != "other/staticcheck.conf" {
 		t.Errorf("got %+v", result.Unparseable)
 	}

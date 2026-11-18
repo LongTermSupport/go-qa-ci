@@ -23,6 +23,9 @@ const (
 	SuppressionUnrecorded = builtin.SuppressionUnrecorded
 	// SuppressionBare marks a suppression that names no rule or gives no reason.
 	SuppressionBare = builtin.SuppressionBare
+	// SuppressionExclusionRule marks a golangci-lint path or text exclusion rule, which no record
+	// entry can license.
+	SuppressionExclusionRule = builtin.SuppressionExclusionRule
 	// SummaryStale marks a generated agent summary region that is out of date.
 	SummaryStale = builtin.SummaryStale
 	// DocsDangling marks an identifier that resolves to no documentation.

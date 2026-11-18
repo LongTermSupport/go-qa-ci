@@ -15,6 +15,7 @@ globs are honoured. `-p` limits the scan to the named paths.
 | ------------------------------ | ------------------------------------------------------------------------------ | --------------------- |
 | `gqaci.suppression.unrecorded` | a suppression whose rule and file no `covers = "suppressions"` exception names | yes, by that entry    |
 | `gqaci.suppression.bare`       | a suppression that names no rule, or gives no reason (the next section)        | no                    |
+| `gqaci.suppression.exclusion-rule` | a golangci-lint `linters.exclusions.rules` entry ("Exclusion rules" below) | no                    |
 | `gqaci.record.stale`           | a `covers = "suppressions"` exception that licenses nothing the scan found     | removed by the owner  |
 
 An unparseable file is reported as `gqaci.suppression.unrecorded` with `cannot parse` and the parser's
@@ -37,7 +38,6 @@ carries it. `covers` is left at its default, `suppressions`.
 | gosec marker                        | `gosec::G104` (one per code named)                                                        |
 | `ast-grep` ignore comment           | the ast-grep rule id as written                                                           |
 | generated-code header               | `go::generated-header`                                                                    |
-| `staticcheck.conf`, a removed check | `staticcheck.conf::checks::SA1019`                                                        |
 | `staticcheck.conf`, a narrowed list | `staticcheck.conf::checks` (a `checks` list without `all` or `inherit`)                   |
 | `staticcheck.conf`, a whitelist     | `staticcheck.conf::initialisms`, `::dot_import_whitelist`, `::http_status_code_whitelist` |
 | golangci-lint configuration         | `golangci.yml::` plus the route below, whatever the file format                           |
@@ -46,7 +46,6 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 
 | Setting                                                                                                                                            | Rule                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `linters.exclusions.rules` entry                                                                                                                   | `exclusions.rules::<linters>[/<text>]`                                 |
 | `linters.exclusions.paths`, `.presets`                                                                                                             | `exclusions.paths::X`, `exclusions.presets::X`                         |
 | `linters.exclusions.generated` other than `disable`                                                                                                | `exclusions.generated::X`                                              |
 | `formatters.exclusions.paths`, `.generated` other than `disable`                                                                                   | `formatters.exclusions.paths::X`, `formatters.exclusions.generated::X` |
@@ -55,20 +54,41 @@ Configuration routes (all under `golangci.yml::`; `X` is the value or item named
 | `issues.max-issues-per-linter`, `issues.max-same-issues` above 0                                                                                   | `issues.<key>::<value>`                                                |
 | `issues.new`, `new-from-rev`, `new-from-merge-base`, `new-from-patch`                                                                              | `issues.new`, `issues.new-from-rev::X`, and so on                      |
 | `run.tests: false`                                                                                                                                 | `run.tests`                                                            |
-| `errcheck.exclude-functions`, `gosec.excludes`, `govet.disable`, `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable` items | `<linter>.<setting>::X`                                                |
-| `staticcheck.checks` item starting with `-`                                                                                                        | `staticcheck.checks::<check>`                                          |
+| `errcheck.exclude-functions` items                                                                                                                 | `errcheck.exclude-functions::X`                                        |
 | `govet.disable-all`, `testifylint.disable-all`, `revive.ignore-generated-header` set to true                                                       | the setting name                                                       |
-| `revive` rule with `disabled: true` or a non-empty `exclude`                                                                                       | `revive.rules::<name>/disabled`, `revive.rules::<name>/exclude`        |
+| `revive` rule with a non-empty `exclude`                                                                                                           | `revive.rules::<name>/exclude`                                         |
 
-`linters.enable` and `linters.disable` are not in the table: which linters run is the defence set a
-project chooses (README: "Writing rules"), not an exclusion of findings, so disabling a linter
-needs no record entry. The choice stays visible, because `go-qa rules` and the generated summary
-list the linters that run. A check switched off inside a running linter (the `<linter>.<setting>`
-rows) and a `linters.default` other than `standard` or `all` do drop findings, and stay routes.
+### A switch-off for all code is not a suppression
 
-A `<linters>` detail is the linters joined by `+`, or `*` for none. The record cannot bind an entry
-to one exclusion among several in a file: the path of the exception is the configuration file, so
-the justification must state which exclusion it covers. A TOML configuration has no usable lines
+A check runs on all code, or it is off for all code with a one-line reason beside it in the
+configuration. Which checks run is the defence set a project chooses (README: "Writing rules"),
+not an exclusion of findings, so none of these needs a record entry and none is in the table:
+
+- a linter in `linters.disable` (or left out of `linters.enable`);
+- one rule in its linter's own switch-off list: `gosec.excludes`, `govet.disable`,
+  `gocritic.disabled-checks`, `gocritic.disabled-tags`, `testifylint.disable`, a revive rule with
+  `disabled: true`, and a staticcheck check removed with `-XXXX` (in golangci-lint's
+  `staticcheck.checks` or in a `staticcheck.conf` whose list keeps `all` or `inherit`).
+
+Write the reason as a comment on the line, so a reader of the configuration sees why the check is
+off. What stays a route is what hides findings in part of the code (the exclusions, a revive
+`exclude`, `errcheck.exclude-functions`) or weakens checks without naming one (`*.disable-all`, a
+narrowed `linters.default` or staticcheck list, a severity below `error`, the staticcheck
+whitelists, the issue caps and `issues.new*`). A path or text exclusion rule is never licensable
+(next section).
+
+### Exclusion rules
+
+A `linters.exclusions.rules` entry keeps a check in the defence set while hiding it in the files
+or findings its pattern selects. It fails as `gqaci.suppression.exclusion-rule`, whatever the
+record says: fix the code, or turn the check off for all code with a one-line reason. The finding
+names the entry as `golangci.yml::exclusions.rules::<linters>[/<text>]` (the linters joined by `+`,
+or `*` for none) and points at its line. A record exception naming such a rule is invalid
+(`gqaci.record.invalid`, docs/record.md) and, licensing nothing, stale.
+
+A `<linters>` detail (severity rules) is the linters joined by `+`, or `*` for none. The record
+cannot bind an entry to one setting among several of the same rule in a file: the path of the
+exception is the configuration file, so the justification must state which it covers. A TOML configuration has no usable lines
 (it is converted before reading), so its findings point at line 0.
 
 The default issue caps of golangci-lint (50 per linter, 3 of the same issue) would hide findings, but
@@ -102,15 +122,14 @@ is deliberately as wide as golangci-lint's, so a doc comment before the package 
 go-qa does not claim conformance with 4.3; these routes are not covered:
 
 - `ast-grep-ignore` is read in Go comments only, not in the other languages an ast-grep rule reads.
-- The list of golangci-lint per-linter settings that switch a check off is closed (the tables
-  above); a setting of a linter not listed there is not seen.
+- The list of golangci-lint per-linter settings that hide findings in part of the code or weaken
+  checks without naming one is closed (the tables above); a setting of a linter not listed there
+  is not seen.
 - A configuration passed with `-c` or from outside the root, `//go:build ignore`, and `t.Skip`
   without a condition are not covered.
 - The configuration the bundled baseline supplies when a project has none is not scanned; the
-  baseline itself switches off no check and excludes no finding.
+  baseline itself excludes no finding.
 - Only files under the root are scanned; vendored and `testdata` trees are skipped by design.
-- Every `linters.exclusions.rules` entry with neither `linters` nor `text` (a path-only or
-  source-only rule) is the same rule, `exclusions.rules::*`, so one record entry licenses any
-  number of them in the file; the justification has to say which exclusions it covers.
-- A golangci-lint configuration keeps no per-exclusion identity beyond that detail, so the
-  one-decision-per-exclusion property holds only for exclusions that name a linter or a text.
+- A golangci-lint configuration keeps no per-setting identity beyond the rule detail, so two
+  severity rules for the same linters and severity are one rule, and one record entry licenses
+  both; the justification has to say which it covers.

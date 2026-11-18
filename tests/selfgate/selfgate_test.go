@@ -99,7 +99,7 @@ func missing(base, got any, path string) []string {
 
 // merge applies overlay on top of base: mappings merge, lists append, and a scalar the baseline
 // already sets cannot be changed. That does not stop an overlay weakening the baseline through a key
-// the baseline leaves unset (gosec.excludes, linters.exclusions.rules); TestOverlayHoldsOnlyDocumentedExceptions
+// the baseline leaves unset (gosec.excludes, linters.exclusions.rules); TestOverlayHoldsOnlyDocumentedSwitchOffs
 // pins the overlay's exact content for that reason.
 func merge(base, overlay any, path string) (any, error) {
 	switch o := overlay.(type) {
@@ -214,47 +214,39 @@ func asMap(t *testing.T, v any) map[string]any {
 	return m
 }
 
-// g204LaunchFile is the one file that starts processes (package launch): the only file, test or
-// not, gosec G204 is excluded in. Every other launch goes through it.
-const g204LaunchFile = `^internal/launch/launch\.go$`
-
-// The overlay holds only the documented configuration exceptions plus the project's dependency
-// allow-list; each exception is named in docs/record.md for the suppression detector (M6).
-func TestOverlayHoldsOnlyDocumentedExceptions(t *testing.T) {
+// The overlay holds only the project's dependency allow-list and the documented switch-offs: gosec
+// G204 off for all code (a tool runner starts programs by design). It carries no exclusion of
+// findings in part of the code, which the suppression detector would fail.
+func TestOverlayHoldsOnlyDocumentedSwitchOffs(t *testing.T) {
 	t.Parallel()
 	overlay := readYAML(t, repoPath("qa", "golangci-overlay.yml"))
 	if keys := mapKeys(overlay); !slices.Equal(keys, []string{"linters"}) {
 		t.Fatalf("overlay top-level keys %v, want only linters", keys)
 	}
 	linters := asMap(t, overlay["linters"])
-	if keys := mapKeys(linters); !slices.Equal(keys, []string{"enable", "exclusions", "settings"}) {
-		t.Fatalf("overlay linters keys %v", keys)
+	if keys := mapKeys(linters); !slices.Equal(keys, []string{"enable", "settings"}) {
+		t.Fatalf("overlay linters keys %v, want enable and settings only", keys)
 	}
 	if got := asList(t, linters["enable"]); !reflect.DeepEqual(got, []any{"depguard"}) {
 		t.Fatalf("overlay enables %v, want only depguard", got)
 	}
 	settings := asMap(t, linters["settings"])
-	if keys := mapKeys(settings); !slices.Equal(keys, []string{"depguard"}) {
-		t.Fatalf("overlay settings %v, want depguard only: gosec G204 is excluded per file, not module-wide", keys)
+	if keys := mapKeys(settings); !slices.Equal(keys, []string{"depguard", "gosec"}) {
+		t.Fatalf("overlay settings %v, want depguard and gosec only", keys)
 	}
-	exclusions := asMap(t, linters["exclusions"])
-	rules := asList(t, exclusions["rules"])
-	got := map[string]string{}
-	for _, entry := range rules {
-		rule := asMap(t, entry)
-		got[fmt.Sprint(rule["text"])+" "+fmt.Sprint(rule["path"])] = fmt.Sprint(rule["linters"])
+	gosec := asMap(t, settings["gosec"])
+	if keys := mapKeys(gosec); !slices.Equal(keys, []string{"excludes"}) {
+		t.Fatalf("overlay gosec settings %v, want excludes only", keys)
 	}
-	want := map[string]string{
-		"G204 " + g204LaunchFile: "[gosec]",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("overlay exclusion rules %v, want exactly %v", got, want)
+	switchedOff := asList(t, gosec["excludes"])
+	if !reflect.DeepEqual(switchedOff, []any{"G204"}) {
+		t.Fatalf("overlay switches off gosec %v, want exactly [G204]", switchedOff)
 	}
 
-	docs := readRepoFile(t, repoPath("docs", "record.md"))
-	for _, exception := range []string{"G204"} {
-		if !strings.Contains(string(docs), "gosec `"+exception+"`") {
-			t.Errorf("docs/record.md does not list the %s configuration exception", exception)
+	docs := readRepoFile(t, repoPath("docs", "golangci.md"))
+	for _, rule := range switchedOff {
+		if !strings.Contains(string(docs), fmt.Sprintf("gosec `%v`", rule)) {
+			t.Errorf("docs/golangci.md does not explain why gosec %v is switched off", rule)
 		}
 	}
 }

@@ -39,6 +39,9 @@ const (
 	RouteStaticcheckConf Route = "staticcheck.conf setting"
 	// RouteGolangciConfig is an exclusion or disabling setting in golangci-lint configuration.
 	RouteGolangciConfig Route = "golangci-lint configuration setting"
+	// RouteGolangciExclusionRule is a `linters.exclusions.rules` entry in golangci-lint
+	// configuration: it hides a check in part of the code, and no record entry can license it.
+	RouteGolangciExclusionRule Route = "golangci-lint exclusion rule"
 )
 
 // Suppression is one thing that silences a defence.

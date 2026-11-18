@@ -1,6 +1,6 @@
-// Package launch is the one place go-qa's code starts another program, so the hazard gosec G204
-// guards against (command injection through a shell or an attacker-chosen program) is answered
-// once, here, and every other file is held to the rule.
+// Package launch is the one place go-qa's code starts another program, so the hazard of command
+// injection through a shell or an attacker-chosen program is answered once, here. (gosec G204 is
+// off for all code: go-qa is a tool runner, and gqaci_shell_exec forbids a shell with -c.)
 //
 // The contract of every launch:
 //

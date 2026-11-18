@@ -13,6 +13,11 @@ import (
 // MinJustificationChars is the shortest justification that can name a hazard and a scope.
 const MinJustificationChars = 25
 
+// ExclusionRulePrefix starts the rule the suppression detector gives a golangci-lint
+// `linters.exclusions.rules` entry. Such an entry hides a check in part of the code, which no
+// record entry can license, so an exception naming one is invalid.
+const ExclusionRulePrefix = "golangci.yml::exclusions.rules::"
+
 // generic lists whole-text justifications that could be pasted onto any exception unchanged. They
 // are compared after lower-casing and trimming punctuation from both ends.
 var generic = map[string]bool{
@@ -78,6 +83,9 @@ func (e Exception) problems() []string {
 	var problems []string
 	if strings.TrimSpace(e.Rule) == "" {
 		problems = append(problems, "has no rule")
+	}
+	if strings.HasPrefix(strings.TrimSpace(e.Rule), ExclusionRulePrefix) {
+		problems = append(problems, fmt.Sprintf("names a golangci-lint exclusion rule, which is %s: no record entry can license it; fix the code, or turn the check off for all code (a linter in linters.disable, or the rule in its linter's own switch-off list) with a one-line reason, then delete this entry", finding.SuppressionExclusionRule))
 	}
 	switch {
 	case strings.TrimSpace(e.Path) == "":

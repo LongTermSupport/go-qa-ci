@@ -7,6 +7,8 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 	"go.yaml.in/yaml/v3"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
 const golangciRulePrefix = "golangci.yml::"
@@ -89,35 +91,24 @@ func items(n *yaml.Node) []*yaml.Node {
 	}
 }
 
-// listRoute is a setting holding a list of things that are switched off or exempted; each item is
-// one suppression.
+// listRoute is a setting holding a list of things that are exempted; each item is one suppression.
 type listRoute struct {
 	name string
-	// keep selects the items that silence something and maps them to the detail; nil keeps all.
-	keep func(string) (string, bool)
 	keys []string
 }
 
-func removals(item string) (string, bool) {
-	rest, ok := strings.CutPrefix(item, "-")
-	return rest, ok
-}
-
-// listRoutes are the lists of things exempted from a defence. `linters.enable` and `linters.disable`
-// are deliberately absent: choosing which linters run is choosing the defence set, which
-// `go-qa rules` and the generated summary list as it stands; only an exclusion of findings, or of
-// a check inside a running linter, is a suppression.
+// listRoutes are the lists of things exempted from a defence in part of the code, or of names a
+// check is told to accept. A switch-off for all code is deliberately absent: a linter in
+// `linters.disable`, or one rule in its linter's own switch-off list (`gosec.excludes`,
+// `govet.disable`, `gocritic.disabled-checks` and `.disabled-tags`, `testifylint.disable`, a
+// `-XXXX` staticcheck check, a revive rule with `disabled: true`). Choosing which checks run is
+// choosing the defence set, which the configuration states with its reason beside it; only an
+// exclusion of findings in part of the code, or a weakening that names no check, is a suppression.
 var listRoutes = []listRoute{
 	{keys: []string{"linters", "exclusions", "paths"}, name: "exclusions.paths"},
 	{keys: []string{"linters", "exclusions", "presets"}, name: "exclusions.presets"},
 	{keys: []string{"formatters", "exclusions", "paths"}, name: "formatters.exclusions.paths"},
 	{keys: []string{"linters", "settings", "errcheck", "exclude-functions"}, name: "errcheck.exclude-functions"},
-	{keys: []string{"linters", "settings", "gosec", "excludes"}, name: "gosec.excludes"},
-	{keys: []string{"linters", "settings", "govet", "disable"}, name: "govet.disable"},
-	{keys: []string{"linters", "settings", "gocritic", "disabled-checks"}, name: "gocritic.disabled-checks"},
-	{keys: []string{"linters", "settings", "gocritic", "disabled-tags"}, name: "gocritic.disabled-tags"},
-	{keys: []string{"linters", "settings", "staticcheck", "checks"}, name: "staticcheck.checks", keep: removals},
-	{keys: []string{"linters", "settings", "testifylint", "disable"}, name: "testifylint.disable"},
 }
 
 // scalarRoute is a single setting that silences something when its value is not the strict one.
@@ -181,14 +172,7 @@ func (c config) lists(name string) []Suppression {
 	var found []Suppression
 	for _, route := range listRoutes {
 		for _, item := range items(at(c.root, route.keys...)) {
-			value := item.Value
-			if route.keep != nil {
-				var ok bool
-				if value, ok = route.keep(value); !ok {
-					continue
-				}
-			}
-			found = append(found, c.suppression(name, route.name+"::"+value, c.line(item)))
+			found = append(found, c.suppression(name, route.name+"::"+item.Value, c.line(item)))
 		}
 	}
 	return found
@@ -239,7 +223,7 @@ func (c config) exclusionRules(name string) []Suppression {
 		if text := at(entry, "text"); text != nil && text.Value != "" {
 			detail += "/" + text.Value
 		}
-		found = append(found, c.suppression(name, "exclusions.rules::"+detail, c.line(entry)))
+		found = append(found, Suppression{Rule: record.ExclusionRulePrefix + detail, Path: name, Line: c.line(entry), Route: RouteGolangciExclusionRule})
 	}
 	return found
 }
@@ -263,9 +247,8 @@ func (c config) reviveRules(name string) []Suppression {
 		if rule == nil {
 			continue
 		}
-		if disabled := at(entry, "disabled"); disabled != nil && disabled.Value == "true" {
-			found = append(found, c.suppression(name, "revive.rules::"+rule.Value+"/disabled", c.line(disabled)))
-		}
+		// A rule with disabled: true is off for all code, which is choosing the defence set; an
+		// exclude list hides the rule's findings in part of the code, which is a suppression.
 		if exclude := at(entry, "exclude"); exclude != nil && len(items(exclude)) > 0 {
 			found = append(found, c.suppression(name, "revive.rules::"+rule.Value+"/exclude", c.line(exclude)))
 		}

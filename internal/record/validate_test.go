@@ -119,6 +119,24 @@ func TestAProblemListIsOneFindingPerException(t *testing.T) {
 	}
 }
 
+// A golangci-lint exclusion rule is a hard failure of the suppression detector, so a record entry
+// naming one licenses nothing and is invalid, with a message saying what to do instead.
+func TestAnExceptionNamingAnExclusionRuleIsInvalid(t *testing.T) {
+	rec := record.Record{Exceptions: []record.Exception{
+		entry("golangci.yml::exclusions.rules::gosec/G204", ".golangci.yml", good),
+		entry("golangci.yml::exclusions.paths::vendor", ".golangci.yml", good),
+	}}
+	findings := rec.Validate("qa/record.toml")
+	if len(findings) != 1 || findings[0].Rule != finding.RecordInvalid {
+		t.Fatalf("got %v", findings)
+	}
+	for _, want := range []string{"#1", "gqaci.suppression.exclusion-rule", "no record entry can license", "fix the code", "for all code", "delete this entry"} {
+		if !strings.Contains(findings[0].Message, want) {
+			t.Errorf("message %q does not contain %q", findings[0].Message, want)
+		}
+	}
+}
+
 func TestFindingCarriesTheEntryLine(t *testing.T) {
 	path := write(t, "[[exception]]\nrule = \"a\"\npath = \"b\"\njustification = \"legacy\"\n\n[[exception]]\nrule = \"c\"\npath = \"d\"\njustification = \"todo\"\n")
 	loaded, err := record.Load(path)

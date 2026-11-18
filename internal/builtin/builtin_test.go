@@ -37,6 +37,16 @@ func TestAllIsSortedAndAReturnedCopy(t *testing.T) {
 	}
 }
 
+func TestExclusionRuleIsABuiltin(t *testing.T) {
+	t.Parallel()
+	if builtin.SuppressionExclusionRule != "gqaci.suppression.exclusion-rule" {
+		t.Errorf("id = %q", builtin.SuppressionExclusionRule)
+	}
+	if builtin.Describe(builtin.SuppressionExclusionRule) == "" {
+		t.Error("no description")
+	}
+}
+
 func TestDescribeUnknownIsEmpty(t *testing.T) {
 	t.Parallel()
 	if got := builtin.Describe("gqaci.nothing.here"); got != "" {
