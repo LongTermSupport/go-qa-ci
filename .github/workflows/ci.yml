@@ -9,9 +9,27 @@ name: CI
 # job workflows: actionlint over the workflows and shellcheck over the shell scripts.
 # Every external tool is installed by scripts/install-tools.sh (go-qa install-tools) at the version
 # tools.lock pins, into the go-qa tool directory; --print-path hands that directory to later steps.
+# job actions-qa-ci (pull requests only): LongTermSupport/actions-qa-ci over the workflows.
+# A push that changes only documentation starts no run; pull requests are never filtered. The
+# Markdown the build or tests read stays in: ruledocs/ and internal/ (embedded in the binary), and
+# docs/CONFORMANCE.md, analyzers.md and defences.md (read by tests/). README.md, which tests/ also
+# reads, is left out: a README-only change is tested on its pull request.
 on:
   push:
     branches: ["**"]
+    paths:
+      - "**"
+      - "!**.md"
+      - "!docs/**"
+      - "docs/CONFORMANCE.md"
+      - "docs/analyzers.md"
+      - "docs/defences.md"
+      - "ruledocs/**"
+      - "internal/**"
+      - "**/CLAUDE.md"
+      - "**/AGENTS.md"
+      - ".claude/**"
+      - ".github/**"
   pull_request:
   workflow_dispatch:
 
@@ -89,3 +107,16 @@ jobs:
         run: scripts/install-tools.sh --print-path actionlint >> "${GITHUB_PATH}"
       - run: actionlint
       - run: shellcheck scripts/*.sh .githooks/* .github/scripts/*.sh
+
+  actions-qa-ci:
+    name: actions-qa-ci
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: LongTermSupport/actions-qa-ci@2784a484769348f14ed780db9b45cd3a402bf31e # v0.1.0
