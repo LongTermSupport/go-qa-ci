@@ -7,6 +7,8 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 	"go.yaml.in/yaml/v3"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/record"
 )
 
 const golangciRulePrefix = "golangci.yml::"
@@ -221,7 +223,7 @@ func (c config) exclusionRules(name string) []Suppression {
 		if text := at(entry, "text"); text != nil && text.Value != "" {
 			detail += "/" + text.Value
 		}
-		found = append(found, c.suppression(name, "exclusions.rules::"+detail, c.line(entry)))
+		found = append(found, Suppression{Rule: record.ExclusionRulePrefix + detail, Path: name, Line: c.line(entry), Route: RouteGolangciExclusionRule})
 	}
 	return found
 }

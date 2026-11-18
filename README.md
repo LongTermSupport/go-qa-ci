@@ -28,7 +28,7 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 | --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | format    | `fmt`            | the formatters of the golangci-lint configuration (`gofumpt`, `goimports`); fixes locally, `--no-fix` checks                                                                        |
 | detectors | `record`         | project record validation and anti-bloat policy (`gqaci.record.invalid`, `.budget`, `.ratchet`, `.expired`, `.stale`)                                                               |
-|           | `suppression`    | every route that silences a defence without a record entry (`gqaci.suppression.unrecorded`)                                                                                         |
+|           | `suppression`    | every route that silences a defence without a record entry (`gqaci.suppression.unrecorded`), and every golangci-lint exclusion rule (`gqaci.suppression.exclusion-rule`) |
 |           | `summary`        | agent summary freshness (`gqaci.summary.stale`)                                                                                                                                     |
 |           | `docs`           | every listed identifier resolves to documentation (`gqaci.docs.dangling`), every page documents a listed identifier (`gqaci.docs.orphan`)                                           |
 |           | `ast-grep`       | syntactic rules: the project's `sgconfig.yml` rules, then the bundled `gqaci.ast.*` pack; every project rule has an id (`gqaci.rules.unnamed`) and a proof (`gqaci.rules.untested`) |
@@ -131,8 +131,11 @@ and a red proof.
 2. An ast-grep rule, for a cheap single-file syntactic check, in the project's `sgconfig.yml` rule
    directories. Every rule needs an `id` and a test case with `valid` and `invalid` code. See
    [docs/astgrep.md](docs/astgrep.md), including how to write a Go call pattern.
-3. Configuration of golangci-lint, for a check an existing linter already makes. Do not switch a
-   linter off in a comment: a suppression is a record entry (see "Project record").
+3. Configuration of golangci-lint, for a check an existing linter already makes. A check runs on
+   all code, or is off for all code (a linter in `linters.disable`, or a rule in its linter's own
+   switch-off list) with a one-line reason beside it; that needs no record entry. Do not switch a
+   linter off in a comment: a suppression is a record entry (see "Project record"), and a path or
+   text exclusion rule is never licensed.
 
 Each identifier a defence prints resolves offline: `go-qa rule-doc <id>` prints the page for it,
 and `go-qa docs-check` fails when a built-in, stage, stage rule or project ast-grep rule has no page,

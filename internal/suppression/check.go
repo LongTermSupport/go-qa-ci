@@ -9,9 +9,10 @@ import (
 )
 
 // Check turns a scan into findings, in file order. An unparseable file is reported because what it
-// silences is unknown. A bare suppression is always reported: no record entry can license it. Any
-// other suppression is reported unless the matcher's record licenses its rule at its path; the
-// matcher remembers which exceptions were used.
+// silences is unknown. A bare suppression is always reported: no record entry can license it. A
+// golangci-lint exclusion rule is always reported too, and the matcher is not asked, so an entry
+// naming one is left unused and reported stale. Any other suppression is reported unless the
+// matcher's record licenses its rule at its path; the matcher remembers which exceptions were used.
 func Check(result Result, matcher *record.Matcher) []finding.Finding {
 	var findings []finding.Finding
 	for _, bad := range result.Unparseable {
@@ -31,6 +32,16 @@ func Check(result Result, matcher *record.Matcher) []finding.Finding {
 			})
 		}
 		if s.Rule == "" {
+			continue
+		}
+		if s.Route == RouteGolangciExclusionRule {
+			findings = append(findings, finding.Finding{
+				Rule: builtin.SuppressionExclusionRule,
+				Path: s.Path,
+				Line: s.Line,
+				Message: fmt.Sprintf("%s `%s` hides a check in part of the code and no record entry can license it; fix the code, or turn the check off for all code (a linter in linters.disable, or the rule in its linter's own switch-off list) with a one-line reason, and delete the exclusion",
+					s.Route, s.Rule),
+			})
 			continue
 		}
 		if _, licensed := matcher.Suppression(s.Rule, s.Path); licensed {

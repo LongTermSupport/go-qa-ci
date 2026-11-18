@@ -25,6 +25,9 @@ const (
 	SuppressionUnrecorded = "gqaci.suppression.unrecorded"
 	// SuppressionBare marks a suppression that names no rule, which no record entry can license.
 	SuppressionBare = "gqaci.suppression.bare"
+	// SuppressionExclusionRule marks a golangci-lint path or text exclusion rule, which hides a check
+	// in part of the code and which no record entry can license.
+	SuppressionExclusionRule = "gqaci.suppression.exclusion-rule"
 	// SummaryStale marks a generated agent summary region that is out of date.
 	SummaryStale = "gqaci.summary.stale"
 	// DocsDangling marks an identifier that resolves to no documentation.
@@ -57,27 +60,28 @@ const (
 )
 
 var descriptions = map[string]string{
-	RecordInvalid:         "every project-record exception is well formed, attributed and justified",
-	RecordStale:           "every project-record exception still covers something",
-	RecordBudget:          "the project record stays within its budgets",
-	RecordRatchet:         "the project record grows only by a signed decision",
-	RecordExpired:         "no project-record exception is past its review date",
-	SuppressionUnrecorded: "every suppression has an exception in the project record",
-	SuppressionBare:       "every suppression names the rule it silences",
-	SummaryStale:          "the generated agent summary is current",
-	DocsDangling:          "every listed identifier resolves to documentation",
-	DocsOrphan:            "every project documentation page belongs to an identifier the project can see",
-	SensitiveFormat:       "no sensitive value is printed without redaction",
-	DeferInLoop:           "no defer sits inside a loop body",
-	ExecContext:           "no exec.Command is used where a context is in scope",
-	ExitOutsideMain:       "the process ends only from main",
-	InitSideEffects:       "no init function does input or output or changes the process",
-	MapRangeOrder:         "no output order is decided by map iteration",
-	ShellExec:             "no shell is started with -c",
-	TestClock:             "no test reads the wall clock",
-	UnconditionalSkip:     "no test skips itself unconditionally",
-	RulesUnnamed:          "every project ast-grep rule has an id",
-	RulesUntested:         "every project ast-grep rule has valid and invalid test cases",
+	RecordInvalid:            "every project-record exception is well formed, attributed and justified",
+	RecordStale:              "every project-record exception still covers something",
+	RecordBudget:             "the project record stays within its budgets",
+	RecordRatchet:            "the project record grows only by a signed decision",
+	RecordExpired:            "no project-record exception is past its review date",
+	SuppressionUnrecorded:    "every suppression has an exception in the project record",
+	SuppressionBare:          "every suppression names the rule it silences",
+	SuppressionExclusionRule: "no check is excluded from part of the code by a golangci-lint exclusion rule",
+	SummaryStale:             "the generated agent summary is current",
+	DocsDangling:             "every listed identifier resolves to documentation",
+	DocsOrphan:               "every project documentation page belongs to an identifier the project can see",
+	SensitiveFormat:          "no sensitive value is printed without redaction",
+	DeferInLoop:              "no defer sits inside a loop body",
+	ExecContext:              "no exec.Command is used where a context is in scope",
+	ExitOutsideMain:          "the process ends only from main",
+	InitSideEffects:          "no init function does input or output or changes the process",
+	MapRangeOrder:            "no output order is decided by map iteration",
+	ShellExec:                "no shell is started with -c",
+	TestClock:                "no test reads the wall clock",
+	UnconditionalSkip:        "no test skips itself unconditionally",
+	RulesUnnamed:             "every project ast-grep rule has an id",
+	RulesUntested:            "every project ast-grep rule has valid and invalid test cases",
 }
 
 // All returns every built-in identifier, sorted, for listing and documentation checks.

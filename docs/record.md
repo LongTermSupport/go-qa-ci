@@ -37,6 +37,8 @@ defective exception, naming its number, its rule and the line of its `[[exceptio
 listing every problem found in it. An exception is invalid when:
 
 - it has no rule, or no path, or a path that is a malformed glob;
+- its rule names a golangci-lint exclusion rule (`golangci.yml::exclusions.rules::...`), which no
+  record entry can license (see "Configuration exceptions");
 - its path is a glob (`*`, `?`, `[`) and it is not marked `policy = true`;
 - it has a `decided_by` that is blank;
 - its justification fails the check below (TOOLING-SPEC 6.2).
@@ -170,20 +172,23 @@ TOOLING-SPEC 6.4 (a toolchain should state its defaults); 6.4 does not require t
 
 ## Configuration exceptions
 
-Some findings are configured away in `.golangci.yml` rather than suppressed at the site. Each is
-a project-level exception that the suppression detector requires to be recorded in
-`qa/record.toml`, with a justification, so that the configuration cannot widen unnoticed. The
-recorded rule is the one the detector prints (docs/suppression.md), and the record entry's path is
-the configuration file.
+A check runs on all code, or it is off for all code with a one-line reason beside it in the
+configuration; neither needs a record entry (docs/suppression.md, "A switch-off for all code is not
+a suppression"). The configuration settings the record does license are the ones that hide findings
+in part of the code or weaken checks without naming one (`exclusions.paths`, `exclusions.presets`,
+`exclusions.generated`, `*.disable-all`, severity rules, the staticcheck whitelists, and the others
+the detector lists); the recorded rule is the one the detector prints, and the entry's path is the
+configuration file.
 
-| Detector rule | Scope                                                   | Hazard                                                         | Why it does not apply                                                                                                                                                       |
-| ------------- | ------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| gosec `G204`  | `internal/launch/launch.go` only (no test file is excluded) | command injection through a shell or an attacker-chosen program | every launch in code and tests goes through that file: an argument vector only, a shell handed a command string refused, a bare name found on PATH or an absolute path, context-bound |
+A `linters.exclusions.rules` entry (a path or text exclusion) is never licensed: it fails as
+`gqaci.suppression.exclusion-rule` whatever the record says. An exception whose rule starts with
+`golangci.yml::exclusions.rules::` is reported `gqaci.record.invalid`, with a message saying to fix
+the code or switch the check off for all code and delete the entry, and, because it licenses
+nothing, `gqaci.record.stale` on a full run. Remove it with `go-qa record prune <number>`, which
+also lowers the ratchet.
 
-The entry is `golangci.yml::exclusions.rules::gosec/G204` (one exclusion), against
-`.golangci.yml`. It is permanent (see "Permanent exceptions"): starting processes is the purpose of
-that file, so the rule will always flag it, and no review date would change that. It is signed by
-the decider `repository-owner`.
+This repository's record holds no exception: its one switch-off, gosec G204 for all code, is
+explained in docs/golangci.md ("Switch-offs").
 
 ### Deciders
 

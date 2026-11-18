@@ -13,6 +13,7 @@ Active defences. Failures print these ids as listed, except for the code-prefixe
 - `gqaci.rules.untested` (builtin, error): every project ast-grep rule has valid and invalid test cases. Fix: Add a test file for the rule listing at least one `valid` and one `invalid` snippet, and run `ast-grep test` until it passes. Docs: `go-qa rule-doc gqaci.rules.untested`
 - `gqaci.summary.stale` (builtin, error): the generated agent summary is current. Fix: Run `go-qa summary` and commit the regenerated region. Do not edit the region by hand: it is overwritten. Docs: `go-qa rule-doc gqaci.summary.stale`
 - `gqaci.suppression.bare` (builtin, error): every suppression names the rule it silences. Fix: Remove the directive and fix the code. If a single named rule genuinely does not apply, name it in the directive and record the exception. Docs: `go-qa rule-doc gqaci.suppression.bare`
+- `gqaci.suppression.exclusion-rule` (builtin, error): no check is excluded from part of the code by a golangci-lint exclusion rule. Fix: Fix the code so the check passes, and delete the exclusion rule. If the check is more noise than signal for this project, turn it off for all code instead, with a one-line reason as a comment on the line: a linter in `linters.disable`, or the rule in its linter's own switch-off list (`gosec.excludes`, `govet.disable`, `gocritic.disabled-checks`, `testifylint.disable`, a staticcheck `-XXXX` check, a revive rule with `disabled: true`). A switch-off for all code needs no record entry. Then delete any record entry that named the exclusion rule. Docs: `go-qa rule-doc gqaci.suppression.exclusion-rule`
 - `gqaci.suppression.unrecorded` (builtin, error): every suppression has an exception in the project record. Fix: Fix the code so the finding disappears, and delete the directive. Only where the finding is a true false positive for this project, add an exception to the record that names the rule and the exact path, with a justification stating the hazard and why it does not apply. The finding prints the rule and path to record. An unparseable file is fixed, not recorded. Docs: `go-qa rule-doc gqaci.suppression.unrecorded`
 - `bodyclose` (golangci, error): Checks whether HTTP response body is closed successfully. Docs: `golangci-lint help linters`
 - `contextcheck` (golangci, error): Check whether the function uses a non-inherited context. Docs: `golangci-lint help linters`
@@ -61,15 +62,14 @@ Gate steps, in order (`go-qa tools`): fmt, record, suppression, summary, docs, a
 
 Project-record exceptions (prefer fixing the code; an exception names its hazard and scope):
 
-- `golangci.yml::exclusions.rules::gosec/G204` at `.golangci.yml` (permanent, added by claude-opus-5-5)
+- none
 
 Record budget (`go-qa record list`):
 
-- exceptions: 1 of 10
-- per rule: at most 3 (busiest `golangci.yml::exclusions.rules::gosec/g204` with 1)
+- exceptions: 0 of 10
+- per rule: at most 3 (none yet)
 - policy-level (glob): 0 of 0
-- permanent (no review date): 1
-- ratchet: high_water 1
+- ratchet: high_water 0
 - review horizon: 180 days
 
 <!-- END go-qa-ci generated defences -->

@@ -48,11 +48,15 @@ Identifiers are printed as the tools emit them (TOOLING-SPEC 4.4): the linter na
   strict baseline `configs/golangci.yml` is used. The file is looked for in the module's own
   directory only: a nested module without a file of its own gets the baseline, even when a parent
   directory holds a `.golangci.yml` that golangci-lint's own discovery would pick. A project file's
-  `linters.exclusions`, presets, `issues.new-from-*`, a check disabled inside a running linter and a
-  narrowed `linters.default` can drop findings, so the `suppression` tool reads the file and requires a
-  record entry for each (docs/suppression.md). Which linters run (`linters.enable`, `linters.disable`)
-  is the defence set the project chooses, not a suppression: it needs no entry, and `go-qa rules`
-  lists the linters as they are, so what a project does not run is visible rather than recorded; the settings of golangci-lint's own that it does not list are a recorded
+  exclusion paths and presets, `issues.new-from-*`, a `*.disable-all` and a narrowed
+  `linters.default` can drop findings, so the `suppression` tool reads the file and requires a
+  record entry for each; a `linters.exclusions.rules` entry fails as
+  `gqaci.suppression.exclusion-rule`, which no record entry can license (docs/suppression.md).
+  Which checks run is the defence set the project chooses, not a suppression: a linter in
+  `linters.disable`, or one rule in its linter's own switch-off list (`gosec.excludes`,
+  `govet.disable`, a staticcheck `-XXXX` check and the like), needs no entry, only a one-line reason
+  beside it; `go-qa rules` lists the linters as they are, so what a project does not run is visible
+  rather than recorded; the settings of golangci-lint's own that it does not list are a recorded
   gap there.
 
 ## The bundled baseline
@@ -64,16 +68,17 @@ analyzer, `fieldalignment` included, `nolintlint` requiring a specific, explaine
 no cap on the number of issues. It carries no exclusion. `depguard` is not in the baseline because
 its allow-list is specific to a project; this repository adds its own in the overlay below.
 
-## Configuration exceptions
+## Switch-offs
 
-This repository's overlay configures away `gosec G204` in one file, `internal/launch/launch.go`.
-Package `internal/launch` is the only place go-qa starts a process: every launch in the code goes
-through it, and every launch in the tests goes through `internal/launch/launchtest`, which is built
-on it. Its contract is an argument vector only (a shell handed a command string is refused), a bare
-program name resolved with `exec.LookPath` or an absolute path the caller resolved, and a context
-bound to the process. No test file is excluded. The exception is listed in `docs/record.md`, and
-the suppression detector (docs/suppression.md) requires it to be recorded in `qa/record.toml`,
-where it is a permanent exception: starting processes is that file's purpose.
+This repository's overlay switches off one check for all code: gosec `G204` (a subprocess launched
+with a variable program or arguments), in `linters.settings.gosec.excludes`, with its reason on
+the line. go-qa is a tool runner: starting programs from an argument vector is what it does, so
+the rule would flag its purpose rather than a defect, and the hazard it guards against (command
+injection through a shell) is held by go-qa's own analyzer `gqaci_shell_exec`, which forbids
+starting a shell with `-c`. Package `internal/launch` remains the one place a process is started,
+with an argument vector only, a program resolved on PATH or given as an absolute path, and a
+context bound to the process. A switch-off for all code needs no record entry
+(docs/suppression.md), so `qa/record.toml` holds none.
 
 Contributors: the tests of `internal/cli`, `internal/golangci`, `internal/tools` and
 `internal/defences` run the real `golangci-lint`, so `go test ./...` fails with
@@ -89,11 +94,11 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 - `configs/golangci.yml` is the baseline (embedded in the binary).
 - `qa/golangci-overlay.yml` is the minimal overlay: the `depguard` allow-list and the
-  configuration exceptions above. The merge adds the overlay's keys to the baseline and does not
-  override a value the baseline sets, but the baseline leaves `gosec.excludes` and
-  `linters.exclusions.rules` unset, so an overlay could still weaken it through those keys; only the
-  exact-content pin in `TestOverlayHoldsOnlyDocumentedExceptions` holds it to the documented
-  exceptions.
+  switch-off above. The merge adds the overlay's keys to the baseline and does not override a
+  value the baseline sets, but the baseline leaves `gosec.excludes` and `linters.exclusions`
+  unset, so an overlay could still weaken it through those keys; only the exact-content pin in
+  `TestOverlayHoldsOnlyDocumentedSwitchOffs` holds it to the documented switch-off, and the
+  suppression detector fails any exclusion rule.
 - `.golangci.yml` is what golangci-lint discovers, so it is the merged result. golangci-lint cannot
   merge files, so it is mirrored by hand, and `tests/selfgate` fails unless it equals baseline plus
   overlay, carries every baseline linter, setting, formatter and issue cap, and the overlay holds
@@ -104,10 +109,9 @@ go-qa with is derived from the bundled baseline, not kept separately:
 
 Recorded gaps against 8.2 (TOOLING-SPEC 9.2): 8.2 is not met in full.
 
-- One Rule is not fully active on the toolchain's own source: `gosec::G204` is switched off in
-  `internal/launch/launch.go`, the one file that starts processes (a permanent configuration
-  exception; every other file, tests included, is held to it). It is in the record with a
-  justification (docs/record.md), but the Rule is not held in that file.
+- One Rule is not active on the toolchain's own source: `gosec::G204` is switched off for all code
+  with its reason (see "Switch-offs"); `gqaci_shell_exec` holds the shell-injection hazard it
+  guards against.
 - Every Rule of a tool that is switched off in `qa/go-qa.toml` (mutation testing) is not active on the
   toolchain's own source until that tool is switched on.
 - The merged `.golangci.yml` is kept in step by a failing test, not generated, so an edit to the

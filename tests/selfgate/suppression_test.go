@@ -41,23 +41,19 @@ func TestOwnSuppressionsAreExactlyTheRecordedOnes(t *testing.T) {
 	}
 }
 
-// Without its record the repository's configuration exceptions are findings: the check is not
-// vacuous, and each exception the documentation lists is a route the detector sees.
-func TestOwnConfigurationExceptionsAreSeenByTheDetector(t *testing.T) {
+// The repository silences nothing at all: with an empty record its source and configuration yield no
+// finding, so its record holds no exception, and its one switch-off (gosec G204, for all code) is a
+// choice of the defence set, not a suppression.
+func TestOwnSourceAndConfigurationNeedNoException(t *testing.T) {
 	t.Parallel()
 	result := ownScan(t)
-	seen := map[string]bool{}
 	for _, s := range result.Suppressions {
-		seen[s.Rule] = true
+		t.Errorf("unexpected suppression %s (%s)", s, s.Route)
 	}
-	for _, rule := range []string{
-		"golangci.yml::exclusions.rules::gosec/G204",
-	} {
-		if !seen[rule] {
-			t.Errorf("the detector does not see the configuration exception %s", rule)
-		}
+	for _, f := range suppression.Check(result, record.Record{}.Matcher()) {
+		t.Errorf("%s", f)
 	}
-	if len(suppression.Check(result, record.Record{}.Matcher())) == 0 {
-		t.Error("an empty record licensed the repository's exceptions")
+	if n := len(ownRecord(t).Exceptions); n != 0 {
+		t.Errorf("the record holds %d exceptions, want none", n)
 	}
 }

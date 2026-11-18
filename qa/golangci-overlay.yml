@@ -1,8 +1,8 @@
 # This repository's golangci-lint overlay: the ONLY difference between the bundled baseline
 # (configs/golangci.yml) and the root .golangci.yml that the self-gate analyses go-qa with
 # (TOOLING-SPEC 8.2). tests/selfgate proves .golangci.yml is exactly baseline + this overlay, that
-# nothing the baseline enables is dropped, and that this file holds only the documented
-# configuration exceptions (docs/golangci.md, docs/record.md). Edit here and mirror into
+# nothing the baseline enables is dropped, and that this file holds only the dependency allow-list
+# and the documented switch-offs (docs/golangci.md). Edit here and mirror into
 # .golangci.yml; the test fails until both agree.
 linters:
   enable:
@@ -26,16 +26,6 @@ linters:
             - go.yaml.in/yaml/v3
             - gopkg.in/yaml.v3
             - golang.org/x/tools
-  exclusions:
-    rules:
-      # CONFIGURATION EXCEPTION (docs/record.md, "Configuration exceptions"; permanent in
-      # qa/record.toml): G204 flags subprocess launches with a variable program or arguments.
-      # Hazard: command injection through a shell or an attacker-chosen program. Every launch,
-      # in code and in tests, goes through the one file below, which takes an argument vector
-      # only, refuses a shell handed a command string, runs a bare name found on PATH or an
-      # absolute path and nothing else, and binds the process to a context. Scope: that file
-      # alone; every other file is held to the rule.
-      - path: ^internal/launch/launch\.go$
-        linters:
-          - gosec
-        text: "G204"
+    gosec:
+      excludes:
+        - G204 # go-qa is a tool runner that starts programs from an argument vector by design; gqaci_shell_exec already forbids a shell with -c
