@@ -336,3 +336,84 @@ func TestDescribeNamesModeAndScope(t *testing.T) {
 		t.Errorf("description %q", clean)
 	}
 }
+
+func TestAlsoPackagesRunWithTheirImportersThoughNoGoFileChanged(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "data/table.tsv", "read by the tests of leaf\n")
+	plan := computeWith(t, dir, changed.Options{Also: []string{"leaf"}})
+	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./leaf", "./mid", "./top"}) {
+		t.Fatalf("plan %+v", plan)
+	}
+	if len(plan.Changed) != 0 {
+		t.Fatalf("a named package has no changed statements to measure, got changed %v", plan.Changed)
+	}
+}
+
+func TestAlsoPackagesRunWithNothingChanged(t *testing.T) {
+	plan := computeWith(t, project(t), changed.Options{Also: []string{"./other"}})
+	if !plan.Narrow() || !slices.Equal(plan.Packages[""], []string{"./other"}) {
+		t.Fatalf("plan %+v", plan)
+	}
+	got := plan.Describe()
+	for _, want := range []string{"0 changed files", "1 named package", "packages: ./other"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("description lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestAlsoPackagesJoinTheChangedOnes(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "top/top.go", "package top\n\nfunc Top() int { return 9 }\n")
+	plan := computeWith(t, dir, changed.Options{Also: []string{"other"}})
+	if !slices.Equal(plan.Packages[""], []string{"./other", "./top"}) || !slices.Equal(plan.Changed[""], []string{"./top"}) {
+		t.Fatalf("packages %v, changed %v", plan.Packages, plan.Changed)
+	}
+}
+
+func TestAlsoPackagesTreePatternNamesEveryPackageBelow(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "leaf/sub/sub.go", "package sub\n")
+	write(t, dir, "leafy/leafy.go", "package leafy\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "sub")
+	plan := computeWith(t, dir, changed.Options{Also: []string{"./leaf/..."}})
+	if !slices.Equal(plan.Packages[""], []string{"./leaf", "./leaf/sub", "./mid", "./top"}) {
+		t.Fatalf("packages %v", plan.Packages)
+	}
+}
+
+func TestAlsoPackagesInASecondModule(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "nested/go.mod", "module example.com/nested\n\ngo 1.26\n")
+	write(t, dir, "nested/n/n.go", "package n\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "nested")
+	plan, err := changed.Compute(t.Context(), changed.Options{Root: dir, Modules: []string{"", "nested"}, Also: []string{"nested/n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := plan.Packages["nested"]; !slices.Equal(got, []string{"./n"}) || len(plan.Packages[""]) != 0 {
+		t.Fatalf("packages %v", plan.Packages)
+	}
+}
+
+func TestAlsoPackageThatNamesNoPackageIsAnError(t *testing.T) {
+	for _, also := range []string{"nosuch", "nosuch/...", "../leaf", "/leaf", ""} {
+		t.Run(also, func(t *testing.T) {
+			_, err := changed.Compute(t.Context(), changed.Options{Root: project(t), Modules: []string{""}, Also: []string{also}})
+			if err == nil || !strings.Contains(err.Error(), "names no package") {
+				t.Fatalf("err %v, want one saying %q names no package", err, also)
+			}
+		})
+	}
+}
+
+func TestAWideningChangeStillWidensWithAlsoPackages(t *testing.T) {
+	dir := project(t)
+	write(t, dir, "go.sum", "changed\n")
+	plan := computeWith(t, dir, changed.Options{Also: []string{"leaf"}})
+	if plan.Narrow() || !strings.Contains(plan.Widened, "go.sum") {
+		t.Fatalf("plan %+v", plan)
+	}
+}

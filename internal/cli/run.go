@@ -43,6 +43,22 @@ type runOptions struct {
 	failFast bool
 	changed  bool
 	noCache  bool
+	also     listFlag
+}
+
+// alsoPackages is the package directories --also-packages named: each value is comma-separated,
+// and an empty entry is refused rather than read as the root package.
+func (o runOptions) alsoPackages() ([]string, error) {
+	var dirs []string
+	for _, value := range o.also {
+		for dir := range strings.SplitSeq(value, ",") {
+			if dir == "" {
+				return nil, fmt.Errorf("--also-packages %q holds an empty entry", value)
+			}
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs, nil
 }
 
 // parseRun parses the run flags; when ok is false the caller returns code.
@@ -61,6 +77,9 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 		"the repo-wide defences always; changed = files changed against HEAD plus untracked files that are not ignored; "+
 		"a change to go.mod, go.sum, the golangci configuration, the tool lock or a configured rule source widens the run to everything")
 	flags.StringVar(&opts.base, "base", "", "with --changed: compare with the merge base of this ref and HEAD (plus the working tree) instead of HEAD")
+	flags.Var(&opts.also, "also-packages", "with --changed: run these packages and their importers as if they had changed "+
+		"(comma-separated, repeatable; root-relative package directories, a trailing /... for every package below), "+
+		"for a change the diff cannot see, such as a file outside the root that their tests read; one that names no package is an error")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return opts, ExitOK, false
@@ -74,6 +93,8 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 	switch {
 	case opts.base != "" && !opts.changed:
 		return opts, emit(stderr, ExitUsage, "go-qa run: --base needs --changed"), false
+	case len(opts.also) > 0 && !opts.changed:
+		return opts, emit(stderr, ExitUsage, "go-qa run: --also-packages needs --changed"), false
 	case opts.changed && len(opts.paths) > 0:
 		return opts, emit(stderr, ExitUsage, "go-qa run: --changed chooses the scope itself; it cannot be combined with -p"), false
 	}
@@ -119,12 +140,17 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 		if err != nil {
 			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)
 		}
+		also, err := opts.alsoPackages()
+		if err != nil {
+			return emit(stderr, ExitUsage, "go-qa: %v", err)
+		}
 		diff, err = changed.Compute(context.Background(), changed.Options{
 			Root:      rootPath,
 			Base:      opts.base,
 			Modules:   append([]string{""}, cfg.Modules...),
 			Widen:     append([]string{cfg.Record.Path, configRel}, ruleSources.files...),
 			WidenDirs: ruleSources.dirs,
+			Also:      also,
 		})
 		if err != nil {
 			return emit(stderr, ExitUsage, "go-qa: --changed: %v", err)

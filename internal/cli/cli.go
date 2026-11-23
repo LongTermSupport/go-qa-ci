@@ -48,7 +48,7 @@ const (
 	ExitUsage   = 2
 )
 
-const usage = "usage: go-qa [--root DIR] [--config FILE] tools | install-tools [--check] [--print-path] [TOOL]... | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] [--changed [--base REF]] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
+const usage = "usage: go-qa [--root DIR] [--config FILE] tools | install-tools [--check] [--print-path] [TOOL]... | run [-t TOOL]... [-p PATH]... [--ci] [--no-fix] [--fail-fast] [--changed [--base REF] [--also-packages DIR,...]] | record check|list|explain | rule-doc ID | rules [--json] | summary [--check] | docs-check | go-qa --version"
 
 // ExecutorFactory builds the executor for one run from its context.
 type ExecutorFactory func(ctx tools.Context, stderr io.Writer) pipeline.Executor

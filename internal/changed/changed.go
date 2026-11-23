@@ -34,6 +34,12 @@ type Options struct {
 	// the rule sources the project's detectors read (ast-grep rule and test directories, the
 	// documentation directory, the analyzer module or driver package).
 	WidenDirs []string
+	// Also names packages the run covers as if they had changed, with their importers: the
+	// packages whose tests read a file the diff cannot see (one outside the root, or one the go
+	// command does not attribute to them). Each is a root-relative package directory, "./" optional,
+	// or a directory ending in "/..." for every package at or below it; one that names no package
+	// is an error. Their statements did not change, so coverage does not count them.
+	Also []string
 }
 
 // Plan is what a diff-mode run covers.
@@ -51,6 +57,8 @@ type Plan struct {
 	// Files are the changed files, relative to the root and slash-separated, deleted ones
 	// included.
 	Files []string
+	// Named counts the packages Options.Also named.
+	Named int
 	// Scope are the changed files that still exist: what a file-scoped detector can read.
 	Scope []string
 }
@@ -75,10 +83,13 @@ func (p *Plan) Describe() string {
 	switch {
 	case p.Widened != "":
 		fmt.Fprintf(&out, "scope: whole project (widened: %s)\n", p.Widened)
-	case len(p.Files) == 0:
+	case len(p.Files) == 0 && p.Named == 0:
 		out.WriteString("scope: no changed files; only the repo-wide defences run\n")
 	default:
 		fmt.Fprintf(&out, "scope: %s", plural(len(p.Files), "changed file"))
+		if p.Named > 0 {
+			fmt.Fprintf(&out, ", %s", plural(p.Named, "named package"))
+		}
 		if packages := p.packageList(); len(packages) > 0 {
 			fmt.Fprintf(&out, "; packages: %s", strings.Join(packages, ", "))
 		} else {
@@ -144,14 +155,19 @@ func Compute(ctx context.Context, opts Options) (*Plan, error) {
 	otherFiles := slices.DeleteFunc(slices.Clone(files), func(file string) bool {
 		return slices.Contains(goFiles, file) || (strings.HasSuffix(file, ".go") && !strings.Contains("/"+path.Dir(file)+"/", "/testdata/"))
 	})
-	if len(goFiles) == 0 && len(otherFiles) == 0 {
+	if len(goFiles) == 0 && len(otherFiles) == 0 && len(opts.Also) == 0 {
 		return plan, nil
 	}
 	packages, err := listPackages(ctx, opts.Root, opts.Modules)
 	if err != nil {
 		return nil, err
 	}
-	affected, direct, orphan := packages.affectedBy(goFiles, otherFiles)
+	named, err := packages.named(opts.Also)
+	if err != nil {
+		return nil, err
+	}
+	plan.Named = len(named)
+	affected, direct, orphan := packages.affectedBy(goFiles, otherFiles, named)
 	if orphan != "" {
 		plan.Widened = orphan + " changed outside any package that still exists"
 		return plan, nil

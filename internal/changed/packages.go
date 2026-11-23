@@ -114,7 +114,10 @@ func displayModule(module string) string {
 // Files that are no Go source of the package still decide its result: an embedded file changes the
 // package and so its importers; a file under testdata changes only the tests of the package that
 // owns the directory. Both are mapped to their package; a file that belongs to none is ignored.
-func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected, changed map[string][]string, orphan string) {
+//
+// named are the import paths of packages the caller asks to run as if changed: they and their
+// importers are affected, and none of them is changed unless a file of its own changed.
+func (s packageSet) affectedBy(goFiles, otherFiles, named []string) (affected, changed map[string][]string, orphan string) {
 	importers := map[string][]string{}
 	for importPath, pkg := range s.byImport {
 		for _, imported := range pkg.imports {
@@ -142,9 +145,10 @@ func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected, changed 
 	changed = s.byModule(slices.DeleteFunc(slices.Concat(direct, queue), func(importPath string) bool {
 		return s.byImport[importPath].testOnly
 	}))
+	queue = append(queue, named...)
 	seen := map[string]bool{}
 	for _, importPath := range direct {
-		seen[importPath] = true
+		seen[importPath] = !slices.Contains(named, importPath)
 	}
 	for len(queue) > 0 {
 		importPath := queue[0]
@@ -156,6 +160,31 @@ func (s packageSet) affectedBy(goFiles, otherFiles []string) (affected, changed 
 		queue = append(queue, importers[importPath]...)
 	}
 	return s.byModule(slices.Collect(maps.Keys(seen))), changed, ""
+}
+
+// named resolves the package directories of Options.Also to import paths, sorted and without
+// repeats. A directory ending in "/..." names every package at or below it. One that names no
+// package of the workspace is an error, so a stale name cannot quietly run nothing.
+func (s packageSet) named(dirs []string) ([]string, error) {
+	var importPaths []string
+	for _, dir := range dirs {
+		tree, wild := strings.CutSuffix(dir, "/...")
+		tree = strings.TrimPrefix(tree, "./")
+		found := 0
+		if tree != "" && !path.IsAbs(tree) && path.Clean(tree) == tree {
+			for pkgDir, pkg := range s.byDir {
+				if pkgDir == tree || (wild && within(pkgDir, tree)) {
+					importPaths = append(importPaths, pkg.importPath)
+					found++
+				}
+			}
+		}
+		if found == 0 {
+			return nil, fmt.Errorf("--also-packages %q names no package of the workspace", dir)
+		}
+	}
+	slices.Sort(importPaths)
+	return slices.Compact(importPaths), nil
 }
 
 // byModule groups the patterns of the packages with the given import paths by module, sorted and
