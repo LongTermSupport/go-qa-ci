@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/astgrep"
 	"github.com/LongTermSupport/go-qa-ci/internal/changed"
@@ -141,7 +142,11 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 	for _, step := range steps {
 		ctx.Selected = append(ctx.Selected, step.Name)
 	}
-	report := pipeline.Execute(steps, newExecutor(ctx, stderr), opts.failFast)
+	timed := pipeline.NewTimed(newExecutor(ctx, stderr), stderr, time.Now)
+	report := pipeline.Execute(steps, timed, opts.failFast)
+	if _, err := io.WriteString(stderr, timed.Summary()); err != nil || timed.Err() != nil {
+		return emit(stderr, ExitFailure, "go-qa: writing stage times: %v", errors.Join(err, timed.Err()))
+	}
 	if _, err := io.WriteString(stdout, renderRunSummary(report, scope, diff)); err != nil {
 		return emit(stderr, ExitFailure, "go-qa: %v", err)
 	}
