@@ -50,8 +50,13 @@ func TestRunAllPassExitsZeroWithSummaryAndNoPointer(t *testing.T) {
 	t.Setenv("CI", "")
 	rec := &recorder{skipped: []string{"mutants"}}
 	code, out, errOut := runWith(rec, "--root", module(t, ""), "run")
-	if code != 0 || errOut != "" {
+	if code != 0 {
 		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+	for _, want := range []string{"go-qa: fmt: start", "go-qa: fmt: passed in ", "go-qa stage times:"} {
+		if !strings.Contains(errOut, want) {
+			t.Errorf("stderr lacks %q:\n%s", want, errOut)
+		}
 	}
 	for _, want := range []string{"go-qa summary:", "format     fmt          passed", "runners    mutants      skipped (not applicable)"} {
 		if !strings.Contains(out, want) {

@@ -4,6 +4,12 @@ Changes that alter what a consuming project sees. The version is the release tag
 
 ## Unreleased
 
+### Added
+
+- **Every step prints its start and end with its wall time.** `go-qa: test: start`, then
+  `go-qa: test: passed in 41.2s`, on stderr as the run goes, and a `go-qa stage times:` table with
+  the total at the end. A long CI run now shows where its time went.
+
 ### Changed
 
 - **The test step uses Go's test cache in local runs.** `go-qa run` without `--ci` runs

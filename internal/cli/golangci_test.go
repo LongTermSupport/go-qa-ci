@@ -62,7 +62,7 @@ func TestRunDropsAFindingOutsideThePathScope(t *testing.T) {
 		"q/q.go": "// Package q is a fixture.\npackage q\n",
 	})
 	code, _, stderr := goQA(t, "--root", root, "run", "-t", "golangci", "-p", filepath.Join(root, "q"))
-	if code != cli.ExitOK || stderr != "" {
+	if code != cli.ExitOK || strings.Contains(stderr, "errcheck") {
 		t.Errorf("a finding outside -p was reported: exit %d\n%s", code, stderr)
 	}
 }
