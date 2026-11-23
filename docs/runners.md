@@ -12,7 +12,7 @@ an error, never a skipped check.
 | `vuln`                | `govulncheck -format json ./...`                                                                      | the code calls a vulnerable symbol the record does not license                     |
 | `mod`                 | `go mod tidy -diff`, then `go mod verify`                                                             | `go.mod` or `go.sum` is not tidy, or a dependency does not match its recorded hash |
 | `build`               | `go build -o /dev/null ./...` (read-only, see below)                                                | a package does not compile without its test files (see below)                      |
-| `test`                | `go test -race -shuffle=on -count=1 [-covermode=atomic -coverprofile] ./...`                          | a test fails or the code does not build                                            |
+| `test`                | `go test -race [-covermode=atomic -coverprofile] ./...` (cacheable; see "Test cache")                 | a test fails or the code does not build                                            |
 | `coverage`            | the `test` run's own `-covermode=atomic -coverpkg=./... -coverprofile`, read by `go tool cover -func` | statement coverage is below `coverage.fail_under_statements`                       |
 | `mutants`             | `gremlins unleash --config <generated>` (diff mode adds `--diff <base>`)                              | the tests kill fewer than `mutants.threshold_efficacy` percent of the mutants      |
 | `deadcode` (detector) | `deadcode -test -json ./...`                                                                          | a function is unreachable from every `main` function and test                      |
@@ -40,6 +40,52 @@ when it is named although `./...` skips it) is left out, since it has nothing to
 files are compiled by `test`; a named package that does not load still fails. A change to `go.mod` widens the run to every package; with no changed Go package it is
 skipped, saying so. Build output is cached by the Go build cache, so building everything would be
 cheap too; the narrowed set keeps it consistent with the other per-package engines.
+
+## Test cache
+
+A test whose inputs did not change has nothing new to say, so `test` and `coverage` let Go's test
+cache answer it instead of running it again. go reuses a passing result only when the test binary
+is the same (the package, every dependency, the Go version, the build flags such as `-race` and
+`-coverpkg`) and every flag is one it caches (`-coverprofile`, `-run`, `-short`, `-timeout`, `-v`
+and a few more, listed by `go help test`); the coverage flags are among them, so a measured run is
+cached too. A failing result is never cached.
+
+**CI runs are forced; local runs are cached.** A CI run (`--ci`, or a `CI` variable that is set and
+not `false` or `0`) reruns every test, uncached and in random order: `-shuffle=on -count=1`. It is
+the gate a protected branch moves on, so it keeps random order, which finds a test that depends on
+another's leftovers. go treats `-shuffle` as uncacheable, so a cached run cannot be shuffled: a
+local run is cached and in source order. `--no-cache` (one run) or `test.cache = false` (every run)
+forces a local run the same way, for a nightly or release run that wants a fresh verdict.
+
+A cached run fails, naming the flag, when `GOFLAGS` (including what `go env -w` set) holds `-count`
+or `-shuffle`: the run would claim the cache and silently not use it.
+
+What the cache sees, and what it cannot:
+
+- It sees the files a test opens with the `os` package inside the module, and the environment
+  variables it reads with `os.Getenv` and its kin: when one changes, the test runs again.
+- It does not see a file outside the module, a network service, the clock, a program the test
+  starts (its own inputs), or anything read in a way go does not record (a file opened by a child
+  process, a value read by cgo). A test whose result can change through one of those is not
+  cacheable as written.
+
+A test makes itself cacheable by keeping its inputs where go looks: fixtures under `testdata/`,
+configuration through environment variables, a fake clock, a fake in place of the network. A test
+that cannot (an integration test against a live service) belongs in a project stage with
+`when = "full"` that runs it with `-count=1`, so it reruns in full runs and stays out of diff mode
+(docs/stages.md).
+
+In a narrowed diff-mode run the race detector is spent on the changed packages only: their
+importers' tests run too, since a change can break them, but without `-race`, which would rebuild
+every importer for the race detector even where its result is cached. Coverage still counts what
+the importers' tests reach in the changed packages. A full or widened run tests every package under
+`-race`.
+
+What a narrowed run gives up for that: a data race that only an importer's tests exercise is not
+reported. That covers a race in the importer's own code, and a race in the changed code that the
+changed package's own tests never reach but an importer's tests do. Those tests still run and must
+pass; only the race detector is off for them. The full run, and every CI run, test every package
+under `-race` and catch such a race; a green `--changed` run says nothing about it.
 
 ## Identifiers
 

@@ -170,15 +170,16 @@ func (e Executor) runBuild() pipeline.Outcome {
 	return e.verdict(err, failed)
 }
 
-// runTest runs every module's tests with the race detector, shuffled and uncached.
+// runTest runs every module's tests as testPlanOf says: with the race detector, and answered from
+// Go's test cache where their inputs did not change.
 func (e Executor) runTest() pipeline.Outcome {
 	failed := false
 	err := e.eachModuleInScope(func(module, dir string) error {
-		packages, run := e.packagesOf(module)
+		plan, run := e.testPlanOf(module)
 		if !run {
 			return nil
 		}
-		output, passed, err := e.testModule(module, dir, packages)
+		output, passed, err := e.testModule(module, dir, plan)
 		if err != nil {
 			return fmt.Errorf("test in %s: %w", displayModule(module), err)
 		}
@@ -196,16 +197,16 @@ func (e Executor) runTest() pipeline.Outcome {
 
 // testModule runs the tests of a module. When the run shares its test run with the coverage step,
 // the same go test run also measures the coverage and keeps it for that step.
-func (e Executor) testModule(module, dir string, packages []string) (output string, passed bool, err error) {
+func (e Executor) testModule(module, dir string, plan runners.TestPlan) (output string, passed bool, err error) {
 	if e.Shared == nil {
-		output, passed, err = runners.Test(context.Background(), dir, packages...)
+		output, passed, err = runners.Test(context.Background(), dir, plan)
 		if err != nil {
 			return "", false, fmt.Errorf("running the tests: %w", err)
 		}
 		return output, passed, nil
 	}
 	measured, measure := e.measuredOf(module)
-	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, measured, packages...)
+	output, passed, cov, err := runners.TestAndMeasure(context.Background(), dir, measured, plan)
 	if err != nil {
 		return "", false, fmt.Errorf("running the tests and measuring coverage: %w", err)
 	}
@@ -220,12 +221,12 @@ func (e Executor) runCoverage() pipeline.Outcome {
 	threshold := e.Ctx.Config.Coverage.FailUnderStatements
 	failed := false
 	err := e.eachModuleInScope(func(module, dir string) error {
-		packages, run := e.packagesOf(module)
+		plan, run := e.testPlanOf(module)
 		measured, measure := e.measuredOf(module)
 		if !run || !measure {
 			return nil
 		}
-		message, err := e.coverageProblem(module, dir, threshold, measured, packages)
+		message, err := e.coverageProblem(module, dir, threshold, measured, plan)
 		if err != nil {
 			return fmt.Errorf("coverage in %s: %w", displayModule(module), err)
 		}
@@ -245,11 +246,11 @@ func (e Executor) runCoverage() pipeline.Outcome {
 // met. The coverage is the test step's, from the shared run, when there is one; otherwise it is
 // measured here in a run of its own. Failing tests are a problem of the coverage gate too: nothing
 // was measured.
-func (e Executor) coverageProblem(module, dir string, threshold int, measured, packages []string) (string, error) {
+func (e Executor) coverageProblem(module, dir string, threshold int, measured []string, plan runners.TestPlan) (string, error) {
 	cov, shared := e.Shared.take(module)
 	if !shared {
 		var err error
-		cov, err = runners.MeasureCoverage(context.Background(), dir, measured, packages...)
+		cov, err = runners.MeasureCoverage(context.Background(), dir, measured, plan)
 		var testsFailed *runners.TestsFailedError
 		if errors.As(err, &testsFailed) {
 			return strings.TrimSpace(testsFailed.Error()), nil

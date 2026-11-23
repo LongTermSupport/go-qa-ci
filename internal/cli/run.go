@@ -41,6 +41,7 @@ type runOptions struct {
 	noFix    bool
 	failFast bool
 	changed  bool
+	noCache  bool
 }
 
 // parseRun parses the run flags; when ok is false the caller returns code.
@@ -49,9 +50,11 @@ func parseRun(args []string, stderr io.Writer) (opts runOptions, code int, ok bo
 	flags.SetOutput(stderr)
 	flags.Var(&opts.tools, "t", "run only this tool (repeatable); default: every enabled tool")
 	flags.Var(&opts.paths, "p", "limit the run to this file or directory (repeatable)")
-	flags.BoolVar(&opts.ci, "ci", false, "CI mode: autofix, then fail if the tree changed (implied by CI)")
+	flags.BoolVar(&opts.ci, "ci", false, "CI mode: autofix, then fail if the tree changed, and rerun every test uncached and shuffled (implied by CI)")
 	flags.BoolVar(&opts.noFix, "no-fix", false, "check formatting without modifying files")
 	flags.BoolVar(&opts.failFast, "fail-fast", false, "stop at the first failure")
+	flags.BoolVar(&opts.noCache, "no-cache", false, "rerun every test, uncached and shuffled, for this run (test.cache = false; --ci implies it); "+
+		"by default a local run lets Go's test cache answer a test whose inputs did not change")
 	flags.BoolVar(&opts.changed, "changed", false, "diff mode, for fast local iteration (the full run stays the gate before a push): "+
 		"per-package engines run on the changed packages and their importers, file-scoped detectors on the changed files, "+
 		"the repo-wide defences always; changed = files changed against HEAD plus untracked files that are not ignored; "+
@@ -84,6 +87,12 @@ func ciEnabled() bool {
 }
 
 func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions, newExecutor ExecutorFactory, newToolchain ToolchainFactory, stdout, stderr io.Writer) int {
+	ci := opts.ci || ciEnabled()
+	// A CI run is the gate a protected branch moves on: it reruns every test, shuffled, whatever
+	// the cache holds. Local runs stay cached unless --no-cache asks otherwise.
+	if opts.noCache || ci {
+		cfg.Test.Cache = false
+	}
 	steps, err := tools.Select(opts.tools, cfg)
 	if err != nil {
 		return emit(stderr, ExitUsage, "go-qa: %v", err)
@@ -124,7 +133,7 @@ func runPipeline(rootPath, configFile string, cfg config.Config, opts runOptions
 		Root:   rootPath,
 		Config: cfg,
 		Scope:  scope,
-		CI:     opts.ci || ciEnabled(),
+		CI:     ci,
 		Fix:    !opts.noFix,
 		Today:  date.Today(),
 		Diff:   diff,

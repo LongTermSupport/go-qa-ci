@@ -1,7 +1,10 @@
 package tools
 
 import (
+	"slices"
+
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
+	"github.com/LongTermSupport/go-qa-ci/internal/runners"
 )
 
 // wholeProject reports whether the run judges the whole project, so a check that needs every
@@ -20,6 +23,29 @@ func (e Executor) packagesOf(module string) (patterns []string, run bool) {
 	}
 	patterns = e.Ctx.Diff.Packages[module]
 	return patterns, len(patterns) > 0
+}
+
+// testPlanOf is how the test and coverage steps run the tests of module, and whether to run there
+// at all. A full or widened run tests every package under the race detector in one invocation. A
+// narrowed run spends the race detector on the changed packages only: their importers' tests run
+// too, since a change can break them, but without -race, so an importer whose inputs did not
+// change is answered from the test cache instead of being rebuilt for the race detector. Unless
+// test.cache is off, the run is cacheable; off, every test reruns, uncached and shuffled.
+func (e Executor) testPlanOf(module string) (plan runners.TestPlan, run bool) {
+	plan.Forced = !e.Ctx.Config.Test.Cache
+	packages, run := e.packagesOf(module)
+	if !run || !e.Ctx.Diff.Narrow() {
+		return plan, run
+	}
+	changedPackages := e.Ctx.Diff.Changed[module]
+	importers := slices.DeleteFunc(slices.Clone(packages), func(p string) bool { return slices.Contains(changedPackages, p) })
+	if len(changedPackages) > 0 {
+		plan.Batches = append(plan.Batches, runners.Batch{Packages: changedPackages, Race: true})
+	}
+	if len(importers) > 0 {
+		plan.Batches = append(plan.Batches, runners.Batch{Packages: importers})
+	}
+	return plan, true
 }
 
 // measuredOf is the package patterns whose statements coverage counts in module, and whether

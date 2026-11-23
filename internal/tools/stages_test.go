@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LongTermSupport/go-qa-ci/internal/changed"
 	"github.com/LongTermSupport/go-qa-ci/internal/config"
 	"github.com/LongTermSupport/go-qa-ci/internal/faketool"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
@@ -54,6 +55,35 @@ func TestAStageOverShellScriptsIsSkippedWhenNoFilesMatch(t *testing.T) {
 	}
 	if calls := faketool.Calls(t, log); len(calls) != 0 {
 		t.Errorf("the tool ran with nothing to check: %q", calls)
+	}
+}
+
+// A stage marked when = "full" runs in a full run and is skipped, saying so, in every diff-mode
+// run, narrowed or widened.
+func TestAFullOnlyStageNeverRunsInDiffMode(t *testing.T) {
+	log := faketool.Install(t, "cross-build", faketool.Spec{})
+	s := stage.Stage{Name: "cross-build", Phase: "runners", Says: "s", Fix: "f", Command: []string{"cross-build"}, When: stage.WhenFull}
+	cfg := config.Default()
+	cfg.Stages = []stage.Stage{s}
+	steps, err := tools.Select([]string{s.Name}, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := fixture(t, map[string]string{"main.go": cleanSource})
+	for _, plan := range []*changed.Plan{{}, {Widened: "go.mod changed"}} {
+		var stderr bytes.Buffer
+		exec := tools.Executor{Ctx: tools.Context{Root: root, Config: cfg, Today: fixedToday(t), Diff: plan}, Stderr: &stderr}
+		if out := exec.Run(steps[0]); out.Kind != pipeline.KindSkipped || !strings.Contains(out.Reason, "full") {
+			t.Errorf("diff mode %+v: got %+v", plan, out)
+		}
+	}
+	if calls := faketool.Calls(t, log); len(calls) != 0 {
+		t.Fatalf("the stage ran in diff mode: %q", calls)
+	}
+	var stderr bytes.Buffer
+	exec := tools.Executor{Ctx: tools.Context{Root: root, Config: cfg, Today: fixedToday(t)}, Stderr: &stderr}
+	if out := exec.Run(steps[0]); out.Kind != pipeline.KindPassed || len(faketool.Calls(t, log)) != 1 {
+		t.Errorf("a full run must run it: got %+v, %s", out, stderr.String())
 	}
 }
 
