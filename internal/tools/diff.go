@@ -33,6 +33,7 @@ func (e Executor) packagesOf(module string) (patterns []string, run bool) {
 // test.cache is off, the run is cacheable; off, every test reruns, uncached and shuffled.
 func (e Executor) testPlanOf(module string) (plan runners.TestPlan, run bool) {
 	plan.Forced = !e.Ctx.Config.Test.Cache
+	plan.Report = e.Stderr
 	packages, run := e.packagesOf(module)
 	if !run || !e.Ctx.Diff.Narrow() {
 		return plan, run

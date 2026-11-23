@@ -3,6 +3,7 @@ package runners
 import (
 	"context"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -41,6 +42,8 @@ type TestPlan struct {
 	Batches []Batch
 	// Forced reruns every test, uncached and shuffled.
 	Forced bool
+	// Report, when set, receives the slowest packages and tests once every batch has run.
+	Report io.Writer
 }
 
 // forcedFlags rerun every test, in random order. Either one alone already defeats the test cache.
@@ -73,7 +76,7 @@ func (p TestPlan) batches() []Batch {
 
 // args is the go command line of one batch, with extra flags (coverage) before the packages.
 func (p TestPlan) args(b Batch, extra ...string) []string {
-	args := []string{"test"}
+	args := []string{"test", "-json"}
 	if b.Race {
 		args = append(args, "-race")
 	}
@@ -97,14 +100,31 @@ func Test(ctx context.Context, dir string, plan TestPlan) (output string, passed
 		}
 	}
 	var combined strings.Builder
+	var timings Timings
 	passed = true
 	for _, b := range plan.batches() {
 		out, err := Capture(ctx, dir, goBinary, plan.args(b)...)
 		if err != nil {
 			return "", false, err
 		}
-		combined.WriteString(out.Combined())
+		parsed := ParseTestJSON(out.Stdout)
+		combined.WriteString(parsed.Text + out.Stderr)
+		timings.add(parsed.Timings)
 		passed = passed && out.Code == 0
 	}
+	if err = plan.report(timings); err != nil {
+		return "", false, err
+	}
 	return combined.String(), passed, nil
+}
+
+// report writes the slowest packages and tests of the run to the plan's Report, if it has one.
+func (p TestPlan) report(timings Timings) error {
+	if p.Report == nil {
+		return nil
+	}
+	if _, err := io.WriteString(p.Report, timings.Slowest(slowestShown)); err != nil {
+		return fmt.Errorf("writing the test timings: %w", err)
+	}
+	return nil
 }
