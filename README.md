@@ -57,9 +57,9 @@ Global flags: `--root DIR` (default: the directory of the active `go.work`, else
 
 ### Diff mode
 
-`go-qa run --changed [--base <ref>]` is for fast local iteration. The full run stays the gate:
-run it before every push, and in CI. `--changed` cannot be combined with `-p`, and `--base` needs
-`--changed`.
+`go-qa run --changed [--base <ref>] [--also-packages <dir>,...]` is for fast local iteration. The
+full run stays the gate: run it before every push, and in CI. `--changed` cannot be combined with
+`-p`, and `--base` and `--also-packages` need `--changed`.
 
 The changed set is the files changed against `HEAD` plus the untracked files that are not
 ignored; with `--base <ref>` it is the files changed since the merge base of `<ref>` and `HEAD`,
@@ -79,6 +79,14 @@ plus the working tree (so a committed change on a branch is covered).
 A changed file under a `testdata` directory runs the tests of the package that owns the directory
 (not its importers); a changed file a package embeds (`go:embed`) runs that package and its
 importers. Any other non-Go file selects no package.
+
+A change the diff cannot see (a file outside the root that a package's tests read, such as a script
+a parity test runs) is named by the caller: `--also-packages <dir>,...` (repeatable) runs those
+packages and their importers as if they had changed. Each entry is a root-relative package
+directory (`./` optional), or a directory ending in `/...` for every package at or below it; an
+entry that names no package is a usage error, so a stale name never quietly runs nothing. Their
+statements did not change, so coverage does not count them, and their tests run without `-race`.
+The scope line counts them: `scope: 1 changed file, 2 named packages; packages: ...`.
 
 A change to `go.mod`, `go.sum`, `go.work`, the tool lock, a golangci configuration, the project
 record, the configuration file or a rule source widens the run to everything, and the summary says

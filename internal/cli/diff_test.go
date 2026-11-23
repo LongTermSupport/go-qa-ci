@@ -66,6 +66,23 @@ func TestRunChangedNamesTheModeAndTheScopeInTheSummary(t *testing.T) {
 	}
 }
 
+func TestRunChangedAlsoPackagesJoinTheScope(t *testing.T) {
+	t.Setenv("CI", "")
+	dir := gitModule(t)
+	writeIn(t, dir, "notes.md", "read by nothing\n")
+	rec := &recorder{}
+	code, out, errOut := runWith(rec, "--root", dir, "run", "--changed", "--also-packages", "leaf", "--also-packages", "./other,leaf")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+	if !strings.Contains(out, "scope: 1 changed file, 2 named packages; packages: ./leaf, ./mid, ./other") {
+		t.Errorf("summary:\n%s", out)
+	}
+	if rec.ctx.Diff == nil || !rec.ctx.Diff.Narrow() || !slices.Equal(rec.ctx.Diff.Packages[""], []string{"./leaf", "./mid", "./other"}) {
+		t.Errorf("context diff %+v", rec.ctx.Diff)
+	}
+}
+
 func TestRunChangedBaseCoversACommittedChange(t *testing.T) {
 	t.Setenv("CI", "")
 	dir := gitModule(t)
@@ -269,6 +286,9 @@ func TestRunChangedUsageErrors(t *testing.T) {
 		"base without changed": {"run", "--base", "main"},
 		"changed with paths":   {"run", "--changed", "-p", "leaf"},
 		"unknown base":         {"run", "--changed", "--base", "no-such-ref"},
+		"also without changed": {"run", "--also-packages", "leaf"},
+		"also naming nothing":  {"run", "--changed", "--also-packages", "nosuch"},
+		"also empty entry":     {"run", "--changed", "--also-packages", "leaf,"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -282,7 +302,7 @@ func TestRunChangedUsageErrors(t *testing.T) {
 
 func TestRunHelpDocumentsDiffMode(t *testing.T) {
 	_, _, errOut := runWith(&recorder{}, "run", "--help")
-	for _, want := range []string{"-changed", "-base"} {
+	for _, want := range []string{"-changed", "-base", "-also-packages"} {
 		if !strings.Contains(errOut, want) {
 			t.Errorf("help lacks %q:\n%s", want, errOut)
 		}

@@ -6,6 +6,12 @@ Changes that alter what a consuming project sees. The version is the release tag
 
 ### Added
 
+- **`go-qa run --changed --also-packages <dir>,...`** runs the named packages and their importers
+  as if they had changed, for a change the diff cannot see (a file outside the root that their tests
+  read). An entry is a root-relative package directory or `<dir>/...`; one that names no package is
+  a usage error. Named packages are tested (without `-race`) but not counted by coverage, and the
+  scope line counts them.
+
 - **Every step prints its start and end with its wall time.** `go-qa: test: start`, then
   `go-qa: test: passed in 41.2s`, on stderr as the run goes, and a `go-qa stage times:` table with
   the total at the end. A long CI run now shows where its time went.
