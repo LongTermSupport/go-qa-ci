@@ -17,6 +17,7 @@
 //	dir = "web"                               # working directory, relative to the root
 //	output = "findings"                       # status (the exit code) | findings (JSON on stdout)
 //	rules = ["node", "scan.js", "--rules"]    # prints the rules the stage reports, as JSON
+//	when = "full"                             # always (default) | full: never in a diff-mode run
 package stage
 
 import (
@@ -83,6 +84,45 @@ type Stage struct {
 	// Rules is a command printing the rules the stage reports, as a JSON list of
 	// {"id", "description", "doc"?}, for the listing and the documentation check.
 	Rules []string `toml:"rules"`
+	// When is which runs include the stage: always (the default) or full, which leaves it out of
+	// every diff-mode run (`run --changed`).
+	When string `toml:"when"`
+}
+
+// The values of when.
+const (
+	// WhenAlways runs the stage in every run.
+	WhenAlways = "always"
+	// WhenFull runs the stage in full runs only: never in a diff-mode run.
+	WhenFull = "full"
+)
+
+// FullOnly reports whether the stage is left out of diff-mode runs.
+func (s Stage) FullOnly() bool {
+	return s.When == WhenFull
+}
+
+// goTestRerunFlags are the go test flags that make go rerun a test whose inputs did not change:
+// -count with any value, and -shuffle, which go never caches. Each is matched with one or two
+// leading dashes and, after -args, with the test binary's own test. prefix.
+var goTestRerunFlags = []string{"count", "shuffle", "test.count", "test.shuffle"}
+
+// forcesGoTestRerun reports the first argument of command that makes `go test` rerun cached
+// tests, if command is a go test run.
+func forcesGoTestRerun(command []string) (string, bool) {
+	if len(command) < 2 || path.Base(filepath.ToSlash(command[0])) != "go" || command[1] != "test" {
+		return "", false
+	}
+	for _, arg := range command[2:] {
+		name := strings.TrimLeft(arg, "-")
+		if i := strings.IndexByte(name, '='); i >= 0 {
+			name = name[:i]
+		}
+		if strings.HasPrefix(arg, "-") && slices.Contains(goTestRerunFlags, name) {
+			return arg, true
+		}
+	}
+	return "", false
 }
 
 // PhaseOf is the phase the stage runs in.
@@ -108,6 +148,17 @@ func (s Stage) Problems() []string {
 	for key, text := range map[string]string{"says": s.Says, "fix": s.Fix} {
 		if strings.TrimSpace(text) == "" {
 			problems = append(problems, fmt.Sprintf("%s: `%s` is empty", label, key))
+		}
+	}
+	if s.When != "" && s.When != WhenAlways && s.When != WhenFull {
+		problems = append(problems, fmt.Sprintf("%s: when %q is unknown (want always or full)", label, s.When))
+	}
+	if !s.FullOnly() {
+		for _, command := range [][]string{s.Command, s.FilesCommand} {
+			if flag, forced := forcesGoTestRerun(command); forced {
+				problems = append(problems, fmt.Sprintf("%s: `go test %s` reruns every test whose result the test cache already holds; "+
+					"drop the flag, or keep it and give the stage `when = \"full\"` so it never runs in diff mode", label, flag))
+			}
 		}
 	}
 	if s.Dir != "" && !filepath.IsLocal(s.Dir) {

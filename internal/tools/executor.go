@@ -27,6 +27,9 @@ type Executor struct {
 
 // Run executes one step; in a narrowed diff-mode run the step first narrows to what changed.
 func (e Executor) Run(step pipeline.Step) pipeline.Outcome {
+	if s, found := e.stageNamed(step.Name); found && s.FullOnly() && e.Ctx.Diff != nil {
+		return pipeline.Skipped("when = \"full\": the stage runs in full runs only, never in diff mode")
+	}
 	if e.Ctx.Diff.Narrow() {
 		if outcome, handled := e.runNarrowed(step); handled {
 			return outcome

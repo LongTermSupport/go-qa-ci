@@ -21,6 +21,7 @@ exclude = ["vendor/**"]
 dir = "web"                               # working directory, relative to the root
 output = "findings"                       # status (the exit code) | findings (JSON on stdout)
 rules = ["node", "scan.js", "--rules"]    # prints the rules the stage reports, as JSON
+when = "full"                             # always (default) | full: never in a diff-mode run
 
 [[resolver]]
 matches = "SC[0-9]*"                      # a glob over identifiers
@@ -42,6 +43,20 @@ Within a phase the built-in tools run first, in catalogue order, then the stages
 A failed format or detector stage stops the run before the first runner, like any other
 (TOOLING-SPEC 4.5). A stage always runs on a default run; there is no `[tools]` switch for it, and
 `-t <name>` runs only it.
+
+## Full runs only
+
+`when = "full"` keeps a stage out of every diff-mode run (`go-qa run --changed`, narrowed or
+widened), where it is skipped and the summary says why; a full run, in CI or on a laptop, runs it
+as usual. It is for the expensive stages that do not belong in fast local iteration: a build for
+every target platform, a vet under each build tag, a forced test run. `-t <name>` with `--changed`
+still skips it. The default, `when = "always"`, runs the stage in every run.
+
+A stage whose `command` or `files_command` is `go test` with a flag that makes go rerun tests the
+test cache already holds (`-count`, with any value, or `-shuffle`, also as `-test.count` or
+`-test.shuffle` after `-args`) is rejected unless it says `when = "full"`: forcing a rerun is the
+job of a full run, never of every iteration. The check reads the argument vector only: `go test`
+started through a shell or a script is not seen.
 
 ## Files
 

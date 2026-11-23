@@ -60,6 +60,45 @@ func TestAStageReadsFromTheConfiguration(t *testing.T) {
 	}
 }
 
+func TestAStageRunsInEveryRunUnlessItSaysFull(t *testing.T) {
+	for when, valid := range map[string]bool{"": true, "always": true, "full": true, "nightly": false} {
+		s := parse(t, shell+"when = \""+when+"\"\n")
+		problems := strings.Join(s.Problems(), "\n")
+		if valid == strings.Contains(problems, "when") {
+			t.Errorf("when = %q: problems %q", when, problems)
+		}
+		if s.FullOnly() != (when == "full") {
+			t.Errorf("when = %q: full only = %v", when, s.FullOnly())
+		}
+	}
+}
+
+// Defence for the class "a QA runner makes Go redo work whose inputs did not change": a stage
+// that forces go test to rerun cached tests must be a full-run stage, never part of diff mode.
+func TestAStageThatForcesGoTestToRerunMustRunInFullRunsOnly(t *testing.T) {
+	const declared = "name = \"tagged\"\nphase = \"runners\"\nsays = \"s\"\nfix = \"f\"\n"
+	for _, command := range []string{
+		`["go", "test", "-count=1", "./..."]`,
+		`["go", "test", "-count", "1", "./..."]`,
+		`["/usr/local/go/bin/go", "test", "-shuffle=on", "./..."]`,
+		`["go", "test", "--count=2", "./..."]`,
+		`["go", "test", "./...", "-args", "-test.count=1"]`,
+	} {
+		s := parse(t, declared+"command = "+command+"\n")
+		if problems := strings.Join(s.Problems(), "\n"); !strings.Contains(problems, "test cache") || !strings.Contains(problems, "when = \"full\"") {
+			t.Errorf("%s: problems %q", command, problems)
+		}
+		if problems := parse(t, declared+"command = "+command+"\nwhen = \"full\"\n").Problems(); len(problems) != 0 {
+			t.Errorf("%s with when = \"full\": problems %v", command, problems)
+		}
+	}
+	for _, command := range []string{`["go", "test", "-race", "./..."]`, `["go", "vet", "-count=1"]`, `["counter", "test", "-count=1"]`} {
+		if problems := parse(t, declared+"command = "+command+"\n").Problems(); len(problems) != 0 {
+			t.Errorf("%s: problems %v", command, problems)
+		}
+	}
+}
+
 func TestAStageMustSayWhatItChecksHowToFixItAndWhatItRuns(t *testing.T) {
 	s := parse(t, "name = \"\"\nphase = \"runners\"\nsays = \" \"\nfix = \"\"\ncommand = []\n")
 	problems := strings.Join(s.Problems(), "\n")
