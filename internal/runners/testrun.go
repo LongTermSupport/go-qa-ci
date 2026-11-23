@@ -2,8 +2,11 @@ package runners
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/LongTermSupport/go-qa-ci/internal/gotest"
 )
 
 // AllPackages is the pattern for every package of a module.
@@ -43,6 +46,23 @@ type TestPlan struct {
 // forcedFlags rerun every test, in random order. Either one alone already defeats the test cache.
 var forcedFlags = []string{"-shuffle=on", "-count=1"}
 
+// cacheDefeated fails a cacheable run whose GOFLAGS (from go env, so `go env -w` counts) carries a
+// flag that reruns every test: the run would claim to use the cache and silently not.
+func cacheDefeated(ctx context.Context, dir string) error {
+	out, err := Capture(ctx, dir, goBinary, "env", "GOFLAGS")
+	if err != nil {
+		return err
+	}
+	if out.Code != 0 {
+		return fmt.Errorf("go env GOFLAGS exited %d: %s", out.Code, strings.TrimSpace(out.Combined()))
+	}
+	if flag, found := gotest.RerunFlag(strings.Fields(out.Stdout)); found {
+		return fmt.Errorf("GOFLAGS holds %s, which makes go rerun every test the cache already holds; "+
+			"remove it from GOFLAGS (and from `go env -w`), and use --no-cache or test.cache = false for a forced run", flag)
+	}
+	return nil
+}
+
 // batches is the plan's invocations, defaulting to every package under the race detector.
 func (p TestPlan) batches() []Batch {
 	if len(p.Batches) == 0 {
@@ -65,7 +85,17 @@ func (p TestPlan) args(b Batch, extra ...string) []string {
 
 // Test runs the module's tests in dir as the plan says. passed is false when a test failed or the
 // code did not build in any batch; output is everything go test printed, batch after batch.
+//
+// A failing batch does not stop the next: a single go test invocation reports every failing
+// package rather than the first, and the batches keep that, so one run names the broken changed
+// package and the importers it broke together. The later batch is the cheap one (no race
+// detector, cached where unchanged), so continuing costs little.
 func Test(ctx context.Context, dir string, plan TestPlan) (output string, passed bool, err error) {
+	if !plan.Forced {
+		if err = cacheDefeated(ctx, dir); err != nil {
+			return "", false, err
+		}
+	}
 	var combined strings.Builder
 	passed = true
 	for _, b := range plan.batches() {

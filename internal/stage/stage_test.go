@@ -83,6 +83,10 @@ func TestAStageThatForcesGoTestToRerunMustRunInFullRunsOnly(t *testing.T) {
 		`["/usr/local/go/bin/go", "test", "-shuffle=on", "./..."]`,
 		`["go", "test", "--count=2", "./..."]`,
 		`["go", "test", "./...", "-args", "-test.count=1"]`,
+		`["go", "-C", "sub", "test", "-count=1", "./..."]`,
+		`["go", "-C=sub", "test", "-shuffle=on", "./..."]`,
+		`["env", "GOFLAGS=-count=1", "go", "test", "./..."]`,
+		`["env", "CGO_ENABLED=0", "GOFLAGS=-race -shuffle=on", "go", "-C", "sub", "test", "./..."]`,
 	} {
 		s := parse(t, declared+"command = "+command+"\n")
 		if problems := strings.Join(s.Problems(), "\n"); !strings.Contains(problems, "test cache") || !strings.Contains(problems, "when = \"full\"") {
@@ -92,7 +96,10 @@ func TestAStageThatForcesGoTestToRerunMustRunInFullRunsOnly(t *testing.T) {
 			t.Errorf("%s with when = \"full\": problems %v", command, problems)
 		}
 	}
-	for _, command := range []string{`["go", "test", "-race", "./..."]`, `["go", "vet", "-count=1"]`, `["counter", "test", "-count=1"]`} {
+	for _, command := range []string{
+		`["go", "test", "-race", "./..."]`, `["go", "vet", "-count=1"]`, `["counter", "test", "-count=1"]`,
+		`["go", "-C", "sub", "vet", "-count=1"]`, `["env", "GOFLAGS=-race", "go", "test", "./..."]`, `["env", "GOFLAGS=-count=1", "go", "build"]`,
+	} {
 		if problems := parse(t, declared+"command = "+command+"\n").Problems(); len(problems) != 0 {
 			t.Errorf("%s: problems %v", command, problems)
 		}

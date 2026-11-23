@@ -161,8 +161,9 @@ type Coverage struct {
 
 // Test configures how the test and coverage steps run the tests.
 type Test struct {
-	// Cache lets Go answer a test whose inputs did not change from its test cache. False reruns
-	// every test, uncached and shuffled, as `go-qa run --no-cache` does for one run.
+	// Cache lets Go answer a test whose inputs did not change from its test cache, in a local
+	// run. False reruns every test, uncached and shuffled, as `go-qa run --no-cache` does for one
+	// run and every CI run (`--ci`) does always.
 	Cache bool `toml:"cache"`
 }
 

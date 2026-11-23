@@ -66,8 +66,8 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      # The forced run: every test again, shuffled, whatever the test cache holds. The self-gate's
-      # own test step is cacheable, so this job is where random order is exercised.
+      # CI runs are forced: every test again, shuffled, whatever the test cache holds, as the
+      # self-gate's go-qa run --ci does. Local runs are the ones the cache serves.
       - run: go test -race -shuffle=on -count=1 ./...
       - run: golangci-lint run ./...
 

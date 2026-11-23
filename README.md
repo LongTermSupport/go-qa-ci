@@ -38,16 +38,17 @@ fails as not implemented; neither counts as a pass. Within a phase the built-in 
 | runners   | `vuln`           | govulncheck, symbol-level                                                                                                                                                           |
 |           | `mod`            | `go mod tidy -diff`, then `go mod verify`                                                                                                                                           |
 |           | `build`          | `go build -o /dev/null ./...`: every package, for the host GOOS/GOARCH and default tags, compiled without its tests     |
-|           | `test`           | `go test -race ./...`, answered from Go's test cache where nothing changed; `--no-cache` or `test.cache = false` adds `-shuffle=on -count=1` (see docs/runners.md)                |
+|           | `test`           | `go test -race ./...`; a local run is answered from Go's test cache where nothing changed; a CI run (`--ci`), `--no-cache` or `test.cache = false` adds `-shuffle=on -count=1` (docs/runners.md) |
 |           | `coverage`       | statement coverage with a threshold                                                                                                                                                 |
 |           | `mutants`        | gremlins (`off`, `diff` against a base, or `full`)                                                                                                                                  |
 
 Options: `-t <tool or stage>` (repeatable), `-p <path>` (repeatable; a file or a directory under
 the root; one file is enough), `--ci` (also implied by a `CI` variable that is set and not `false`
-or `0`: autofix, then fail if the working tree changed), `--no-fix` (only check formatting),
+or `0`: autofix, then fail if the working tree changed, and rerun every test uncached and shuffled,
+since a CI run is the gate; local runs stay cached), `--no-fix` (only check formatting),
 `--fail-fast` (stop at the first failure of any kind), `--changed [--base <ref>]` (diff mode, see
-below), `--no-cache` (rerun every test, uncached and shuffled, for this run: a nightly or release
-run that wants a fresh verdict). An unknown `-t` name lists the known ones.
+below), `--no-cache` (rerun every test, uncached and shuffled, for this local run, as a CI run
+always does). An unknown `-t` name lists the known ones.
 Exit codes: 0 success, 1 a defence or tool failed, 2 usage or configuration error. A pinned tool that cannot be
 installed or found is an error, never a skipped check.
 
@@ -70,7 +71,7 @@ plus the working tree (so a committed change on a branch is covered).
 | `deadcode`, `mutants` (whole-program)                                     | run as configured when any package is affected                                                                                           |
 | file-scoped: `fmt`, `suppression`, `ast-grep`, stages that take `{files}` | run on the changed files only (`fmt` on the changed `.go` files)                                                                         |
 | repo-wide: `record`, `docs`, `summary`                                    | always run, over the whole project                                                                                                       |
-| `test`, `coverage` (narrowed)                                             | the changed packages run under `-race`; their importers' tests run without it, so an unchanged importer is answered from the test cache |
+| `test`, `coverage` (narrowed)                                             | the changed packages run under `-race`; their importers' tests run without it, so an unchanged importer is answered from the test cache. A race only an importer's tests exercise is missed here and caught by the full or CI run |
 | `coverage` (narrowed)                                                     | counts the statements of the changed packages only; importers are tested, not counted, so the result can differ from the full run's     |
 | project stages with `when = "full"`                                       | never run (a cross-build, a vet per build tag); see docs/stages.md                                                                       |
 | `vuln`, `mod` (whole-module)                                              | run as configured when any package is affected (a changed Go file can start calling a vulnerable function or import an unlisted module)  |
@@ -221,7 +222,7 @@ bundled = true               # run the bundled gqaci.ast.* pack beside the proje
 fail_under_statements = 80   # percent of statements covered, 0 to 100
 
 [test]
-cache = true                 # Go's test cache answers unchanged tests; false (or --no-cache) reruns all, shuffled
+cache = true                 # local runs: the test cache answers unchanged tests; false (or --no-cache, or --ci) reruns all, shuffled
 
 [mutants]
 mode = "off"                 # off | diff | full

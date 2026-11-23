@@ -128,6 +128,32 @@ func TestRunNoCacheSwitchesTheTestCacheOffForThatRun(t *testing.T) {
 	}
 }
 
+// A CI run is the gate a protected branch moves on, so it must keep random order: --ci, or a CI
+// variable, forces the uncached, shuffled run as --no-cache does. A local run stays cached.
+func TestRunInCIForcesTheUncachedShuffledRun(t *testing.T) {
+	dir := gitModule(t)
+	for _, c := range []struct {
+		env   string
+		args  []string
+		cache bool
+	}{
+		{"", []string{"run", "-t", "test"}, true},
+		{"", []string{"run", "-t", "test", "--ci"}, false},
+		{"true", []string{"run", "-t", "test"}, false},
+		{"false", []string{"run", "-t", "test"}, true},
+	} {
+		t.Setenv("CI", c.env)
+		rec := &recorder{}
+		code, _, errOut := runWith(rec, append([]string{"--root", dir}, c.args...)...)
+		if code != 0 {
+			t.Fatalf("CI=%q %v: exit %d, stderr %q", c.env, c.args, code, errOut)
+		}
+		if rec.ctx.Config.Test.Cache != c.cache {
+			t.Errorf("CI=%q %v: test.cache = %v, want %v", c.env, c.args, rec.ctx.Config.Test.Cache, c.cache)
+		}
+	}
+}
+
 func TestRunChangedRefusesABaseThatLooksLikeAnOption(t *testing.T) {
 	t.Setenv("CI", "")
 	dir := gitModule(t)

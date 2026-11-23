@@ -50,10 +50,15 @@ is the same (the package, every dependency, the Go version, the build flags such
 and a few more, listed by `go help test`); the coverage flags are among them, so a measured run is
 cached too. A failing result is never cached.
 
-`--no-cache` (one run) or `test.cache = false` (every run) reruns every test, uncached and in random
-order: `-shuffle=on -count=1`. go treats `-shuffle` as uncacheable, so the random order that finds a
-test depending on another's leftovers belongs to a forced run, not to every run. Use it for a
-nightly or release run that wants a fresh verdict.
+**CI runs are forced; local runs are cached.** A CI run (`--ci`, or a `CI` variable that is set and
+not `false` or `0`) reruns every test, uncached and in random order: `-shuffle=on -count=1`. It is
+the gate a protected branch moves on, so it keeps random order, which finds a test that depends on
+another's leftovers. go treats `-shuffle` as uncacheable, so a cached run cannot be shuffled: a
+local run is cached and in source order. `--no-cache` (one run) or `test.cache = false` (every run)
+forces a local run the same way, for a nightly or release run that wants a fresh verdict.
+
+A cached run fails, naming the flag, when `GOFLAGS` (including what `go env -w` set) holds `-count`
+or `-shuffle`: the run would claim the cache and silently not use it.
 
 What the cache sees, and what it cannot:
 
@@ -75,6 +80,12 @@ importers' tests run too, since a change can break them, but without `-race`, wh
 every importer for the race detector even where its result is cached. Coverage still counts what
 the importers' tests reach in the changed packages. A full or widened run tests every package under
 `-race`.
+
+What a narrowed run gives up for that: a data race that only an importer's tests exercise is not
+reported. That covers a race in the importer's own code, and a race in the changed code that the
+changed package's own tests never reach but an importer's tests do. Those tests still run and must
+pass; only the race detector is off for them. The full run, and every CI run, test every package
+under `-race` and catch such a race; a green `--changed` run says nothing about it.
 
 ## Identifiers
 

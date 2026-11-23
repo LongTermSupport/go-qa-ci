@@ -77,6 +77,11 @@ func TestAndMeasure(ctx context.Context, dir string, measured []string, plan Tes
 }
 
 func testAndMeasure(ctx context.Context, dir, scratch string, measured []string, plan TestPlan) (output string, passed bool, cov Coverage, err error) {
+	if !plan.Forced {
+		if err = cacheDefeated(ctx, dir); err != nil {
+			return "", false, Coverage{}, err
+		}
+	}
 	var combined strings.Builder
 	passed = true
 	var profiles []string

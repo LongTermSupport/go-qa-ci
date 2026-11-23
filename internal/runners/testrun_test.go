@@ -50,6 +50,25 @@ func TestTestFailsARedModuleAndKeepsTheOutput(t *testing.T) {
 	}
 }
 
+// A cacheable run whose GOFLAGS reruns every test would claim the cache and silently not use it:
+// it is an error naming the flag. A forced run reruns anyway, so GOFLAGS cannot mislead it.
+func TestACacheableRunRefusesGOFLAGSThatRerunEveryTest(t *testing.T) {
+	dir := module(t, map[string]string{"f.go": passingSource})
+	for _, flags := range []string{"-count=1", "-shuffle=on", "-race --count 2"} {
+		t.Setenv("GOFLAGS", flags)
+		if _, _, err := runners.Test(ctx(), dir, runners.TestPlan{}); err == nil || !strings.Contains(err.Error(), "GOFLAGS") {
+			t.Errorf("GOFLAGS=%q: got %v", flags, err)
+		}
+		if _, _, _, err := runners.TestAndMeasure(ctx(), dir, nil, runners.TestPlan{}); err == nil || !strings.Contains(err.Error(), "GOFLAGS") {
+			t.Errorf("GOFLAGS=%q, measured: got %v", flags, err)
+		}
+	}
+	t.Setenv("GOFLAGS", "-count=1")
+	if output, passed, err := runners.Test(ctx(), dir, runners.TestPlan{Forced: true}); err != nil || !passed {
+		t.Errorf("a forced run: got %q, %v, %v", output, passed, err)
+	}
+}
+
 // The opt-out: a forced run reruns every test, shuffled, however recently it passed.
 func TestAForcedRunRerunsShuffledTestsThatAreCached(t *testing.T) {
 	dir := module(t, runProbe(true, true))

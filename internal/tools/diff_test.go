@@ -149,7 +149,8 @@ func TestDiffTestRunsTheRaceDetectorOnTheChangedPackagesOnly(t *testing.T) {
 	}
 }
 
-// The full run, and a run with the test cache switched off, keep the race detector everywhere.
+// Guard, not a red-first defence (it passed before the change too): the full run keeps the race
+// detector on every package, so narrowing -race in diff mode never reaches it.
 func TestFullTestRunsTheRaceDetectorEverywhere(t *testing.T) {
 	root := diffProject(t, raceProbe("mid", false))
 	exec, stderr := narrowed(t, root)

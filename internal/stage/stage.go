@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/LongTermSupport/go-qa-ci/internal/glob"
+	"github.com/LongTermSupport/go-qa-ci/internal/gotest"
 	"github.com/LongTermSupport/go-qa-ci/internal/pipeline"
 )
 
@@ -102,27 +103,46 @@ func (s Stage) FullOnly() bool {
 	return s.When == WhenFull
 }
 
-// goTestRerunFlags are the go test flags that make go rerun a test whose inputs did not change:
-// -count with any value, and -shuffle, which go never caches. Each is matched with one or two
-// leading dashes and, after -args, with the test binary's own test. prefix.
-var goTestRerunFlags = []string{"count", "shuffle", "test.count", "test.shuffle"}
+// goFlagsVar is the environment variable whose flags every go command applies.
+const goFlagsVar = "GOFLAGS="
 
-// forcesGoTestRerun reports the first argument of command that makes `go test` rerun cached
-// tests, if command is a go test run.
+// forcesGoTestRerun reports the flag that makes a `go test` command rerun cached tests (-count or
+// -shuffle, gotest.RerunFlag), if command is a go test run. It reads `go test ...`, `go -C dir
+// test ...` and either of those behind `env NAME=value ...`, whose GOFLAGS is read too.
 func forcesGoTestRerun(command []string) (string, bool) {
-	if len(command) < 2 || path.Base(filepath.ToSlash(command[0])) != "go" || command[1] != "test" {
+	var goFlags []string
+	for len(command) > 0 && (path.Base(filepath.ToSlash(command[0])) == "env" || isAssignment(command[0])) {
+		if value, found := strings.CutPrefix(command[0], goFlagsVar); found {
+			goFlags = strings.Fields(value)
+		}
+		command = command[1:]
+	}
+	if len(command) < 2 || path.Base(filepath.ToSlash(command[0])) != "go" {
 		return "", false
 	}
-	for _, arg := range command[2:] {
-		name := strings.TrimLeft(arg, "-")
-		if i := strings.IndexByte(name, '='); i >= 0 {
-			name = name[:i]
-		}
-		if strings.HasPrefix(arg, "-") && slices.Contains(goTestRerunFlags, name) {
-			return arg, true
-		}
+	command = command[1:]
+	switch {
+	case command[0] == "-C" && len(command) > 2:
+		command = command[2:]
+	case strings.HasPrefix(command[0], "-C="):
+		command = command[1:]
+	}
+	if len(command) == 0 || command[0] != "test" {
+		return "", false
+	}
+	if flag, found := gotest.RerunFlag(command[1:]); found {
+		return flag, true
+	}
+	if flag, found := gotest.RerunFlag(goFlags); found {
+		return goFlagsVar + flag, true
 	}
 	return "", false
+}
+
+// isAssignment reports whether arg is an env-style NAME=value assignment.
+func isAssignment(arg string) bool {
+	name, _, found := strings.Cut(arg, "=")
+	return found && name != "" && !strings.HasPrefix(name, "-")
 }
 
 // PhaseOf is the phase the stage runs in.

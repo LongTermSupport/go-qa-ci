@@ -55,8 +55,10 @@ still skips it. The default, `when = "always"`, runs the stage in every run.
 A stage whose `command` or `files_command` is `go test` with a flag that makes go rerun tests the
 test cache already holds (`-count`, with any value, or `-shuffle`, also as `-test.count` or
 `-test.shuffle` after `-args`) is rejected unless it says `when = "full"`: forcing a rerun is the
-job of a full run, never of every iteration. The check reads the argument vector only: `go test`
-started through a shell or a script is not seen.
+job of a full run, never of every iteration. The check reads `go test ...`, `go -C <dir> test ...`
+and either behind `env NAME=value ...`, whose `GOFLAGS` it reads too. It reads the argument vector
+only: `go test` started through a shell or a script is not seen. A `GOFLAGS` in go-qa's own
+environment is judged by the `test` step itself (docs/runners.md).
 
 ## Files
 
