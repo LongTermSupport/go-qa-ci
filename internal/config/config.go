@@ -35,6 +35,8 @@ type Config struct {
 	Record RecordPolicy `toml:"record"`
 	// Coverage configures the coverage gate.
 	Coverage Coverage `toml:"coverage"`
+	// Test configures how the test step runs the tests.
+	Test Test `toml:"test"`
 	// Tools holds one switch per tool.
 	Tools Tools `toml:"tools"`
 	// AstGrep configures the ast-grep detector.
@@ -157,6 +159,13 @@ type Coverage struct {
 	FailUnderStatements int `toml:"fail_under_statements"`
 }
 
+// Test configures how the test and coverage steps run the tests.
+type Test struct {
+	// Cache lets Go answer a test whose inputs did not change from its test cache. False reruns
+	// every test, uncached and shuffled, as `go-qa run --no-cache` does for one run.
+	Cache bool `toml:"cache"`
+}
+
 // Mutants configures mutation testing.
 type Mutants struct {
 	// Mode selects which code is mutated.
@@ -234,6 +243,7 @@ func Default() Config {
 		},
 		AstGrep:  AstGrep{Bundled: true},
 		Coverage: Coverage{FailUnderStatements: 80},
+		Test:     Test{Cache: true},
 		Mutants:  Mutants{Mode: MutantsOff, Base: "origin/main", ThresholdEfficacy: 100},
 	}
 }

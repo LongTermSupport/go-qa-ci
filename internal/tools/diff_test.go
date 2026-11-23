@@ -116,6 +116,49 @@ func TestDiffTestRunsAnImporterOfTheChangedPackage(t *testing.T) {
 	}
 }
 
+// raceProbe makes package pkg's test fail unless the race detector is on (want) or off.
+func raceProbe(pkg string, want bool) map[string]string {
+	verdict := "!raceEnabled"
+	if !want {
+		verdict = "raceEnabled"
+	}
+	return map[string]string{
+		pkg + "/race_on_test.go":  "//go:build race\n\npackage " + pkg + "\n\nconst raceEnabled = true\n",
+		pkg + "/race_off_test.go": "//go:build !race\n\npackage " + pkg + "\n\nconst raceEnabled = false\n",
+		pkg + "/probe_test.go":    "package " + pkg + "\n\nimport \"testing\"\n\nfunc TestRaceDetector(t *testing.T) {\n\tif " + verdict + " {\n\t\tt.Errorf(\"race detector on = %v\", raceEnabled)\n\t}\n}\n",
+	}
+}
+
+// Defence for the class "a QA runner makes Go redo work whose inputs did not change": a narrowed
+// run spends the race detector on the changed package only; its importer's tests run without it.
+func TestDiffTestRunsTheRaceDetectorOnTheChangedPackagesOnly(t *testing.T) {
+	probes := raceProbe("leaf", true)
+	for name, content := range raceProbe("mid", false) {
+		probes[name] = content
+	}
+	root := diffProject(t, probes)
+	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})
+	for _, shared := range []bool{false, true} {
+		exec, stderr := narrowed(t, root)
+		if shared {
+			exec.Shared = tools.NewMeasurements()
+		}
+		if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindPassed {
+			t.Errorf("shared=%v: the changed package runs with -race and its importer without: %+v\n%s", shared, out, stderr)
+		}
+	}
+}
+
+// The full run, and a run with the test cache switched off, keep the race detector everywhere.
+func TestFullTestRunsTheRaceDetectorEverywhere(t *testing.T) {
+	root := diffProject(t, raceProbe("mid", false))
+	exec, stderr := narrowed(t, root)
+	exec.Ctx.Diff = nil
+	if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindFailed || !strings.Contains(stderr.String(), "race detector on = true") {
+		t.Errorf("a full run must test every package under -race: %+v\n%s", out, stderr)
+	}
+}
+
 func TestDiffGolangciLintsTheChangedPackagesAndImportersOnly(t *testing.T) {
 	root := diffProject(t, map[string]string{"other/other.go": otherUnsafe})
 	put(t, root, map[string]string{"leaf/leaf.go": leafChanged})

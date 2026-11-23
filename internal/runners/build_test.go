@@ -29,7 +29,7 @@ func TestBuildPassesAModuleWhoseProductionFilesStandAlone(t *testing.T) {
 func TestBuildFailsAProductionFileThatCallsATestOnlyHelperAndNamesThePackage(t *testing.T) {
 	dir := module(t, map[string]string{"lib/lib.go": libUsingHelper, "lib/lib_test.go": libTestHelper})
 	// The tests of this package compile and pass, which is why the other gates are blind to it.
-	if testOutput, passed, err := runners.Test(ctx(), dir); err != nil || !passed {
+	if testOutput, passed, err := runners.Test(ctx(), dir, runners.TestPlan{}); err != nil || !passed {
 		t.Fatalf("the fixture must pass its own tests: %q, %v, %v", testOutput, passed, err)
 	}
 	output, ok, err := runners.Build(ctx(), dir)

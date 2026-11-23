@@ -113,6 +113,21 @@ func TestRunTellsTheExecutorWhichToolsWereSelected(t *testing.T) {
 	}
 }
 
+func TestRunNoCacheSwitchesTheTestCacheOffForThatRun(t *testing.T) {
+	t.Setenv("CI", "")
+	dir := gitModule(t)
+	for _, args := range [][]string{{"run", "-t", "test"}, {"run", "-t", "test", "--no-cache"}} {
+		rec := &recorder{}
+		code, _, errOut := runWith(rec, append([]string{"--root", dir}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d, stderr %q", args, code, errOut)
+		}
+		if want := !slices.Contains(args, "--no-cache"); rec.ctx.Config.Test.Cache != want {
+			t.Errorf("%v: test.cache = %v, want %v", args, rec.ctx.Config.Test.Cache, want)
+		}
+	}
+}
+
 func TestRunChangedRefusesABaseThatLooksLikeAnOption(t *testing.T) {
 	t.Setenv("CI", "")
 	dir := gitModule(t)

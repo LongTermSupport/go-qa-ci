@@ -181,6 +181,23 @@ func TestCoverageAloneStillMeasuresItself(t *testing.T) {
 	}
 }
 
+// shuffleProbe fails unless the tests run in random order (-shuffle=on).
+const shuffleProbe = "package fixture\n\nimport (\n\t\"flag\"\n\t\"testing\"\n)\n\nfunc TestShuffled(t *testing.T) {\n" +
+	"\tif got := flag.Lookup(\"test.shuffle\").Value.String(); got != \"on\" {\n\t\tt.Errorf(\"-shuffle=%s\", got)\n\t}\n}\n"
+
+// The cache is on by default; test.cache = false is the opt-out, and reruns every test shuffled.
+func TestTestCacheOffRerunsEveryTestShuffled(t *testing.T) {
+	for _, cache := range []bool{true, false} {
+		exec, stderr := executorFor(t, "")
+		exec.Ctx.Config.Test.Cache = cache
+		project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": shuffleProbe})
+		out := exec.Run(stepNamed(t, "test"))
+		if passed := out.Kind == pipeline.KindPassed; passed == cache {
+			t.Errorf("cache=%v: got %+v, %q", cache, out, stderr)
+		}
+	}
+}
+
 func TestUntidyGoModFailsMod(t *testing.T) {
 	exec, stderr := executorFor(t, "")
 	project(t, exec, map[string]string{

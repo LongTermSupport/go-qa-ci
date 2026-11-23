@@ -9,7 +9,7 @@ import (
 )
 
 // Measurements carry the coverage the test step measured to the coverage step, so one go test run
-// (race detector, shuffled, uncached, counting statements) feeds both verdicts and the coverage
+// (the test step's own plan, counting statements) feeds both verdicts and the coverage
 // figure describes the very run the test step vouched for.
 type Measurements struct {
 	byModule map[string]runners.Coverage

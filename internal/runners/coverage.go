@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 )
 
 const (
 	profileName  = "cover.out"
+	profileMode  = 0o600
 	totalPrefix  = "total:"
 	percentSign  = "%"
 	zeroCoverage = 0.0
@@ -43,8 +43,8 @@ type Coverage struct {
 // MeasureCoverage runs the module's tests in dir exactly as the test step does (TestAndMeasure)
 // and returns the coverage; tests that did not pass are a TestsFailedError, since nothing was
 // measured.
-func MeasureCoverage(ctx context.Context, dir string, measured []string, packages ...string) (Coverage, error) {
-	output, passed, cov, err := TestAndMeasure(ctx, dir, measured, packages...)
+func MeasureCoverage(ctx context.Context, dir string, measured []string, plan TestPlan) (Coverage, error) {
+	output, passed, cov, err := TestAndMeasure(ctx, dir, measured, plan)
 	if err != nil {
 		return Coverage{}, err
 	}
@@ -54,38 +54,50 @@ func MeasureCoverage(ctx context.Context, dir string, measured []string, package
 	return cov, nil
 }
 
-// TestAndMeasure is the one test run of the gate: the module's tests in dir with the race
-// detector, shuffled and uncached, counting statements across every package (atomic mode, which
-// is correct under the race detector). The same run supplies the test verdict (passed, with output
-// everything go test printed) and the coverage, which is zero and meaningless when the tests did
-// not pass. Given package patterns, it tests only those packages. measured names the packages
-// whose statements are counted; none means the tested packages, so a narrowed run can test the
+// TestAndMeasure is the one test run of the gate: the module's tests in dir as the plan says
+// (TestPlan: cacheable unless forced), counting statements in atomic mode, which is correct under
+// the race detector. The same run supplies the test verdict (passed, with output everything go
+// test printed) and the coverage, which is zero and meaningless when the tests did not pass. Each
+// batch writes its own profile and the profiles are read together. measured names the packages
+// whose statements are counted; none means every package, so a narrowed run can test the
 // importers of a change, whose tests may reach it, and count only the changed code.
-func TestAndMeasure(ctx context.Context, dir string, measured []string, packages ...string) (output string, passed bool, cov Coverage, err error) {
+func TestAndMeasure(ctx context.Context, dir string, measured []string, plan TestPlan) (output string, passed bool, cov Coverage, err error) {
 	scratch, err := os.MkdirTemp("", "go-qa-coverage-")
 	if err != nil {
 		return "", false, Coverage{}, fmt.Errorf("creating a coverage directory: %w", err)
 	}
-	tested := orAll(packages)
 	if len(measured) == 0 {
-		measured = tested
+		measured = []string{AllPackages}
 	}
-	output, passed, cov, err = testAndMeasure(ctx, dir, filepath.Join(scratch, profileName), measured, tested)
+	output, passed, cov, err = testAndMeasure(ctx, dir, scratch, measured, plan)
 	if removeErr := os.RemoveAll(scratch); removeErr != nil && err == nil {
 		err = fmt.Errorf("removing %s: %w", scratch, removeErr)
 	}
 	return output, passed, cov, err
 }
 
-func testAndMeasure(ctx context.Context, dir, profile string, measured, packages []string) (output string, passed bool, cov Coverage, err error) {
-	args := slices.Concat(testFlags, []string{"-covermode=atomic", "-coverpkg=" + strings.Join(measured, ","), "-coverprofile=" + profile}, packages)
-	tests, err := Capture(ctx, dir, goBinary, args...)
-	if err != nil {
+func testAndMeasure(ctx context.Context, dir, scratch string, measured []string, plan TestPlan) (output string, passed bool, cov Coverage, err error) {
+	var combined strings.Builder
+	passed = true
+	var profiles []string
+	for i, b := range plan.batches() {
+		profile := strconv.Itoa(i) + "-" + profileName
+		cover := []string{"-covermode=atomic", "-coverpkg=" + strings.Join(measured, ","), "-coverprofile=" + filepath.Join(scratch, profile)}
+		tests, err := Capture(ctx, dir, goBinary, plan.args(b, cover...)...)
+		if err != nil {
+			return "", false, Coverage{}, err
+		}
+		combined.WriteString(tests.Combined())
+		passed = passed && tests.Code == 0
+		profiles = append(profiles, profile)
+	}
+	if !passed {
+		return combined.String(), false, Coverage{}, nil
+	}
+	if err = mergeProfiles(scratch, profileName, profiles); err != nil {
 		return "", false, Coverage{}, err
 	}
-	if tests.Code != 0 {
-		return tests.Combined(), false, Coverage{}, nil
-	}
+	profile := filepath.Join(scratch, profileName)
 	report, err := Capture(ctx, dir, goBinary, "tool", "cover", "-func="+profile)
 	if err != nil {
 		return "", false, Coverage{}, err
@@ -101,7 +113,40 @@ func testAndMeasure(ctx context.Context, dir, profile string, measured, packages
 	if err != nil {
 		return "", false, Coverage{}, err
 	}
-	return tests.Combined(), true, cov, nil
+	return combined.String(), true, cov, nil
+}
+
+// mergeProfiles writes the profiles of every batch, named in the scratch directory, into one
+// profile there called name: the first mode line, then every block line. A block listed by two
+// batches is summed by go tool cover and counted once by CountProfileStatements, as it already is
+// within one -coverpkg profile.
+func mergeProfiles(scratch, name string, parts []string) (err error) {
+	dir, err := os.OpenRoot(scratch)
+	if err != nil {
+		return fmt.Errorf("opening the coverage directory: %w", err)
+	}
+	defer func() {
+		if closeErr := dir.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("closing the coverage directory: %w", closeErr)
+		}
+	}()
+	var merged strings.Builder
+	for i, part := range parts {
+		data, err := dir.ReadFile(part)
+		if err != nil {
+			return fmt.Errorf("reading the coverage profile: %w", err)
+		}
+		for line := range strings.Lines(string(data)) {
+			if i > 0 && strings.HasPrefix(line, "mode:") {
+				continue
+			}
+			merged.WriteString(line)
+		}
+	}
+	if err = dir.WriteFile(name, []byte(merged.String()), profileMode); err != nil {
+		return fmt.Errorf("writing the coverage profile: %w", err)
+	}
+	return nil
 }
 
 // profileStatements is the number of coverable statements the profile at path holds.
