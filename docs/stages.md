@@ -41,8 +41,8 @@ command is the project's own committed configuration.
 
 Within a phase the built-in tools run first, in catalogue order, then the stages in declared order.
 A failed format or detector stage stops the run before the first runner, like any other
-(TOOLING-SPEC 4.5). A stage always runs on a default run; there is no `[tools]` switch for it, and
-`-t <name>` runs only it.
+(TOOLING-SPEC 4.5). A stage always runs on a default run, except a `when = "full"` stage in diff mode
+(see "Full runs only"); there is no `[tools]` switch for it, and `-t <name>` runs only it.
 
 ## Full runs only
 
