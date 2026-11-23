@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -45,6 +46,7 @@ func setupGoCacheProblems(repo fs.FS, name string, w workflow) []string {
 			}
 		}
 	}
+	slices.Sort(problems)
 	return problems
 }
 
