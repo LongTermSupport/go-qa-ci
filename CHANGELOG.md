@@ -10,6 +10,16 @@ Changes that alter what a consuming project sees. The version is the release tag
   `go-qa: test: passed in 41.2s`, on stderr as the run goes, and a `go-qa stage times:` table with
   the total at the end. A long CI run now shows where its time went.
 
+- **The test step prints its 10 slowest packages and 10 slowest tests** to stderr after it has run,
+  with their elapsed times, from `go test -json`. The tests' own output, and a failure's text, are
+  rebuilt from the JSON and read as before.
+- **Documented: what a diff run does.** `--changed` tests the changed packages and, transitively,
+  every package of the module that imports one (`-race` on the changed ones only); a change to
+  `go.mod`, `go.sum`, `go.work`, `tools.lock`, the golangci configuration, the project record, the
+  go-qa configuration file or a configured rule source widens the run to every package. A
+  `when = "full"` stage never runs when `--changed` is given, widened or not. `CI=true` alone does
+  not select diff mode: without `--changed` a run is a full run and runs those stages.
+
 ### Changed
 
 - **The test step uses Go's test cache in local runs.** `go-qa run` without `--ci` runs

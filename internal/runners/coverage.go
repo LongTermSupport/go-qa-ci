@@ -85,6 +85,7 @@ func testAndMeasure(ctx context.Context, dir, scratch string, measured []string,
 	var combined strings.Builder
 	passed = true
 	var profiles []string
+	var timings Timings
 	for i, b := range plan.batches() {
 		profile := strconv.Itoa(i) + "-" + profileName
 		cover := []string{"-covermode=atomic", "-coverpkg=" + strings.Join(measured, ","), "-coverprofile=" + filepath.Join(scratch, profile)}
@@ -92,9 +93,14 @@ func testAndMeasure(ctx context.Context, dir, scratch string, measured []string,
 		if err != nil {
 			return "", false, Coverage{}, err
 		}
-		combined.WriteString(tests.Combined())
+		parsed := ParseTestJSON(tests.Stdout)
+		combined.WriteString(parsed.Text + tests.Stderr)
+		timings.add(parsed.Timings)
 		passed = passed && tests.Code == 0
 		profiles = append(profiles, profile)
+	}
+	if err = plan.report(timings); err != nil {
+		return "", false, Coverage{}, err
 	}
 	if !passed {
 		return combined.String(), false, Coverage{}, nil

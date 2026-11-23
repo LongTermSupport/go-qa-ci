@@ -48,7 +48,7 @@ func TestCoverageAtTheThresholdPasses(t *testing.T) {
 	exec, stderr := executorFor(t, "")
 	exec.Ctx.Config.Coverage.FailUnderStatements = 50
 	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": passingTest})
-	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed || hasFinding(stderr.String()) {
 		t.Errorf("got %+v, %q", out, stderr)
 	}
 }
@@ -84,7 +84,7 @@ func TestCoverageOfAScopeWithNoStatementsHasNothingToJudge(t *testing.T) {
 			steps = []string{"test", "coverage"}
 		}
 		for _, name := range steps {
-			if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+			if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || hasFinding(stderr.String()) {
 				t.Errorf("shared %v, %s: got %+v, %q", shared, name, out, stderr)
 			}
 		}
@@ -146,7 +146,7 @@ func TestTestAndCoverageStepsShareOneTestRun(t *testing.T) {
 	exec.Shared = tools.NewMeasurements()
 	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": countingTest})
 	for _, name := range []string{"test", "coverage"} {
-		if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+		if out := exec.Run(stepNamed(t, name)); out.Kind != pipeline.KindPassed || hasFinding(stderr.String()) {
 			t.Fatalf("%s: got %+v, %q", name, out, stderr)
 		}
 	}
@@ -173,7 +173,7 @@ func TestCoverageAloneStillMeasuresItself(t *testing.T) {
 	exec.Ctx.Config.Coverage.FailUnderStatements = 50
 	exec.Shared = tools.NewMeasurements()
 	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": countingTest})
-	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+	if out := exec.Run(stepNamed(t, "coverage")); out.Kind != pipeline.KindPassed || hasFinding(stderr.String()) {
 		t.Fatalf("got %+v, %q", out, stderr)
 	}
 	if runs := goTestRuns(t, exec.Ctx.Root); runs != 1 {
@@ -231,7 +231,7 @@ func TestTestFailureFailsTestWithItsOutput(t *testing.T) {
 func TestPassingTestsPass(t *testing.T) {
 	exec, stderr := executorFor(t, "")
 	project(t, exec, map[string]string{"go.mod": fixtureMod, "f.go": libSource, "f_test.go": passingTest})
-	if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindPassed || stderr.Len() != 0 {
+	if out := exec.Run(stepNamed(t, "test")); out.Kind != pipeline.KindPassed || hasFinding(stderr.String()) {
 		t.Errorf("got %+v, %q", out, stderr)
 	}
 }
@@ -389,3 +389,6 @@ func TestBuildWithoutTheGoToolFailsTheStepWithTheReason(t *testing.T) {
 		t.Errorf("got %+v, %q", out, stderr)
 	}
 }
+
+// hasFinding reports whether stderr carries a finding; the timing report a passing test run prints is not one.
+func hasFinding(stderr string) bool { return strings.Contains(stderr, "error[") }
